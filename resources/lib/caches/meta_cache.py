@@ -1,6 +1,10 @@
+from ast import literal_eval
 from datetime import datetime, timedelta
 from caches import BaseCache, metacache_db, get_property, set_property, clear_property
 # from modules.kodi_utils import logger
+
+# Use literal_eval instead of eval for security - only evaluates literals, not arbitrary code
+safe_eval = literal_eval
 
 all_tables = ('metadata', 'season_metadata', 'function_cache')
 movie_show = ('movie', 'tvshow')
@@ -37,7 +41,7 @@ class MetaCache(BaseCache):
 				if media_type in movie_show: cache_data = self.dbcur.execute(GET_MOVIE_SHOW % id_type, (media_type, media_id)).fetchone()
 				else: cache_data = self.dbcur.execute(GET_SEASON, (media_id,)).fetchone()
 				if cache_data:
-					meta, expiry = eval(cache_data[0]), cache_data[1]
+					meta, expiry = safe_eval(cache_data[0]), cache_data[1]
 					if expiry < current_time:
 						fanarttv_data = self.make_fanart_dict(meta)
 						self.delete(media_type, id_type, media_id, meta=meta, dbcon=None)
@@ -77,7 +81,7 @@ class MetaCache(BaseCache):
 			else: prop_string = 'pov_meta_season_%s' % media_id
 			cachedata = get_property(prop_string)
 			if cachedata:
-				cachedata = eval(cachedata)
+				cachedata = safe_eval(cachedata)
 				if cachedata[0] > current_time: result = cachedata[1]
 		except: pass
 		return result
@@ -102,7 +106,7 @@ class MetaCache(BaseCache):
 			current_time = self._get_timestamp(datetime.now())
 			self.dbcur.execute(GET_FUNCTION, (prop_string,))
 			cache_data = self.dbcur.fetchone()
-			if cache_data and cache_data[2] > current_time: result = eval(cache_data[1])
+			if cache_data and cache_data[2] > current_time: result = safe_eval(cache_data[1])
 			else: self.dbcur.execute(DELETE_FUNCTION, (prop_string,))
 		except: pass
 		return result

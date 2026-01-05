@@ -125,7 +125,8 @@ class SourceSelect:
 					self.disabled_ignored
 				)
 				self.activate_providers('external', Manager, False)
-			if self.providers: [i.join() for i in self.threads]
+			if self.providers:
+				for t in self.threads: t.join()
 		else: self.scrapers_dialog('internal')
 		self._kill_progress_dialog()
 		return self.sources
@@ -141,7 +142,8 @@ class SourceSelect:
 		self.prescrape_threads.extend(threads)
 		for i in self.prescrape_threads: i.start()
 		self.remove_scrapers.extend(i[2] for i in self.prescrape_scrapers)
-		if self.background: [i.join() for i in self.prescrape_threads]
+		if self.background:
+			for t in self.prescrape_threads: t.join()
 		else: self.scrapers_dialog('pre_scrape')
 		self._kill_progress_dialog()
 		return self.prescrape_sources
@@ -156,11 +158,53 @@ class SourceSelect:
 		else:
 			results = self.filter_results(results)
 			results = self.sort_results(results)
-			results = self._special_filter(results, hevc_filter_key, self.filter_hevc)
-			results = self._special_filter(results, hdr_filter_key, self.filter_hdr)
-			results = self._special_filter(results, dolby_vision_filter_key, self.filter_dv)
-			results = self._special_filter(results, av1_filter_key, self.filter_av1)
+			# Combine exclusion filters (setting == 1) into a single pass for performance
+			results = self._apply_special_filters(results)
 			results = self._sort_first(results)
+		return results
+
+	def _apply_special_filters(self, results):
+		"""Apply all special filters in optimized passes - combines exclusions into single pass."""
+		# Build list of keys to exclude (setting == 1)
+		exclude_keys = []
+		if self.filter_hevc == 1: exclude_keys.append(hevc_filter_key)
+		if self.filter_hdr == 1: exclude_keys.append(hdr_filter_key)
+		if self.filter_av1 == 1: exclude_keys.append(av1_filter_key)
+
+		# Handle dolby vision special case (can have hybrid with HDR)
+		dv_exclude = self.filter_dv == 1
+
+		# Single pass for all exclusions
+		if exclude_keys or dv_exclude:
+			filtered = []
+			for item in results:
+				extra_info = item['extraInfo']
+				# Check regular exclusions
+				if any(key in extra_info for key in exclude_keys):
+					continue
+				# Check dolby vision with hybrid allowance
+				if dv_exclude:
+					if dolby_vision_filter_key in extra_info:
+						if not (self.hybrid_allowed and hdr_filter_key in extra_info):
+							continue
+				filtered.append(item)
+			results = filtered
+
+		# Apply priority sorting filters (setting == 2 or 3) - these need separate passes
+		# as they reorder rather than filter
+		for key, setting in [
+			(hevc_filter_key, self.filter_hevc),
+			(hdr_filter_key, self.filter_hdr),
+			(dolby_vision_filter_key, self.filter_dv),
+			(av1_filter_key, self.filter_av1)
+		]:
+			if setting == 2 and self.autoplay:
+				priority_list = [i for i in results if key in i['extraInfo']]
+				remainder_list = [i for i in results if not i in priority_list]
+				results = priority_list + remainder_list
+			elif setting == 3:
+				results.sort(key=lambda k: key in k['extraInfo'] and not 'Uncached' in k.get('cache_provider', ''), reverse=True)
+
 		return results
 
 	def prepare_internal_scrapers(self):

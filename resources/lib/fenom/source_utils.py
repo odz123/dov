@@ -9,6 +9,71 @@ from fenom import cleantitle
 from fenom.undesirables import Undesirables
 from fenom.control import homeWindow, setting as getSetting, setSetting
 
+# Pre-compiled regex patterns for performance (compiled once at module load)
+RE_YEAR_PARENS = re.compile(r'([(])(?=((19|20)[0-9]{2})).*?([)])')
+RE_RESOLUTION = re.compile(r'2160p|216op|4k|1080p|1o8op|108op|1o80p|720p|72op|480p|48op', re.I)
+
+# Episode range patterns for check_title
+RE_RANGE_PATTERNS = tuple(re.compile(p, re.I) for p in (
+	r's\d{1,3}e\d{1,3}[-.]e\d{1,3}',
+	r's\d{1,3}e\d{1,3}[-.]\d{1,3}(?!p|bit|gb)(?!\d{1,3})',
+	r's\d{1,3}[-.]e\d{1,3}[-.]e\d{1,3}',
+	r'season[.-]?\d{1,3}[.-]?ep[.-]?\d{1,3}[-.]ep[.-]?\d{1,3}',
+	r'season[.-]?\d{1,3}[.-]?episode[.-]?\d{1,3}[-.]episode[.-]?\d{1,3}'
+))
+
+# Episode patterns for filter_season_pack (single episode detection)
+RE_EPISODE_PATTERNS = tuple(re.compile(p) for p in (
+	r's\d{1,3}e\d{1,3}[-.](?!\d{2,3}[-.])(?!e\d{1,3})(?!\d{2}gb)',
+	r'season[.-]?\d{1,3}[.-]?ep[.-]?\d{1,3}[-.](?!\d{2,3}[-.])(?!e\d{1,3})(?!\d{2}gb)',
+	r'season[.-]?\d{1,3}[.-]?episode[.-]?\d{1,3}[-.](?!\d{2,3}[-.])(?!e\d{1,3})(?!\d{2}gb)'
+))
+
+# Episode range patterns for filter_season_pack (multi-episode detection)
+RE_SEASON_RANGE_PATTERNS = tuple(re.compile(p) for p in (
+	r's\d{1,3}e(\d{1,3})[-.]e(\d{1,3})',
+	r's\d{1,3}e(\d{1,3})[-.](\d{1,3})(?!p|bit|gb)(?!\d{1,3})',
+	r's\d{1,3}[-.]e(\d{1,3})[-.]e(\d{1,3})',
+	r'season[.-]?\d{1,3}[.-]?ep[.-]?(\d{1,3})[-.]ep[.-]?(\d{1,3})',
+	r'season[.-]?\d{1,3}[.-]?episode[.-]?(\d{1,3})[-.]episode[.-]?(\d{1,3})'
+))
+
+# Single episode patterns for filter_show_pack
+RE_SHOW_EPISODE_PATTERNS = tuple(re.compile(p) for p in (
+	r's\d{1,3}e\d{1,3}',
+	r's[0-3]{1}[0-9]{1}[.-]e\d{1,2}',
+	r's\d{1,3}[.-]\d{1,3}e\d{1,3}',
+	r'season[.-]?\d{1,3}[.-]?ep[.-]?\d{1,3}',
+	r'season[.-]?\d{1,3}[.-]?episode[.-]?\d{1,3}'
+))
+
+# Season range patterns for filter_show_pack
+RE_SHOW_SEASON_RANGE = re.compile(
+	r'(?:season|seasons|s)[.-]?(?:0?[2-9]{1}|[1-3]{1}[0-9]{1})(?:[.-]?to[.-]?|[.-]?thru[.-]?|[.-])(?:season|seasons|s|)[.-]?(?:0?[3-9]{1}(?!\d{2}p)|[1-3]{1}[0-9]{1}(?!\d{2}p))'
+)
+
+# Single season patterns for filter_show_pack (pre-compiled tuple)
+RE_SINGLE_SEASON_PATTERNS = tuple(re.compile(p) for p in (
+	r'season[.-]?([1-9]{1})[.-]0{1}\1[.-]?complete',
+	r'season[.-]?([2-9]{1})[.-](?:[0-9]+)[.-]?complete',
+	r'season[.-]?\d{1,2}[.-]s\d{1,2}',
+	r'season[.-]?\d{1,2}[.-]complete',
+	r'season[.-]?\d{1,2}[.-]\d{3,4}p{0,1}',
+	r'season[.-]?\d{1,2}[.-](?!thru|to|\d{1,2}[.-])',
+	r'season[.-]?\d{1,2}[.]?$',
+	r'season[.-]?\d{1,2}[.-](?:19|20)[0-9]{2}',
+	r'season[.-]?\d{1,2}[.-]\d{3}[.-]{1,2}(?:19|20)[0-9]{2}',
+	r'(?<!thru)(?<!to)(?<!\d{2})[.-]s\d{2}[.-]complete',
+	r'(?<!thru)(?<!to)(?<!s\d{2})[.-]s\d{2}(?![.-]thru)(?![.-]to)(?![.-]s\d{2})(?![.-]\d{2}[.-])'
+))
+
+# Pre-compile spelled-out season patterns (generated once)
+RE_SPELLED_SEASON_PATTERNS = tuple(
+	re.compile(p) for p in
+	[r'complete[.-]%s[.-]season' % x for x in ('first', 'second', 'third', 'fourth', 'fifth', 'sixth', 'seventh', 'eighth', 'ninth', 'tenth', 'eleventh', 'twelfth', 'thirteenth', 'fourteenth', 'fifteenth', 'sixteenth', 'seventeenth', 'eighteenth', 'nineteenth', 'twentieth', 'twenty-first', 'twenty-second', 'twenty-third', 'twenty-fourth', 'twenty-fifth')] +
+	[r'complete[.-]%s[.-]season' % x for x in ('1st', '2nd', '3rd', '4th', '5th', '6th', '7th', '8th', '9th', '10th', '11th', '12th', '13th', '14th', '15th', '16th', '17th', '18th', '19th', '20th', '21st', '22nd', '23rd', '24th', '25th')] +
+	[r'season[.-]%s' % x for x in ('one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eigh', 'nine', 'ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen', 'twenty', 'twenty-one', 'twenty-two', 'twenty-three', 'twenty-four', 'twenty-five')]
+)
 
 RES_4K = ('2160', '216o', '.4k', 'ultrahd', 'ultra.hd', '.uhd.')
 RES_1080 = ('1080', '1o8o', '108o', '1o80', '.fhd.')
@@ -132,7 +197,7 @@ def aliases_to_array(aliases, filter=None):
 def check_title(title, aliases, release_title, hdlr, year, years=None): # non pack file title check, single eps and movies
 	if years: # for movies only, scraper to pass None for episodes
 		if not any(value in release_title for value in years): return False
-	else: 
+	else:
 		if not re.search(r'%s' % hdlr, release_title, re.I): return False
 	aliases = aliases_to_array(aliases)
 	title_list = []
@@ -152,23 +217,17 @@ def check_title(title, aliases, release_title, hdlr, year, years=None): # non pa
 		title = title.replace('&', 'and')
 		if title not in title_list: title_list_append(title)
 
-		release_title = re.sub(r'([(])(?=((19|20)[0-9]{2})).*?([)])', '\\2', release_title) #remove parenthesis only if surrounding a 4 digit date
+		release_title = RE_YEAR_PARENS.sub('\\2', release_title) #remove parenthesis only if surrounding a 4 digit date
 		t = re.split(r'%s' % hdlr, release_title, 1, re.I)[0].replace(year, '').replace('&', 'and')
 		if years:
 			for i in years: t = t.split(i)[0]
-		t = re.split(r'2160p|216op|4k|1080p|1o8op|108op|1o80p|720p|72op|480p|48op', t, 1, re.I)[0]
+		t = RE_RESOLUTION.split(t, 1)[0]
 		if all(cleantitle.get(i) != cleantitle.get(t) for i in title_list): return False
 
 # filter to remove episode ranges that should be picked up in "filter_season_pack()" ex. "s01e01-08"
 		if hdlr != year: # equal for movies but not for shows
-			range_regex = (
-					r's\d{1,3}e\d{1,3}[-.]e\d{1,3}',
-					r's\d{1,3}e\d{1,3}[-.]\d{1,3}(?!p|bit|gb)(?!\d{1,3})',
-					r's\d{1,3}[-.]e\d{1,3}[-.]e\d{1,3}',
-					r'season[.-]?\d{1,3}[.-]?ep[.-]?\d{1,3}[-.]ep[.-]?\d{1,3}',
-					r'season[.-]?\d{1,3}[.-]?episode[.-]?\d{1,3}[-.]episode[.-]?\d{1,3}') # may need to add "to", "thru"
-			for regex in range_regex:
-				if bool(re.search(regex, release_title, re.I)): return False
+			for pattern in RE_RANGE_PATTERNS:
+				if pattern.search(release_title): return False
 		return True
 	except:
 		from fenom import log_utils
@@ -227,25 +286,13 @@ def filter_season_pack(show_title, aliases, year, season, release_title):
 		if all(cleantitle.get(x) != cleantitle.get(t) for x in title_list): return False, 0, 0
 
 # remove single episodes ONLY (returned in single ep scrape), keep episode ranges as season packs
-		episode_regex = (
-				r's\d{1,3}e\d{1,3}[-.](?!\d{2,3}[-.])(?!e\d{1,3})(?!\d{2}gb)',
-				r'season[.-]?\d{1,3}[.-]?ep[.-]?\d{1,3}[-.](?!\d{2,3}[-.])(?!e\d{1,3})(?!\d{2}gb)',
-				r'season[.-]?\d{1,3}[.-]?episode[.-]?\d{1,3}[-.](?!\d{2,3}[-.])(?!e\d{1,3})(?!\d{2}gb)')
-		for item in episode_regex:
-			if bool(re.search(item, release_title)): return False, 0, 0
+		for pattern in RE_EPISODE_PATTERNS:
+			if pattern.search(release_title): return False, 0, 0
 
 # return and identify episode ranges
-		range_regex = (
-				r's\d{1,3}e(\d{1,3})[-.]e(\d{1,3})',
-				r's\d{1,3}e(\d{1,3})[-.](\d{1,3})(?!p|bit|gb)(?!\d{1,3})',
-				r's\d{1,3}[-.]e(\d{1,3})[-.]e(\d{1,3})',
-				r'season[.-]?\d{1,3}[.-]?ep[.-]?(\d{1,3})[-.]ep[.-]?(\d{1,3})',
-				r'season[.-]?\d{1,3}[.-]?episode[.-]?(\d{1,3})[-.]episode[.-]?(\d{1,3})') # may need to add "to", "thru"
-		for regex in range_regex:
-			match = re.search(regex, release_title)
+		for pattern in RE_SEASON_RANGE_PATTERNS:
+			match = pattern.search(release_title)
 			if match:
-				# from fenom import log_utils
-				# log_utils.log('pack episode range found -- > release_title=%s' % release_title)
 				episode_start = int(match.group(1))
 				episode_end = int(match.group(2))
 				return True, episode_start, episode_end
@@ -299,49 +346,22 @@ def filter_show_pack(show_title, aliases, imdb, year, season, release_title, tot
 		if all(cleantitle.get(x) != cleantitle.get(t) for x in title_list): return False, 0
 
 # remove single episodes(returned in single ep scrape)
-		episode_regex = (
-				r's\d{1,3}e\d{1,3}',
-				r's[0-3]{1}[0-9]{1}[.-]e\d{1,2}',
-				r's\d{1,3}[.-]\d{1,3}e\d{1,3}',
-				r'season[.-]?\d{1,3}[.-]?ep[.-]?\d{1,3}',
-				r'season[.-]?\d{1,3}[.-]?episode[.-]?\d{1,3}')
-		for item in episode_regex:
-			if bool(re.search(item, release_title)):
+		for pattern in RE_SHOW_EPISODE_PATTERNS:
+			if pattern.search(release_title):
 				return False, 0
 
 # remove season ranges that do not begin at 1
-		season_range_regex = (
-				r'(?:season|seasons|s)[.-]?(?:0?[2-9]{1}|[1-3]{1}[0-9]{1})(?:[.-]?to[.-]?|[.-]?thru[.-]?|[.-])(?:season|seasons|s|)[.-]?(?:0?[3-9]{1}(?!\d{2}p)|[1-3]{1}[0-9]{1}(?!\d{2}p))',) # seasons.5-6, seasons5.to.6, seasons.5.thru.6, season.2-9.s02-s09.1080p
-		for item in season_range_regex:
-			if bool(re.search(item, release_title)):
-				return False, 0
+		if RE_SHOW_SEASON_RANGE.search(release_title):
+			return False, 0
 
 # remove single seasons - returned in seasonPack scrape
-		season_regex = (
-				r'season[.-]?([1-9]{1})[.-]0{1}\1[.-]?complete', # "season.1.01.complete" when 2nd number matches the fiirst group with leading 0
-				r'season[.-]?([2-9]{1})[.-](?:[0-9]+)[.-]?complete', # "season.9.10.complete" when first number is >1 followed by 2 digit number
-				r'season[.-]?\d{1,2}[.-]s\d{1,2}', # season.02.s02
-				r'season[.-]?\d{1,2}[.-]complete', # season.02.complete
-				r'season[.-]?\d{1,2}[.-]\d{3,4}p{0,1}', # "season.02.1080p" and no seperator "season02.1080p"
-				r'season[.-]?\d{1,2}[.-](?!thru|to|\d{1,2}[.-])', # "season.02." or "season.1" not followed by "to", "thru", or another single or 2 digit number then a dot(which would be a range)
-				r'season[.-]?\d{1,2}[.]?$', # end of line ex."season.1", "season.01", "season01" can also have trailing dot or end of line(dash would be a range)
-				r'season[.-]?\d{1,2}[.-](?:19|20)[0-9]{2}', # single season followed by 4 digit year ex."season.1.1971", "season.01.1971", or "season01.1971"
-				r'season[.-]?\d{1,2}[.-]\d{3}[.-]{1,2}(?:19|20)[0-9]{2}', # single season followed by 3 digits then 4 digit year ex."season.1.004.1971" or "season.01.004.1971" (comic book format)
-				r'(?<!thru)(?<!to)(?<!\d{2})[.-]s\d{2}[.-]complete', # ".s01.complete" not preceded by "thru", "to", or 2 digit number
-				r'(?<!thru)(?<!to)(?<!s\d{2})[.-]s\d{2}(?![.-]thru)(?![.-]to)(?![.-]s\d{2})(?![.-]\d{2}[.-])' # .s02. not preceded by "thru", "to", or "s01". Not followed by ".thru", ".to", ".s02", "-s02", ".02.", or "-02."
-				)
-		for item in season_regex:
-			if bool(re.search(item, release_title)):
+		for pattern in RE_SINGLE_SEASON_PATTERNS:
+			if pattern.search(release_title):
 				return False, 0
 
-
 # remove spelled out single seasons
-		season_regex = ()
-		season_regex += tuple([r'complete[.-]%s[.-]season' % x for x in season_ordinal_list])
-		season_regex += tuple([r'complete[.-]%s[.-]season' % x for x in season_ordinal2_list])
-		season_regex += tuple([r'season[.-]%s' % x for x in season_list]) 
-		for item in season_regex:
-			if bool(re.search(item, release_title)):
+		for pattern in RE_SPELLED_SEASON_PATTERNS:
+			if pattern.search(release_title):
 				return False, 0
 
 

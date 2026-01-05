@@ -55,7 +55,22 @@ def get_progress_percent(resumetime, duration):
 	return percent
 
 def detect_bookmark(bookmarks, tmdb_id, season='', episode=''):
+	# Use dict lookup if bookmarks is already a dict, otherwise fall back to list scan
+	if isinstance(bookmarks, dict):
+		key = (str(tmdb_id), season, episode)
+		if key in bookmarks:
+			return bookmarks[key]
+		raise IndexError('Bookmark not found')
 	return [(i[1], i[2], i[5]) for i in bookmarks if i[0] == str(tmdb_id) and i[3] == season and i[4] == episode][0]
+
+def get_bookmarks_dict(watched_indicators, media_type):
+	"""Return bookmarks as a dict for O(1) lookups: {(media_id, season, episode): (resume_point, curr_time, resume_id)}"""
+	try:
+		dbcon = _database_connect(get_database(watched_indicators))
+		dbcur = set_PRAGMAS(dbcon)
+		result = dbcur.execute("""SELECT media_id, resume_point, curr_time, season, episode, resume_id FROM progress WHERE db_type = ?""", (media_type,))
+		return {(i[0], i[3], i[4]): (i[1], i[2], i[5]) for i in result.fetchall()}
+	except: return {}
 
 def get_bookmarks(watched_indicators, media_type):
 	try:
@@ -194,7 +209,7 @@ def get_in_progress_tvshows(dummy_arg, page_no, letter, paginate=None):
 	watched_info.sort(key=lambda x: (x[0], x[4]), reverse=True)
 	prelim_data = [{'media_id': i[0], 'title': i[3], 'last_played': i[4]} for i in watched_info if not (i[0] in duplicates or duplicates_add(i[0]))]
 	threads = list(make_thread_list(_process, prelim_data, Thread))
-	[i.join() for i in threads]
+	for t in threads: t.join()
 	if settings.lists_sort_order('progress') == 0: original_list = sort_for_article(data, 'title', settings.ignore_articles())
 	else: original_list = sorted(data, key=lambda x: x['last_played'], reverse=True)
 	if paginate: final_list, total_pages = paginate_list(original_list, page_no, letter, limit)
@@ -230,7 +245,7 @@ def get_watched_items(media_type, page_no, letter, paginate=None):
 		data_append = data.append
 		prelim_data = [{'media_id': i[0], 'title': i[3], 'last_played': i[4]} for i in watched_info if not (i[0] in duplicates or duplicates_add(i[0]))]
 		threads = list(make_thread_list(_process, prelim_data, Thread))
-		[i.join() for i in threads]
+		for t in threads: t.join()
 	else:
 		watched_info = get_watched_info_movie(watched_indicators)
 		data = [{'media_id': i[0], 'title': i[1], 'last_played': i[2]} for i in watched_info]
@@ -241,36 +256,75 @@ def get_watched_items(media_type, page_no, letter, paginate=None):
 	return final_list, total_pages
 
 def get_watched_status_movie(watched_info, tmdb_id):
+	"""Check if movie is watched. watched_info can be a set (O(1)) or list (O(n))."""
 	try:
+		if isinstance(watched_info, set):
+			return (1, 5) if tmdb_id in watched_info else (0, 4)
 		watched = [i for i in watched_info if i[0] == tmdb_id]
 		if watched: return 1, 5
 		return 0, 4
 	except: return 0, 4
 
 def get_watched_status_tvshow(watched_info, tmdb_id, aired_eps):
+	"""Check tvshow watched status. watched_info can be a dict {tmdb_id: count} (O(1)) or list (O(n))."""
 	playcount, overlay, watched, unwatched = 0, 4, 0, aired_eps
 	try:
-		watched = len([i for i in watched_info if i[0] == tmdb_id])
+		if isinstance(watched_info, dict):
+			watched = watched_info.get(tmdb_id, 0)
+		else:
+			watched = len([i for i in watched_info if i[0] == tmdb_id])
 		unwatched = aired_eps - watched
 		if watched >= aired_eps and not aired_eps == 0: playcount, overlay = 1, 5
 	except: pass
 	return playcount, overlay, watched, unwatched
 
 def get_watched_status_season(watched_info, tmdb_id, season, aired_eps):
+	"""Check season watched status. watched_info can be a dict {(tmdb_id, season): count} (O(1)) or list (O(n))."""
 	playcount, overlay, watched, unwatched = 0, 4, 0, aired_eps
 	try:
-		watched = len([i for i in watched_info if i[0] == tmdb_id and i[1] == season])
+		if isinstance(watched_info, dict):
+			watched = watched_info.get((tmdb_id, season), 0)
+		else:
+			watched = len([i for i in watched_info if i[0] == tmdb_id and i[1] == season])
 		unwatched = aired_eps - watched
 		if watched >= aired_eps and not aired_eps == 0: playcount, overlay = 1, 5
 	except: pass
 	return playcount, overlay, watched, unwatched
 
 def get_watched_status_episode(watched_info, tmdb_id, season='', episode=''):
+	"""Check if episode is watched. watched_info can be a set (O(1)) or list (O(n))."""
 	try:
+		if isinstance(watched_info, set):
+			return (1, 5) if (tmdb_id, season, episode) in watched_info else (0, 4)
 		watched = [i for i in watched_info if i[0] == tmdb_id and (i[1], i[2]) == (season, episode)]
 		if watched: return 1, 5
 		else: return 0, 4
 	except: return 0, 4
+
+# Optimized functions to create lookup structures for O(1) access
+def make_watched_info_movie_set(watched_info):
+	"""Convert movie watched_info list to set for O(1) lookups."""
+	return {str(i[0]) for i in watched_info}
+
+def make_watched_info_tv_dict(watched_info):
+	"""Convert TV watched_info list to dict {tmdb_id: episode_count} for O(1) lookups."""
+	result = {}
+	for i in watched_info:
+		tmdb_id = i[0]
+		result[tmdb_id] = result.get(tmdb_id, 0) + 1
+	return result
+
+def make_watched_info_season_dict(watched_info):
+	"""Convert TV watched_info list to dict {(tmdb_id, season): episode_count} for O(1) lookups."""
+	result = {}
+	for i in watched_info:
+		key = (i[0], i[1])
+		result[key] = result.get(key, 0) + 1
+	return result
+
+def make_watched_info_episode_set(watched_info):
+	"""Convert TV watched_info list to set {(tmdb_id, season, episode)} for O(1) lookups."""
+	return {(i[0], i[1], i[2]) for i in watched_info}
 
 def mark_as_watched_unwatched_movie(params):
 	media_type, action = 'movie', params.get('action')
@@ -325,11 +379,15 @@ def mark_as_watched_unwatched_tvshow(params):
 	elif watched_indicators == 2:
 		data = []
 		episodes = {}
-		for i in insert_list: episodes[i[2]] = episodes.get(i[2], []).append({'number': i[3]})
+		for i in insert_list:
+			season_num = i[2]
+			if season_num not in episodes:
+				episodes[season_num] = []
+			episodes[season_num].append({'number': i[3]})
 		for k, v in episodes.items():
 			if action == 'mark_as_watched':
 				for i in v: i['watched_at'] = last_played
-			data += [{'number': k, 'episodes': v}]
+			data.append({'number': k, 'episodes': v})
 		if not mdbl_watched_unwatched(action, 'shows', tmdb_id, tvdb_id, data): return kodi_utils.notification(32574)
 		clear_mdbl_collection_watchlist_data('watchlist')
 	batch_mark_as_watched_unwatched(watched_indicators, insert_list, action)

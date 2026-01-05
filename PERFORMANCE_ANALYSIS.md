@@ -2,6 +2,17 @@
 
 This document identifies performance issues found in the POV Kodi addon codebase.
 
+## ✅ Issues Fixed in This Commit
+
+| Issue | File | Fix Applied |
+|-------|------|-------------|
+| N+1 watched status lookups | `watched_cache.py` | Added dict/set-based lookup functions for O(1) access |
+| eval() security/performance | `meta_cache.py` | Replaced with `ast.literal_eval()` |
+| Regex recompilation | `source_utils.py` | Pre-compiled 60+ regex patterns at module level |
+| Thread joining anti-pattern | `watched_cache.py`, `sources.py` | Replaced list comprehensions with proper for loops |
+| Race condition bug | `watched_cache.py:382` | Fixed `.append()` returning None bug |
+| Multiple filter passes | `sources.py` | Combined exclusion filters into single pass |
+
 ---
 
 ## 1. N+1 Query Patterns (HIGH IMPACT)
