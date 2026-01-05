@@ -532,7 +532,7 @@ def filter_show_pack(show_title, aliases, imdb, year, season, release_title, tot
 	except:
 		from fenom import log_utils
 		log_utils.error()
-		# return True, total_seasons
+		return True, total_seasons
 
 def info_from_name(release_title, title, year, hdlr=None, episode_title=None, season=None, pack=None):
 	try:

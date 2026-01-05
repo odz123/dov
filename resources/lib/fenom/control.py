@@ -213,7 +213,8 @@ def yesnoDialog(line, heading=addonInfo('name'), nolabel='', yeslabel=''):
 def selectDialog(list, heading=addonInfo('name')):
 	return dialog.select(heading, list)
 
-def multiselectDialog(list, preselect=[], heading=addonInfo('name')):
+def multiselectDialog(list, preselect=None, heading=addonInfo('name')):
+	if preselect is None: preselect = []
 	return dialog.multiselect(heading, list, preselect=preselect)
 
 def notification(title=None, message=None, icon=None, time=3000, sound=False):

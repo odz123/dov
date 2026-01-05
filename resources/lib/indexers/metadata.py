@@ -235,7 +235,7 @@ def build_movie_meta(data, user_info, fanarttv_data=None):
 	try: duration = int(data_get('runtime', '90') * 60)
 	except: duration = 0
 	try: genre = ', '.join([i['name'] for i in data_get('genres')])
-	except: genre == []
+	except: genre = []
 	rootname = '%s (%s)' % (title, year)
 	companies = data_get('production_companies')
 	if companies:

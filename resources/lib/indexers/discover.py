@@ -487,7 +487,8 @@ class Discover:
 		kwargs = {'items': json.dumps(list_items), 'heading': string}
 		return kodi_utils.select_dialog(function_list, **kwargs)
 
-	def _multiselect_dialog(self, string, dialog_list, function_list=None, preselect= []):
+	def _multiselect_dialog(self, string, dialog_list, function_list=None, preselect=None):
+		if preselect is None: preselect = []
 		if not function_list: function_list = dialog_list
 		list_items = [{'line1': item, 'icon': default_icon} for item in dialog_list]
 		kwargs = {'items': json.dumps(list_items), 'heading': string, 'multi_choice': 'true', 'preselect': preselect}
