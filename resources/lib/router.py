@@ -290,6 +290,15 @@ class Router:
 		elif mode == 'stremio_addon_manager':
 			from modules.stremio_manager import stremio_addon_manager
 			stremio_addon_manager()
+		elif mode == 'stremio_catalog':
+			from indexers.stremio_catalog import StremioIndexer
+			StremioIndexer(params).run()
+		elif mode == 'stremio_clear_subtitles':
+			from modules.stremio_subtitles import clear_subtitle_cache
+			clear_subtitle_cache()
+		elif mode == 'stremio_reconfigure_debrid':
+			from modules.stremio_manager import reconfigure_all_addons_debrid
+			reconfigure_all_addons_debrid()
 
 
 if __name__ == '__main__':
