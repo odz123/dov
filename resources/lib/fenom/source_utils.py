@@ -679,18 +679,21 @@ def copy2clip(txt):
 	platform = sys_platform
 	if platform == "win32":
 		try:
-			from subprocess import check_call
-			# cmd = "echo " + txt.strip() + "|clip"
-			cmd = "echo " + txt.replace('&', '^&').strip() + "|clip" # "&" is a command seperator
-			return check_call(cmd, shell=True)
+			from subprocess import Popen, PIPE
+			# Use Popen with stdin pipe instead of shell=True to prevent command injection
+			p = Popen(['clip'], stdin=PIPE, shell=False)
+			p.communicate(input=txt.strip().encode('utf-8'))
+			return p.returncode
 		except:
 			from fenom import log_utils
 			log_utils.error('Windows: Failure to copy to clipboard')
 	elif platform == "darwin":
 		try:
-			from subprocess import check_call
-			cmd = "echo " + txt.strip() + "|pbcopy"
-			return check_call(cmd, shell=True)
+			from subprocess import Popen, PIPE
+			# Use Popen with stdin pipe instead of shell=True to prevent command injection
+			p = Popen(['pbcopy'], stdin=PIPE, shell=False)
+			p.communicate(input=txt.strip().encode('utf-8'))
+			return p.returncode
 		except:
 			from fenom import log_utils
 			log_utils.error('Mac: Failure to copy to clipboard')
@@ -698,7 +701,7 @@ def copy2clip(txt):
 		try:
 			from subprocess import Popen, PIPE
 			p = Popen(["xsel", "-pi"], stdin=PIPE)
-			p.communicate(input=txt)
+			p.communicate(input=txt.encode('utf-8') if isinstance(txt, str) else txt)
 		except:
 			from fenom import log_utils
 			log_utils.error('Linux: Failure to copy to clipboard')
