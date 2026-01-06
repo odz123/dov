@@ -21,7 +21,9 @@
 		<setting id="provider.torrentdownload" label="torrentdownload" type="bool" default="false" />
 		<setting id="provider.torrentsdb" label="torrentsdb" type="bool" default="false" />
 		<setting id="provider.aiostreams" label="aiostreams (comet/mediafusion)" type="bool" default="false" />
-			<setting id="aiostreams.url" label="aiostreams instance" type="enum" default="0" values="Kuu-lection|Midnightignite" subsetting="true" visible="eq(-1,true)" />
+			<setting id="aiostreams.url" label="aiostreams instance" type="enum" default="0" values="Kuu-lection|Midnightignite|ElfHosted|Custom" subsetting="true" visible="eq(-1,true)" />
+			<setting id="aiostreams.custom_url" label="Custom URL" type="text" default="" subsetting="true" visible="eq(-2,true)+eq(-1,3)" />
+			<setting id="aiostreams.user_data" label="User Data (base64)" type="text" default="" subsetting="true" visible="eq(-3,true)" />
 		<setting id="provider.torz" label="stremthru torz" type="bool" default="false" />
 			<setting id="torz.url" label="torz instance" type="enum" default="0" values="Kuu-lection|Munif|Midnightignite" subsetting="true" visible="eq(-1,true)" />
 		<setting id="provider.zilean" label="zilean" type="bool" default="false" />
