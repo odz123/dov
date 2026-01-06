@@ -70,12 +70,12 @@ class RealDebridAPI:
 	def delete_torrent(self, folder_id):
 		url = 'torrents/delete/%s' % folder_id
 		result = self._request('delete', url)
-		return True if not result is None and result.ok else False
+		return True if result is not None and result.ok else False
 
 	def delete_download(self, download_id):
 		url = 'downloads/delete/%s' % download_id
 		result = self._request('delete', url)
-		return True if not result is None and result.ok else False
+		return True if result is not None and result.ok else False
 
 	def unrestrict_link(self, link):
 		url = 'unrestrict/link'

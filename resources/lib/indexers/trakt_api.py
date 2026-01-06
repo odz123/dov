@@ -146,7 +146,7 @@ def trakt_get_hidden_items(list_type):
 	def _process(url):
 		hidden_data = get_trakt(url)
 		threads = list(make_thread_list(_get_trakt_ids, hidden_data, Thread))
-		[i.join() for i in threads]
+		for i in threads: i.join()
 		return results
 	results = []
 	results_append = results.append
@@ -512,7 +512,7 @@ def trakt_progress_movies(progress_info):
 	progress_items = [i for i in progress_info  if i['type'] == 'movie' and i['progress'] > 1]
 	if not progress_items: return
 	threads = list(make_thread_list(_process, progress_items, Thread))
-	[i.join() for i in threads]
+	for i in threads: i.join()
 	trakt_cache.TraktCache().set_bulk_movie_progress(insert_list)
 
 def trakt_progress_tv(progress_info):
@@ -539,7 +539,7 @@ def trakt_progress_tv(progress_info):
 	all_shows = [i['show'] for i in progress_items]
 	all_shows = [i for n, i in enumerate(all_shows) if i not in all_shows[n + 1:]] # remove duplicates
 	threads = list(make_thread_list(_process_tmdb_ids, all_shows, Thread))
-	[i.join() for i in threads]
+	for i in threads: i.join()
 	insert_list = list(_process())
 	trakt_cache.TraktCache().set_bulk_tvshow_progress(insert_list)
 

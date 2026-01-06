@@ -1,4 +1,5 @@
 import sys
+from ast import literal_eval
 from caches.navigator_cache import navigator_cache as nc
 from modules import kodi_utils as ku, settings as ks
 # logger = ku.logger
@@ -448,7 +449,7 @@ class Navigator:
 				try:
 					cm = []
 					cm_append = cm.append
-					contents = eval(i[1])
+					contents = literal_eval(i[1])
 					name, icon = i[0], '%s%s' % (icon_path, 'folder.png')
 					display_name = '[B]%s : [/B] %s ' % (short_str.upper(), name)
 					url_params = {'name': name, 'iconImage': 'folder.png', 'external_list_item': 'True'}

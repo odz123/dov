@@ -387,7 +387,7 @@ class SourceSelect:
 					link = item['unrestricted_link']
 					sleep(500)
 				else: link = Source(item, self.meta).resolve_sources()
-				if not link is None: yield link
+				if link is not None: yield link
 		try:
 			self._kill_progress_dialog()
 			if autoplay:

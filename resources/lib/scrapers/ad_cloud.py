@@ -68,7 +68,7 @@ class source(Debrid):
 				append(i := Thread(target=self._scrape_folders, args=(item['id'], item['filename'])))
 				i.start()
 			self._scrape_downloads()
-			[i.join() for i in threads]
+			for i in threads: i.join()
 		except: pass
 
 	def _scrape_folders(self, folder_id, filename):

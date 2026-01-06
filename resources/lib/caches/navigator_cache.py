@@ -1,4 +1,4 @@
-from caches import BaseCache, navigator_db, get_property, set_property, clear_property
+from caches import BaseCache, navigator_db, get_property, set_property, clear_property, literal_eval
 from modules import menu_lists as default_menus
 # from modules.kodi_utils import logger
 
@@ -27,7 +27,7 @@ class NavigatorCache(BaseCache):
 
 	def get_list(self, list_name, list_type):
 		contents = None
-		try: contents = eval(self.dbcur.execute(GET_LIST, (list_name, list_type)).fetchone()[0])
+		try: contents = literal_eval(self.dbcur.execute(GET_LIST, (list_name, list_type)).fetchone()[0])
 		except: pass
 		return contents
 
@@ -41,7 +41,7 @@ class NavigatorCache(BaseCache):
 		self.dbcur.execute("""VACUUM""")
 
 	def get_memory_cache(self, list_name, list_type):
-		try: return eval(get_property(self._get_list_prop(list_type) % list_name))
+		try: return literal_eval(get_property(self._get_list_prop(list_type) % list_name))
 		except: return None
 
 	def set_memory_cache(self, list_name, list_type, list_contents):
@@ -59,7 +59,7 @@ class NavigatorCache(BaseCache):
 
 	def get_shortcut_folder_contents(self, list_name):
 		contents = []
-		try: contents = eval(self.dbcur.execute(GET_FOLDER_CONTENTS, (list_name, 'shortcut_folder')).fetchone()[0])
+		try: contents = literal_eval(self.dbcur.execute(GET_FOLDER_CONTENTS, (list_name, 'shortcut_folder')).fetchone()[0])
 		except: pass
 		return contents
 

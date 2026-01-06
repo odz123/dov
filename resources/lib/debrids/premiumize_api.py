@@ -130,13 +130,13 @@ class PremiumizeAPI:
 		else: url = 'item/rename'
 		data = {'id': file_id , 'name': new_name}
 		response = self._post(url, data)
-		return True if not response is None and response['status'] == 'success' else False
+		return True if response is not None and response['status'] == 'success' else False
 
 	def delete_object(self, object_type, object_id):
 		data = {'id': object_id}
 		url = '%s/delete' % object_type
 		response = self._post(url, data)
-		return True if not response is None and response['status'] == 'success' else False
+		return True if response is not None and response['status'] == 'success' else False
 
 	def get_item_details(self, item_id):
 		string = 'pov_pm_item_details_%s' % item_id

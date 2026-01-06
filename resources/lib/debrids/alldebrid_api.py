@@ -68,7 +68,7 @@ class AllDebridAPI:
 		url = 'v4/magnet/delete'
 		params = {'id': transfer_id}
 		result = self._get(url, params)
-		return True if not result is None and not 'error' in result else False
+		return True if result is not None and 'error' not in result else False
 
 	def unrestrict_link(self, link):
 		url = 'v4/link/unlock'

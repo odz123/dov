@@ -48,7 +48,7 @@ class source:
 				else: url = '%s%s&page=%s' % (self.base_link, self.movieSearch_link % self.imdb, page)
 				append(i := source_utils.Thread(self.get_sources, url))
 				i.start()
-			[i.join() for i in threads]
+			for i in threads: i.join()
 			return self.sources
 		except:
 			source_utils.scraper_error('DMM')

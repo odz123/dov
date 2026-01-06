@@ -242,7 +242,7 @@ class Extras(BaseDialog):
 		try:
 			spoiler = ls(32985).upper()
 			data = mdblist_api.mdbl_media_info(self.imdb_id, self.media_type)
-			if not data is None:
+			if data is not None:
 				ratings, reviews = data['ratings'], data['reviews']
 				reviews.sort(key=lambda k: k['updated_at'] or '', reverse=True)
 				sources = ('imdb', 'metacritic', 'mdblist', 'tomatoes', 'trakt', 'tmdb')

@@ -76,7 +76,7 @@ class SourceResults(BaseDialog):
 			magnet_url = str(source.get('url')).startswith('magnet')
 			if magnet_url: link = Source(source, self.meta).manual_add_magnet_to_cloud()
 			else: link = Source(source, self.meta).manual_add_nzb_to_cloud()
-			if not link is None:
+			if link is not None:
 				source['unrestricted_link'] = link
 				self.selected = ('play', source)
 				return self.close()
@@ -96,7 +96,7 @@ class SourceResults(BaseDialog):
 				self.open_window(('windows.sources', 'ResultsInfo'), 'sources_info.xml', **kwargs)
 			elif 'seekable_easynews' in choice:
 				link = Source(source, self.meta).resolve_internal_sources(True)
-				if not link is None:
+				if link is not None:
 					source['unrestricted_link'] = link
 					self.selected = ('play', source)
 					return self.close()

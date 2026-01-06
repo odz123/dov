@@ -426,7 +426,7 @@ def all_items(func, *args):
 	results, page, total_pages = {}, 1, 1
 	total_pages = _process(func, *args, page)
 	threads = TaskPool(40).tasks(_process, [(func, *args, i) for i in range(page + 1, total_pages + 1)], Thread)
-	[i.join() for i in threads]
+	for i in threads: i.join()
 	results = [item for items in sorted(results.items()) for item in items[1]]
 	return results
 
@@ -541,7 +541,7 @@ def tmdb_clean_watchlist(silent=False):
 		]
 		if not items: return '0 items to remove.'
 		threads = TaskPool(40).tasks(add_to_watchlist_favorite, [(i, 'watchlist') for i in items], Thread)
-		[i.join() for i in threads]
+		for i in threads: i.join()
 		clear_tmdbl_cache()
 		if not silent: kodi_utils.notification(32576)
 		return '%d items removed.' % len(items)

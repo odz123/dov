@@ -1,3 +1,4 @@
+from ast import literal_eval
 from modules.kodi_utils import trakt_db, database_connect
 from modules.utils import chunks
 # from modules.kodi_utils import logger
@@ -59,7 +60,7 @@ def cache_trakt_object(function, string, url):
 	dbcur = TraktCache().dbcur
 	dbcur.execute(TC_BASE_GET, (string,))
 	cached_data = dbcur.fetchone()
-	if cached_data: return eval(cached_data[0])
+	if cached_data: return literal_eval(cached_data[0])
 	result = function(url)
 	dbcur.execute(TC_BASE_SET, (string, repr(result)))
 	return result
@@ -71,7 +72,7 @@ def reset_activity(latest_activities):
 		dbcur = TraktCache().dbcur
 		dbcur.execute(TC_BASE_GET, (string,))
 		cached_data = dbcur.fetchone()
-		if cached_data: cached_data = eval(cached_data[0])
+		if cached_data: cached_data = literal_eval(cached_data[0])
 		else: cached_data = default_activities()
 		dbcur.execute(TC_BASE_SET, (string, repr(latest_activities)))
 	except: pass

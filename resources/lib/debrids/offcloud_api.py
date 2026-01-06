@@ -60,7 +60,7 @@ class OffcloudAPI:
 		params = {'key': self.token}
 		url = 'https://offcloud.com/cloud/remove/%s' % request_id
 		result = self._get(url, params=params)
-		return True if not result is None and result['success'] else False
+		return True if result is not None and result['success'] else False
 
 	def unrestrict_link(self, link):
 		return link
