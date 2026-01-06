@@ -65,6 +65,7 @@ class SourceSelect:
 		self.active_internal_scrapers = settings.active_internal_scrapers()
 		self.active_external = 'external' in self.active_internal_scrapers
 		self.display_uncached_torrents = settings.display_uncached_torrents()
+		self.display_uncached_stremio = settings.display_uncached_stremio()
 		self.ignore_results_filter = settings.ignore_results_filter()
 		self.provider_sort_ranks = settings.provider_sort_ranks()
 		self.scraper_settings = settings.scraping_settings()
@@ -461,13 +462,23 @@ class SourceSelect:
 
 	def _sort_uncached_torrents(self, results):
 		results.sort(key=lambda k: 'Unchecked' in k.get('cache_provider', ''), reverse=False)
-		if self.display_uncached_torrents or get_property('fs_filterless_search') == 'true':
+		filterless_search = get_property('fs_filterless_search') == 'true'
+		if filterless_search:
+			# Filterless search - show all, just sort uncached to bottom
 			results.sort(key=lambda k: 'Uncached' in k.get('cache_provider', ''), reverse=False)
 			return results
-#		uncached = [i for i in results if 'Uncached' in i.get('cache_provider', '')]
-#		cached = [i for i in results if not i in uncached]
-#		return cached + uncached
-		return [i for i in results if not 'Uncached' in i.get('cache_provider', '')]
+		# Filter uncached based on source type (Stremio vs other)
+		def should_keep(item):
+			if 'Uncached' not in item.get('cache_provider', ''):
+				return True
+			is_stremio = item.get('provider', '').startswith('stremio_')
+			if is_stremio:
+				return self.display_uncached_stremio
+			return self.display_uncached_torrents
+		results = [i for i in results if should_keep(i)]
+		# Sort any remaining uncached to the bottom
+		results.sort(key=lambda k: 'Uncached' in k.get('cache_provider', ''), reverse=False)
+		return results
 
 	def _special_filter(self, results, key, enable_setting):
 		if enable_setting == 1:

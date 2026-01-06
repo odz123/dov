@@ -36,6 +36,7 @@
 		<setting id="stremio.timeout" label="Timeout (seconds)" type="slider" default="8" range="3,1,15" option="int" subsetting="true" visible="eq(-2,true)" />
 		<setting id="stremio.subtitles" label="Fetch Stremio Subtitles" type="bool" default="true" subsetting="true" visible="eq(-3,true)" />
 		<setting id="stremio.debrid_direct" label="Prefer Debrid-Integrated Addons" type="bool" default="true" subsetting="true" visible="eq(-4,true)" />
+		<setting id="stremio.display.uncached" label="Display Uncached Stremio Results" type="bool" default="false" subsetting="true" visible="eq(-5,true)" />
 		<setting id="stremio.addons" label="stremio.addons" type="text" default="" visible="false" />
 		<!-- Folders 1-5 -->
 		<setting label="Folders 1-5" type="lsep" />
