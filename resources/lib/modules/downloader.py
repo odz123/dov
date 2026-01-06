@@ -54,7 +54,7 @@ def runner(params):
 					item['default_foldername'] = default_foldername
 				else: pass
 			append(Thread(target=Downloader(item).run))
-		[i.start() for i in threads]
+		for i in threads: i.start()
 	else: Downloader(params).run()
 
 class Downloader:

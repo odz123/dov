@@ -6,12 +6,13 @@ from modules.utils import chunks
 timeout = 20
 SELECT = 'SELECT id FROM trakt_data'
 DELETE = 'DELETE FROM trakt_data WHERE id = ?'
-DELETE_LIKE = 'DELETE FROM trakt_data WHERE id LIKE "%s"'
+DELETE_LIKE = 'DELETE FROM trakt_data WHERE id LIKE ?'
 WATCHED_INSERT = 'INSERT OR IGNORE INTO watched_status VALUES (?, ?, ?, ?, ?, ?)'
 WATCHED_DELETE = 'DELETE FROM watched_status WHERE db_type = ?'
 PROGRESS_INSERT = 'INSERT OR IGNORE INTO progress VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
 PROGRESS_DELETE = 'DELETE FROM progress WHERE db_type = ?'
-BASE_DELETE = 'DELETE FROM %s'
+# Valid table names for safe deletion (prevents SQL injection)
+VALID_TABLES = frozenset(('trakt_data', 'progress', 'watched_status'))
 TC_BASE_GET = 'SELECT data FROM trakt_data WHERE id = ?'
 TC_BASE_SET = 'INSERT OR REPLACE INTO trakt_data (id, data) VALUES (?, ?)'
 TC_BASE_DELETE = 'DELETE FROM trakt_data WHERE id = ?'
@@ -98,7 +99,7 @@ def clear_trakt_list_contents_data(list_type):
 	string = 'trakt_list_contents_' + list_type + '_%'
 	try:
 		dbcur = TraktCache().dbcur
-		dbcur.execute(DELETE_LIKE % string)
+		dbcur.execute(DELETE_LIKE, (string,))
 	except: pass
 
 def clear_trakt_list_data(list_type):
@@ -111,7 +112,7 @@ def clear_trakt_list_data(list_type):
 def clear_trakt_calendar():
 	try:
 		dbcur = TraktCache().dbcur
-		dbcur.execute(DELETE_LIKE % 'trakt_get_my_calendar_%')
+		dbcur.execute(DELETE_LIKE, ('trakt_get_my_calendar_%',))
 	except: return
 
 def clear_trakt_recommendations(media_type):
@@ -125,7 +126,9 @@ def clear_all_trakt_cache_data(refresh=True):
 	try:
 		dbcur = TraktCache().dbcur
 		for table in ('trakt_data', 'progress', 'watched_status'):
-			dbcur.execute(BASE_DELETE % table)
+			# Validate table name against whitelist to prevent SQL injection
+			if table in VALID_TABLES:
+				dbcur.execute('DELETE FROM %s' % table)
 		dbcur.execute("""VACUUM""")
 		if not refresh: return True
 		from indexers.trakt_api import trakt_sync_activities_thread

@@ -6,12 +6,13 @@ from modules.utils import chunks
 timeout = 20
 SELECT = 'SELECT id FROM mdbl_data'
 DELETE = 'DELETE FROM mdbl_data WHERE id = ?'
-DELETE_LIKE = 'DELETE FROM mdbl_data WHERE id LIKE "%s"'
+DELETE_LIKE = 'DELETE FROM mdbl_data WHERE id LIKE ?'
 WATCHED_INSERT = 'INSERT OR IGNORE INTO watched_status VALUES (?, ?, ?, ?, ?, ?)'
 WATCHED_DELETE = 'DELETE FROM watched_status WHERE db_type = ?'
 PROGRESS_INSERT = 'INSERT OR IGNORE INTO progress VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
 PROGRESS_DELETE = 'DELETE FROM progress WHERE db_type = ?'
-BASE_DELETE = 'DELETE FROM %s'
+# Valid table names for safe deletion (prevents SQL injection)
+VALID_TABLES = frozenset(('mdbl_data', 'progress', 'watched_status'))
 MC_BASE_GET = 'SELECT data FROM mdbl_data WHERE id = ?'
 MC_BASE_SET = 'INSERT OR REPLACE INTO mdbl_data (id, data) VALUES (?, ?)'
 MC_BASE_DELETE = 'DELETE FROM mdbl_data WHERE id = ?'
@@ -89,7 +90,7 @@ def clear_mdbl_list_contents_data(list_type):
 	string = 'mdbl_list_contents_' + list_type + '_%'
 	try:
 		dbcur = MDBLCache().dbcur
-		dbcur.execute(DELETE_LIKE % string)
+		dbcur.execute(DELETE_LIKE, (string,))
 	except: pass
 
 def clear_mdbl_list_data(list_type):
@@ -103,7 +104,9 @@ def clear_all_mdbl_cache_data(refresh=True):
 	try:
 		dbcur = MDBLCache().dbcur
 		for table in ('mdbl_data', 'progress', 'watched_status'):
-			dbcur.execute(BASE_DELETE % table)
+			# Validate table name against whitelist to prevent SQL injection
+			if table in VALID_TABLES:
+				dbcur.execute('DELETE FROM %s' % table)
 		dbcur.execute("""VACUUM""")
 		if not refresh: return True
 		from indexers.mdblist_api import mdbl_sync_activities_thread

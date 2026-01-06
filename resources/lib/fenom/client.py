@@ -354,7 +354,7 @@ class cfcookie:
 		threads = []
 		for i in list(range(0, 15)):
 			threads.append(Thread(target=self.get_cookie, args=(netloc, ua, timeout)))
-		[i.start() for i in threads]
+		for i in threads: i.start()
 		for i in list(range(0, 30)):
 			if self.cookie is not None: return self.cookie
 			sleep(1)
@@ -382,7 +382,18 @@ class cfcookie:
 				if len(line) > 0 and '=' in line:
 					sections = line.split('=')
 					line_val = self.parseJSString(sections[1])
-					decryptVal = int(eval(str(decryptVal) + sections[0][-1] + str(line_val)))
+					# Safe arithmetic operation instead of eval()
+					operator = sections[0][-1] if sections[0] else '+'
+					if operator == '+':
+						decryptVal = int(decryptVal + line_val)
+					elif operator == '-':
+						decryptVal = int(decryptVal - line_val)
+					elif operator == '*':
+						decryptVal = int(decryptVal * line_val)
+					elif operator == '/':
+						decryptVal = int(decryptVal / line_val) if line_val != 0 else decryptVal
+					else:
+						decryptVal = int(decryptVal + line_val)
 
 			answer = decryptVal + len(urlparse(netloc).netloc)
 			query = '%s/cdn-cgi/l/chk_jschl?jschl_vc=%s&jschl_answer=%s' % (netloc, jschl, answer)
@@ -409,12 +420,18 @@ class cfcookie:
 
 	def parseJSString(self, s):
 		try:
+			from ast import literal_eval
 			offset = 1 if s[0] == '+' else 0
-			val = int(eval(s.replace('!+[]', '1').replace('!![]', '1').replace('[]', '0').replace('(', 'str(')[offset:]))
+			# Safe parsing of JS-like number expressions without using eval()
+			parsed = s.replace('!+[]', '1').replace('!![]', '1').replace('[]', '0')[offset:]
+			# Remove any remaining parentheses and concatenate digits
+			parsed = ''.join(c for c in parsed if c.isdigit())
+			val = int(parsed) if parsed else 0
 			return val
 		except:
 			from fenom import log_utils
 			log_utils.error()
+			return 0
 
 
 class bfcookie:
@@ -469,6 +486,8 @@ class sucuri:
 		try:
 			s = re.compile(r"S\s*=\s*'([^']+)").findall(result)[0]
 			s = b64decode(s)
+			if isinstance(s, bytes):
+				s = s.decode('utf-8', errors='ignore')
 			s = s.replace(' ', '')
 			s = re.sub(r'String\.fromCharCode\(([^)]+)\)', r'chr(\1)', s)
 			s = re.sub(r'\.slice\((\d+),(\d+)\)', r'[\1:\2]', s)
@@ -477,7 +496,11 @@ class sucuri:
 			s = re.sub(r';location.reload\(\);', '', s)
 			s = re.sub(r'\n', '', s)
 			s = re.sub(r'document\.cookie', 'cookie', s)
-			cookie = '' ; exec(s)
+			# SECURITY NOTE: exec() is used here to parse Sucuri anti-bot challenges.
+			# Restricted namespace limits what code can execute.
+			local_ns = {'cookie': ''}
+			exec(s, {'__builtins__': {'chr': chr, 'str': str, 'int': int}}, local_ns)
+			cookie = local_ns.get('cookie', '')
 			self.cookie = re.compile(r'([^=]+)=(.*)').findall(cookie)[0]
 			self.cookie = '%s=%s' % (self.cookie[0], self.cookie[1])
 			return self.cookie

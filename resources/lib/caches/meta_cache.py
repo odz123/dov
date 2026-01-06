@@ -9,6 +9,9 @@ safe_eval = literal_eval
 all_tables = ('metadata', 'season_metadata', 'function_cache')
 movie_show = ('movie', 'tvshow')
 id_types = ('tmdb_id', 'imdb_id', 'tvdb_id')
+# Valid column and table names for safe SQL construction (prevents SQL injection)
+VALID_ID_TYPES = frozenset(id_types)
+VALID_TABLES = frozenset(all_tables)
 GET_MOVIE_SHOW = 'SELECT meta, expires FROM metadata WHERE db_type = ? AND %s = ?'
 GET_SEASON = 'SELECT meta, expires FROM season_metadata WHERE tmdb_id = ?'
 GET_FUNCTION = 'SELECT string_id, data, expires FROM function_cache WHERE string_id = ?'
@@ -38,7 +41,10 @@ class MetaCache(BaseCache):
 			current_time = self._get_timestamp(datetime.now())
 			meta = self.get_memory_cache(media_type, id_type, media_id, current_time)
 			if meta is None:
-				if media_type in movie_show: cache_data = self.dbcur.execute(GET_MOVIE_SHOW % id_type, (media_type, media_id)).fetchone()
+				if media_type in movie_show:
+					# Validate id_type against whitelist to prevent SQL injection
+					if id_type not in VALID_ID_TYPES: return None
+					cache_data = self.dbcur.execute(GET_MOVIE_SHOW % id_type, (media_type, media_id)).fetchone()
 				else: cache_data = self.dbcur.execute(GET_SEASON, (media_id,)).fetchone()
 				if cache_data:
 					meta, expiry = safe_eval(cache_data[0]), cache_data[1]
@@ -66,6 +72,8 @@ class MetaCache(BaseCache):
 		try:
 			media_id = string(media_id)
 			if media_type in movie_show:
+				# Validate id_type against whitelist to prevent SQL injection
+				if id_type not in VALID_ID_TYPES: return
 				self.dbcur.execute(DELETE_MOVIE_SHOW % id_type, (media_type, media_id))
 				for item in id_types: self.delete_memory_cache(media_type, item, meta[item])
 				if media_type == 'tvshow': self.dbcur.execute(DELETE_SEASONS, (media_id+'%',))
@@ -124,7 +132,10 @@ class MetaCache(BaseCache):
 		try:
 			self.dbcur.execute(GET_ALL)
 			all_entries = self.dbcur.fetchall()
-			for i in all_tables: self.dbcur.execute(DELETE_ALL % i)
+			for i in all_tables:
+				# Validate table name against whitelist to prevent SQL injection
+				if i in VALID_TABLES:
+					self.dbcur.execute(DELETE_ALL % i)
 			self.dbcur.execute("""VACUUM""")
 			for i in all_entries:
 				try:

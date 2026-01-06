@@ -107,7 +107,8 @@ class SourceSelect:
 		if self.active_folders: self.append_folder_scrapers(self.providers)
 		self.providers.extend(internal_sources(self.active_internal_scrapers, self.media_type))
 		if self.providers:
-			threads = (Thread(target=self.activate_providers, args=(i[0], i[1], False), name=i[2]) for i in self.providers)
+			# Use list comprehension instead of generator for clearer thread management
+			threads = [Thread(target=self.activate_providers, args=(i[0], i[1], False), name=i[2]) for i in self.providers]
 			self.threads.extend(threads)
 			for i in self.threads: i.start()
 		if self.active_external or self.background:
@@ -138,7 +139,8 @@ class SourceSelect:
 				self.remove_scrapers.append('folders')
 		self.prescrape_scrapers.extend(internal_sources(self.active_internal_scrapers, self.media_type, True))
 		if not self.prescrape_scrapers: return []
-		threads = (Thread(target=self.activate_providers, args=(i[0], i[1], True), name=i[2]) for i in self.prescrape_scrapers)
+		# Use list comprehension instead of generator for clearer thread management
+		threads = [Thread(target=self.activate_providers, args=(i[0], i[1], True), name=i[2]) for i in self.prescrape_scrapers]
 		self.prescrape_threads.extend(threads)
 		for i in self.prescrape_threads: i.start()
 		self.remove_scrapers.extend(i[2] for i in self.prescrape_scrapers)

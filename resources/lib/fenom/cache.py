@@ -104,7 +104,9 @@ def _get_function_name(function_instance):
 
 def _generate_md5(*args):
 	md5_hash = md5()
-	try: [md5_hash.update(str(arg)) for arg in args]
-	except: [md5_hash.update(str(arg).encode('utf-8')) for arg in args]
+	# Use proper for loop instead of list comprehension for side effects
+	# Also ensure bytes are passed to update() as required by hashlib
+	for arg in args:
+		md5_hash.update(str(arg).encode('utf-8'))
 	return str(md5_hash.hexdigest())
 

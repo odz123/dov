@@ -501,8 +501,11 @@ def clear_local_bookmarks():
 		dbcon = _database_connect(kodi_utils.get_video_database_path())
 		dbcur = set_PRAGMAS(dbcon)
 		file_ids = dbcur.execute("""SELECT idFile FROM files WHERE strFilename LIKE 'plugin.video.pov%'""").fetchall()
+		# Valid table names for Kodi video database (prevents SQL injection)
+		valid_tables = frozenset(('bookmark', 'streamdetails', 'files'))
 		for i in ('bookmark', 'streamdetails', 'files'):
-			dbcur.executemany("""DELETE FROM %s WHERE idFile = ?""" % i, file_ids)
+			if i in valid_tables:
+				dbcur.executemany("""DELETE FROM %s WHERE idFile = ?""" % i, file_ids)
 	except: pass
 
 def get_library_video(media_type, title, year, season=None, episode=None):
