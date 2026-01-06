@@ -86,6 +86,9 @@ def display_sleep_time():
 def display_uncached_torrents():
 	return get_setting('torrent.display.uncached', 'false') == 'true'
 
+def display_uncached_stremio():
+	return get_setting('stremio.display.uncached', 'false') == 'true'
+
 def download_directory(media_type):
 	if media_type == 'movie': setting = 'movie_download_directory'
 	elif media_type == 'episode': setting = 'tvshow_download_directory'
