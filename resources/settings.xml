@@ -29,6 +29,11 @@
 		<setting id="provider.prowlarr" label="prowlarr" type="bool" default="false" />
 			<setting id="prowlarr.token" label="x-api-key" type="text" default="" subsetting="true" visible="eq(-1,true)" />
 			<setting id="prowlarr.url" label="url" type="text" default="" subsetting="true" visible="eq(-2,true)" />
+		<!-- Stremio Addons -->
+		<setting label="Stremio Addons" type="lsep" />
+		<setting id="provider.stremio" label="Enable Stremio Addons" type="bool" default="false" />
+		<setting id="stremio.manage" label="Manage Stremio Addons" type="action" default="[B]Configure...[/B]" visible="eq(-1,true)" action="RunPlugin(plugin://plugin.video.pov/?mode=stremio_addon_manager)" />
+		<setting id="stremio.addons" label="stremio.addons" type="text" default="" visible="false" />
 		<!-- Folders 1-5 -->
 		<setting label="Folders 1-5" type="lsep" />
 		<setting id="provider.folders" label="Enable" type="bool" default="false" />

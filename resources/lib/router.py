@@ -287,6 +287,9 @@ class Router:
 		elif mode == 'speedTest':
 			from fenom.speedtest import magneto
 			magneto()
+		elif mode == 'stremio_addon_manager':
+			from modules.stremio_manager import stremio_addon_manager
+			stremio_addon_manager()
 
 
 if __name__ == '__main__':
