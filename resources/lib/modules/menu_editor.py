@@ -1,4 +1,5 @@
 import json
+from ast import literal_eval
 from urllib.parse import parse_qsl
 from caches.navigator_cache import navigator_cache
 from modules import kodi_utils, menu_lists as default_menus
@@ -270,7 +271,7 @@ class MenuEditor:
 			self.shortcut_folder_make()
 			try: choice_name, choice_list = navigator_cache.get_shortcut_folders()[0]
 			except: return kodi_utils.notification(32736, 1500)
-		list_items = eval(choice_list)
+		list_items = literal_eval(choice_list)
 		name = self.params_get('name') or self.params_get('menu_name_translated')
 		menu_name = self._get_external_name_input(name) or name
 		self.menu_item.update({'name': menu_name, 'iconImage': self.params_get('iconImage') or self.menu_item_get('iconImage')})

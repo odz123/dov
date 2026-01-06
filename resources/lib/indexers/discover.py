@@ -1,5 +1,6 @@
 import sys
 import json
+from ast import literal_eval
 from indexers.tmdb_api import base_url, tmdb_api_key, tmdb_keyword_id, tmdb_people_info, tmdb_company_id, tmdb_movies_title_year, tmdb_tv_title_year
 from modules import kodi_utils, meta_lists
 # logger = kodi_utils.logger
@@ -378,7 +379,7 @@ class Discover:
 				try:
 					cm = []
 					cm_append = cm.append
-					item = eval(item)
+					item = literal_eval(item)
 					url_params = {'mode': item['mode'], 'action': item['action'], 'query': item['query'],
 									'name': item['name'], 'iconImage': default_icon}
 					display = '%s | %s' % (count, item['name'])

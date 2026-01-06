@@ -119,7 +119,7 @@ def mdbl_collection_watchlist_items(url):
 	items = {'movies': [], 'shows': [], 'has_more': True}
 	while items['has_more']:
 		result = call_mdblist(url, params=params)
-		if not result is None:
+		if result is not None:
 			items['has_more'] = result['pagination']['has_more']
 			params['offset'] = result['pagination']['page'] * result['pagination']['limit']
 			if 'movies' in result: items['movies'] += result['movies']
@@ -241,7 +241,7 @@ def mdbl_progress_movies(progress_info):
 	progress_items = [i for i in progress_info  if i['type'] == 'movie' and float(i['progress']) > 1]
 	if not progress_items: return
 	threads = list(make_thread_list(_process, progress_items, Thread))
-	[i.join() for i in threads]
+	for i in threads: i.join()
 	mdbl_cache.MDBLCache().set_bulk_movie_progress(insert_list)
 
 def mdbl_progress_tv(progress_info):
@@ -259,7 +259,7 @@ def mdbl_progress_tv(progress_info):
 	progress_items = [i for i in progress_info if i['type'] == 'episode' and float(i['progress']) > 1]
 	if not progress_items: return
 	threads = list(make_thread_list(_process, progress_items, Thread))
-	[i.join() for i in threads]
+	for i in threads: i.join()
 	mdbl_cache.MDBLCache().set_bulk_tvshow_progress(insert_list)
 
 def get_mdbl_movie_id(item):
@@ -302,13 +302,13 @@ def mdbl_watched_progress():
 	watched = {'movies': [], 'episodes': [], 'has_more': True}
 	while watched['has_more']:
 		result = call_mdblist(url, params=params)
-		if not result is None:
+		if result is not None:
 			watched['has_more'] = result['pagination']['has_more']
 			params['offset'] = result['pagination']['page'] * result['pagination']['limit']
 			if 'movies' in result: watched['movies'] += result['movies']
 			if 'episodes' in result: watched['episodes'] += result['episodes']
 		else: watched['has_more'] = False
-	return watched if not result is None else result
+	return watched if result is not None else result
 
 def mdbl_sync_activities_thread(*args, **kwargs):
 	Thread(target=mdbl_sync_activities, args=args, kwargs=kwargs).start()

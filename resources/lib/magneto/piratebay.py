@@ -120,8 +120,8 @@ class source:
 			for url in queries:
 				link = '%s%s' % (self.base_link, url)
 				append(source_utils.Thread(self.get_sources_packs, link))
-			[i.start() for i in threads]
-			[i.join() for i in threads]
+			for i in threads: i.start()
+			for i in threads: i.join()
 			return self.sources
 		except:
 			source_utils.scraper_error('PIRATEBAY')

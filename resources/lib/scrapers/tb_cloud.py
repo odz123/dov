@@ -71,7 +71,7 @@ class source(Debrid):
 				Thread(target=self._scrape_folders, args=(self.user_cloud_usenet, 'usenet')),
 				Thread(target=self._scrape_folders, args=(self.user_cloud_webdl, 'webdl'))
 			)): i.start()
-			[i.join() for i in threads]
+			for i in threads: i.join()
 		except: pass
 
 	def _scrape_folders(self, function, media_type):

@@ -1,3 +1,4 @@
+from ast import literal_eval
 from datetime import datetime, timedelta
 from caches import BaseCache, external_db
 # from modules.kodi_utils import logger
@@ -17,7 +18,7 @@ class ExternalProvidersCache(BaseCache):
 			self.dbcur.execute(SELECT_RESULTS, (source, media_type, tmdb_id, title, year, season, episode))
 			cache_data = self.dbcur.fetchone()
 			if cache_data:
-				if cache_data[1] > self._get_timestamp(datetime.now()): result = eval(cache_data[0])
+				if cache_data[1] > self._get_timestamp(datetime.now()): result = literal_eval(cache_data[0])
 				else: self.delete(source, media_type, tmdb_id, title, season, episode)
 		except: pass
 		return result

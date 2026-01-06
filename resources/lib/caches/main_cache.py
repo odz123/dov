@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-from caches import BaseCache, maincache_db, get_property, set_property, clear_property
+from caches import BaseCache, maincache_db, get_property, set_property, clear_property, literal_eval
 # from modules.kodi_utils import logger
 
 BASE_GET = 'SELECT expires, data FROM maincache WHERE id = ?'
@@ -23,7 +23,7 @@ class MainCache(BaseCache):
 				cache_data = self.dbcur.fetchone()
 				if cache_data:
 					if cache_data[0] > current_time:
-						result = eval(cache_data[1])
+						result = literal_eval(cache_data[1])
 						self.set_memory_cache(result, string, cache_data[1])
 					else:
 						self.delete(string, dbcon=None)
@@ -42,7 +42,7 @@ class MainCache(BaseCache):
 		try:
 			cachedata = get_property(string)
 			if cachedata:
-				cachedata = eval(cachedata)
+				cachedata = literal_eval(cachedata)
 				if cachedata[0] > current_time: result = cachedata[1]
 		except: pass
 		return result

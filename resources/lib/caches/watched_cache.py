@@ -32,7 +32,7 @@ def get_database(watched_indicators):
 
 def get_next_episodes(watched_info):
 	seen = set()
-	watched_info = [i for i in watched_info if not i[0] is None]
+	watched_info = [i for i in watched_info if i[0] is not None]
 	watched_info.sort(key=lambda x: (x[0], x[1], x[2]), reverse=True)
 	return [
 		{'media_ids': {'tmdb': int(i[0])}, 'season': int(i[1]), 'episode': int(i[2]), 'last_played': i[4]}

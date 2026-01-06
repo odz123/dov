@@ -163,7 +163,7 @@ def build_trakt_list(params):
 	max_threads = min(_queue.qsize(), max_threads)
 	threads = (Thread(target=_thread_target, args=(_queue,)) for i in range(max_threads))
 	threads = list(TaskPool.process(threads))
-	[i.join() for i in threads]
+	for i in threads: i.join()
 	items = movies.items + tvshows.items + episodes.items + seasons.items
 	items.sort(key=lambda k: int(k[1].getProperty('pov_sort_order')))
 	content, total = max(

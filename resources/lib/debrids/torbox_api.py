@@ -68,19 +68,19 @@ class TorBoxAPI:
 		data = {'torrent_id': request_id, 'operation': 'delete'}
 		url = 'torrents/controltorrent'
 		result = self._post(url, json=data)
-		return True if not result is None and result['success'] else False
+		return True if result is not None and result['success'] else False
 
 	def delete_usenet(self, request_id):
 		data = {'usenet_id': request_id, 'operation': 'delete'}
 		url = 'usenet/controlusenetdownload'
 		result = self._post(url, json=data)
-		return True if not result is None and result['success'] else False
+		return True if result is not None and result['success'] else False
 
 	def delete_webdl(self, request_id):
 		data = {'webdl_id': request_id, 'operation': 'delete'}
 		url = 'webdl/controlwebdownload'
 		result = self._post(url, json=data)
-		return True if not result is None and result['success'] else False
+		return True if result is not None and result['success'] else False
 
 	def unrestrict_link(self, file_id):
 		try: user_ip = requests.get(ip_url, timeout=2.0).text

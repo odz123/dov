@@ -85,13 +85,13 @@ class source:
 		string = 'pov_FOLDERSCRAPER_%s_%s' % (self.scrape_provider, folder_name)
 		folder_files = cache_object(self._make_dirs, string, folder_name, json=False, expiration=4)
 		folder_threads = list(make_thread_list(_process, folder_files, Thread))
-		[i.join() for i in folder_threads]
+		for i in folder_threads: i.join()
 		if not folder_results: return
 		return self._scraper_worker(folder_results)
 
 	def _scraper_worker(self, folder_results):
 		scraper_threads = list(make_thread_list(self._scrape_directory, folder_results, Thread))
-		[i.join() for i in scraper_threads]
+		for i in scraper_threads: i.join()
 
 	def url_path(self, folder, file):
 		return os.path.join(folder, file)

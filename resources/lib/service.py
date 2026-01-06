@@ -53,7 +53,7 @@ def reuseLanguageInvokerCheck():
 	text = '[B]Reuse Language Invoker[/B] SETTING/XML mismatch[CR]POV will reload your profile to refresh the addon.xml'
 	item, refresh = next(root.iter('reuselanguageinvoker'), None), False
 	if item is None: kodi_utils.notification(text.split('[CR]')[0])
-	if not item is None and not item.text == current_addon_setting:
+	if item is not None and item.text != current_addon_setting:
 		item.text = current_addon_setting
 		tree.write(addon_xml)
 		refresh = True
@@ -147,7 +147,7 @@ def premAccntNotification():
 				module = 'debrids.%s' % module
 				cls = getattr(import_module(module), cls)
 				days_remaining = cls().days_remaining()
-				if not days_remaining is None and days_remaining <= limit:
+				if days_remaining is not None and days_remaining <= limit:
 					kodi_utils.notification('%s expires in %s days' % (cls.__name__, days_remaining))
 		except: pass
 	return logger('POV', 'Debrid Account Expiry Notification Service Finished')

@@ -110,8 +110,8 @@ class Images:
 		rolling_count = int(self.params['rolling_count'])
 		if page_no == 1: threads.append(Thread(target=get_tmdb))
 		threads.append(Thread(target=get_imdb))
-		[i.start() for i in threads]
-		[i.join() for i in threads]
+		for i in threads: i.start()
+		for i in threads: i.join()
 		if page_no == 1:
 			tmdb_image_info = tmdb_results[0]['profiles']
 			tmdb_image_info.sort(key=lambda x: x['file_path'])
