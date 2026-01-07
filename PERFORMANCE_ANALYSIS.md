@@ -456,3 +456,389 @@ reg_pattern = re.compile(final_string)  # Compiled inside function, called repea
 ---
 
 *Analysis generated on 2026-01-07*
+
+---
+
+## 9. Additional N+1 Query Patterns (NEW)
+
+### 9.1 Thumbnail Cache N+1 Query
+
+**File:** `resources/lib/modules/thumbnails.py:35-39`
+
+```python
+for count, item in enumerate(result):
+    if progress_dialog.iscanceled(): break
+    _id = item[0]
+    dbcur.execute("SELECT cachedurl FROM texture WHERE id = ?", (_id, ))  # Query per item!
+    url = dbcur.fetchall()[0][0]
+```
+
+**Problem:** If `result` has 100 thumbnails, this makes 100 separate database queries instead of 1 batch operation.
+
+**Fix:** Use batch query with `IN` clause:
+```python
+_ids = [item[0] for item in result]
+dbcur.execute("SELECT id, cachedurl FROM texture WHERE id IN (%s)" % ','.join('?' * len(_ids)), _ids)
+url_map = {row[0]: row[1] for row in dbcur.fetchall()}
+```
+
+### 9.2 View Clear N+1 DELETE
+
+**File:** `resources/lib/modules/kodi_utils.py:296-299`
+
+```python
+dbcur.execute("""SELECT view_type FROM views""")
+for item in dbcur.fetchall():
+    dbcur.execute("""DELETE FROM views WHERE view_type = ?""", (item[0],))  # DELETE in loop!
+```
+
+**Problem:** Executes one DELETE query per view instead of a single `DELETE FROM views`.
+
+---
+
+## 10. Missing Database Indexes (NEW)
+
+**File:** `resources/lib/modules/cache.py`
+
+The following tables would benefit from additional indexes:
+
+| Table | Suggested Index | Query Pattern |
+|-------|-----------------|---------------|
+| `watched_status` | `(db_type, media_id)` | SELECT by db_type filter |
+| `progress` | `(db_type, media_id)` | SELECT by db_type filter |
+| `metadata` | `(expires)` | DELETE expired entries |
+| `results_data` | `(provider, db_type, tmdb_id)` | Complex WHERE clause |
+
+**Impact:** Missing indexes cause full table scans on filtered queries.
+
+---
+
+## 11. TaskPool Misuse Patterns (NEW)
+
+### 11.1 List Comprehension for Side Effects
+
+**File:** `resources/lib/modules/utils.py:35`
+
+```python
+[self._queue.put(tag) for tag in _list]  # List comprehension for side effects
+```
+
+**Problem:** Creates unused list. Should use for-loop:
+```python
+for tag in _list:
+    self._queue.put(tag)
+```
+
+### 11.2 Generator-to-List Conversion
+
+**File:** `resources/lib/modules/utils.py:37`
+
+```python
+return list(self.process(threads))  # Forces generator to list
+```
+
+**Problem:** `self.process()` is a generator but immediately materialized, losing lazy evaluation.
+
+---
+
+## 12. Race Conditions in Shared State (NEW)
+
+### 12.1 Sources List Modified by Multiple Threads
+
+**File:** `resources/lib/modules/sources.py:37-39, 233-234`
+
+```python
+class SourceSelect:
+    def __init__(self):
+        self.sources = []  # Modified by multiple threads without locks
+        self.prescrape_sources = []
+
+    def activate_providers(self, ...):
+        # Multiple threads call this concurrently:
+        if prescrape: self.prescrape_sources.extend(sources)  # NOT thread-safe!
+        else: self.sources.extend(sources)
+```
+
+**Problem:** `list.extend()` is not atomic. Concurrent threads can corrupt the list.
+
+**Fix:** Use threading.Lock:
+```python
+from threading import Lock
+self.sources_lock = Lock()
+
+with self.sources_lock:
+    self.sources.extend(sources)
+```
+
+### 12.2 Dictionary Updated from ThreadPoolExecutor
+
+**File:** `resources/lib/modules/sources.py:606-614`
+
+```python
+# Multiple threads from TPE modify self.final_sources
+self.final_sources.extend({**i, 'cache_provider': name} for i in torrent_sources if i['hash'] in hashes)
+```
+
+**Problem:** Same race condition risk with concurrent `.extend()` calls.
+
+---
+
+## 13. Inefficient String Operations (NEW)
+
+### 13.1 Chained += Concatenation
+
+**File:** `resources/lib/indexers/discover.py:527-565`
+
+```python
+name += '| %s %s' % (ls(32672), values['similar'])
+name += '| %s %s' % (ls(32673), values['recommended'])
+name += '| %s' % values['year_start']
+# ... 20+ more += operations
+```
+
+**Problem:** 20+ `+=` operations create 20+ intermediate string objects (O(n²) memory allocation).
+
+**Fix:** Use `''.join()` or single format string.
+
+### 13.2 Repeated Translation Function Calls
+
+**File:** `resources/lib/indexers/discover.py:552-562`
+
+```python
+name += '(%s %s) ' % (ls(32189).lower(), values['exclude_genres'])
+# Later:
+name += '| %s %s ' % (ls(32189).lower(), values['exclude_genres'])
+```
+
+**Problem:** Same `ls(32189).lower()` called multiple times.
+
+**Fix:** Cache result: `exclude_str = ls(32189).lower()`
+
+---
+
+## 14. Inefficient Collection Usage (NEW)
+
+### 14.1 List Comprehension for Single Item
+
+**File:** `resources/lib/windows/extras.py:396-397, 480`
+
+```python
+network_id = [i['id'] for i in results if i['name'] == network][0]  # Creates full list for one item
+info = [i for i in ep_list if i['media_ids']['tmdb'] == self.tmdb_id][0]
+```
+
+**Problem:** Creates entire filtered list just to get first match.
+
+**Fix:** Use `next()`:
+```python
+network_id = next((i['id'] for i in results if i['name'] == network), None)
+```
+
+### 14.2 Sort Using .index() as Key
+
+**File:** `resources/lib/windows/sources.py:239`
+
+```python
+provider_choices.sort(key=choice_sorter.index)  # O(n²log n)!
+```
+
+**Problem:** `.index()` is O(n), called O(n log n) times during sort = O(n² log n).
+
+**Fix:** Create position dict:
+```python
+positions = {v: i for i, v in enumerate(choice_sorter)}
+provider_choices.sort(key=lambda x: positions.get(x, len(positions)))
+```
+
+### 14.3 .index() in List Comprehensions
+
+**File:** `resources/lib/modules/dialogs.py:247, 265, 281`
+
+```python
+preselect = [fl.index(i) for i in get_setting(...).split(', ')]  # O(n) per item
+```
+
+**Fix:** Pre-build index mapping:
+```python
+fl_idx = {item: idx for idx, item in enumerate(fl)}
+preselect = [fl_idx[i] for i in get_setting(...).split(', ') if i in fl_idx]
+```
+
+---
+
+## 15. Additional Threading Issues (NEW)
+
+### 15.1 No Thread Pool Limit in Manager
+
+**File:** `resources/lib/modules/sources.py:581`
+
+```python
+tpe = TPE(max(1, len(self.source_dict), len(self.debrid_torrents)))
+```
+
+**Problem:** Pool size unbounded - could create 100+ threads.
+
+**Fix:** Cap pool size:
+```python
+tpe = TPE(min(max(1, len(self.source_dict)), 10))
+```
+
+### 15.2 Missing Thread Timeouts
+
+**Files:** Multiple locations with `t.join()` without timeout:
+- `resources/lib/modules/sources.py:131, 149`
+- `resources/lib/magneto/torrentdownload.py:52`
+- `resources/lib/service.py:168`
+
+**Problem:** Hung threads block indefinitely.
+
+**Fix:** Always specify timeout:
+```python
+for t in threads:
+    t.join(timeout=self.timeout or 10)
+```
+
+---
+
+## 16. Cache Serialization Overhead (NEW)
+
+### 16.1 repr() vs JSON for Window Properties
+
+**File:** `resources/lib/caches/meta_cache.py:102`
+
+```python
+set_property(prop_string, repr(cachedata))  # repr() less efficient than JSON
+# Later retrieval requires:
+cachedata = literal_eval(cachedata)  # Expensive parsing
+```
+
+**Problem:** `repr()` creates larger strings than JSON. Every property access requires full `literal_eval()` parse.
+
+**Fix:** Use JSON serialization:
+```python
+import json
+set_property(prop_string, json.dumps(cachedata))
+# Faster retrieval:
+cachedata = json.loads(get_property(prop_string))
+```
+
+### 16.2 Season Cache Key Mismatch
+
+**File:** `resources/lib/caches/meta_cache.py:101, 129`
+
+```python
+# Storage uses:
+prop_string = 'pov_meta_season_%s' % media_id
+
+# But deletion looks for:
+clear_property('pov_meta_season_%s_%s' % (media_id, item))  # Different format!
+```
+
+**Problem:** Season metadata cached with one key format, deletion uses different format = cache never invalidated.
+
+---
+
+## 17. Connection Cleanup Issues (NEW)
+
+### 17.1 No Context Manager Support
+
+**File:** `resources/lib/caches/__init__.py:23-24`
+
+```python
+def __init__(self):
+    self.dbcon = database_connect(self.db_file, isolation_level=None)
+    self.dbcur = self.dbcon.cursor()
+    # NO __enter__, __exit__, or __del__ methods
+```
+
+**Problem:** Database connections never closed automatically.
+
+**Fix:** Add context manager:
+```python
+def __enter__(self):
+    return self
+
+def __exit__(self, *args):
+    self.dbcon.close()
+```
+
+### 17.2 Unclosed Connection in watched_cache
+
+**File:** `resources/lib/caches/watched_cache.py:501-509`
+
+```python
+def clear_local_bookmarks():
+    try:
+        dbcon = _database_connect(...)
+        dbcur = set_PRAGMAS(dbcon)
+        # ... operations ...
+    except: pass
+    # Missing: dbcon.close()
+```
+
+---
+
+## 18. Comprehensive Issue Count Summary
+
+| Category | Issue Count | Top Priority |
+|----------|-------------|--------------|
+| O(n²) Algorithm Patterns | 7+ | CRITICAL |
+| Database N+1 Queries | 6+ | CRITICAL |
+| Connection/Resource Leaks | 30+ | HIGH |
+| Threading Issues | 35+ | HIGH |
+| Race Conditions | 4+ | HIGH |
+| Caching Inefficiencies | 12+ | MEDIUM |
+| String Operations | 8+ | MEDIUM |
+| Collection Misuse | 10+ | MEDIUM |
+| Missing Indexes | 4 | MEDIUM |
+| **TOTAL** | **~120+** | - |
+
+---
+
+## 19. Files Requiring Most Attention (Updated)
+
+| File | Issue Count | Critical Issues |
+|------|-------------|-----------------|
+| `modules/sources.py` | 18+ | O(n²), race conditions, threading |
+| `caches/watched_cache.py` | 10+ | N+1, connection leaks |
+| `fenom/source_utils.py` | 9+ | O(n²) loops, string ops |
+| `caches/trakt_cache.py` | 8+ | Connection leaks, VACUUM |
+| `caches/mdbl_cache.py` | 7+ | Connection leaks, VACUUM |
+| `caches/meta_cache.py` | 6+ | Key mismatch, serialization |
+| `modules/debrid.py` | 6+ | Fire-and-forget threads |
+| `windows/extras.py` | 5+ | Threading, collection misuse |
+| `indexers/tmdb_api.py` | 4+ | Thread join pattern |
+| `modules/thumbnails.py` | 2 | N+1 query |
+
+---
+
+## 20. Recommended Fix Priority Order
+
+### Phase 1: Critical (Immediate Impact)
+1. Convert list membership checks to sets in `sources.py`
+2. Fix N+1 queries in `thumbnails.py` and `kodi_utils.py`
+3. Add threading locks for shared state in `sources.py`
+
+### Phase 2: High Priority (Significant Impact)
+4. Implement connection cleanup with context managers
+5. Remove individual VACUUM calls, batch at end
+6. Add missing database indexes
+7. Fix thread pool limits and timeouts
+8. Use dict-based lookups consistently in `watched_cache.py`
+
+### Phase 3: Medium Priority (Moderate Impact)
+9. Fix season cache key mismatch in `meta_cache.py`
+10. Replace `next()` for single-item lookups
+11. Pre-compute sort keys to avoid lambda calls
+12. Fix string concatenation patterns
+13. Replace fire-and-forget threads with tracked execution
+
+### Phase 4: Low Priority (Polish)
+14. Switch to JSON serialization for window properties
+15. Add TTL cleanup for memory caches
+16. Optimize TaskPool implementation
+17. Cache repeated function calls like `ls()`
+
+---
+
+*Updated analysis generated on 2026-01-07*
