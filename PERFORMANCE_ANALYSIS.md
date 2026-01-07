@@ -1354,3 +1354,393 @@ if hold < 50: sleep(100)  # 100ms intervals, same 5-second timeout
 ---
 
 *Extended analysis completed on 2026-01-07*
+
+---
+
+## 34. Additional Database Anti-Patterns (NEW)
+
+### 34.1 VACUUM Called After Every Delete Operation
+
+**Files:**
+- `resources/lib/caches/providers_cache.py:39, 46`
+- `resources/lib/caches/favourites_cache.py:36`
+- `resources/lib/caches/navigator_cache.py:41`
+- `resources/lib/caches/main_cache.py:77, 86`
+- `resources/lib/caches/debrid_cache.py:42, 49`
+
+```python
+def delete_cache_single(self, media_type, tmdb_id):
+    self.dbcur.execute(SINGLE_DELETE, (media_type, tmdb_id))
+    self.dbcur.execute("""VACUUM""")  # VACUUM after SINGLE delete!
+```
+
+**Problem:** VACUUM rewrites entire database. Calling after individual DELETEs causes massive I/O overhead.
+
+### 34.2 Missing Database Connection Cleanup
+
+**Files:**
+- `resources/lib/caches/watched_cache.py:501-509` - `clear_local_bookmarks()` no close
+- `resources/lib/caches/watched_cache.py:96` - `set_bookmark()` no close
+- `resources/lib/caches/watched_cache.py:116` - `erase_bookmark()` no close
+- `resources/lib/caches/watched_cache.py:154` - `batch_erase_bookmark()` no close
+- `resources/lib/debrids/alldebrid_api.py:137` - `clear_cache()` no close
+- `resources/lib/debrids/offcloud_api.py:121` - `clear_cache()` no close
+- `resources/lib/debrids/premiumize_api.py:167` - `clear_cache()` no close
+- `resources/lib/debrids/torbox_api.py:214` - `clear_cache()` no close
+- `resources/lib/debrids/real_debrid_api.py:172` - `clear_cache()` no close
+
+**Problem:** Database connections opened but never closed, causing connection leaks.
+
+### 34.3 View Clear N+1 DELETE Pattern
+
+**File:** `resources/lib/modules/kodi_utils.py:296-299`
+
+```python
+dbcur.execute("""SELECT view_type FROM views""")
+for item in dbcur.fetchall():
+    dbcur.execute("""DELETE FROM views WHERE view_type = ?""", (item[0],))
+```
+
+**Problem:** Should be single `DELETE FROM views` statement instead of N queries.
+
+---
+
+## 35. Additional Threading Race Conditions (NEW)
+
+### 35.1 Race Conditions in Cloud Scrapers
+
+**Files:**
+- `resources/lib/scrapers/ad_cloud.py:60, 76, 84`
+- `resources/lib/scrapers/rd_cloud.py:60, 76, 83`
+- `resources/lib/scrapers/tb_cloud.py:68, 79`
+- `resources/lib/scrapers/oc_cloud.py:63, 78, 82`
+
+```python
+def _scrape_folders(self, folder_id, filename):
+    results_append = self.scrape_results.append  # Shared reference
+    # Multiple threads call:
+    results_append(item)  # NOT thread-safe when list resizes!
+```
+
+**Problem:** Multiple threads append to `self.scrape_results` without locks. List.append() is atomic in CPython, but resize operations during concurrent access can corrupt data.
+
+**Fix:**
+```python
+from threading import Lock
+self.results_lock = Lock()
+
+def _scrape_folders(self, ...):
+    with self.results_lock:
+        self.scrape_results.append(item)
+```
+
+### 35.2 Fire-and-Forget Thread Wrapper
+
+**File:** `resources/lib/indexers/mdblist_api.py:314`
+
+```python
+def mdbl_sync_activities_thread(*args, **kwargs):
+    Thread(target=mdbl_sync_activities, args=args, kwargs=kwargs).start()
+```
+
+**Problem:** Thread started without tracking, exception handling, or lifecycle management.
+
+### 35.3 Thread Per File with Short Join Timeout
+
+**File:** `resources/lib/debrids/offcloud.py:100-103`
+
+```python
+for count, i in enumerate(files, 1):
+    req = Thread(target=self.delete_torrent, args=(i['requestId'],))
+    req.start()
+    req.join(1)  # Only 1-second timeout - thread abandoned if slow!
+```
+
+**Problem:** Creates thread per file, joins with 1-second timeout. Slow operations escape, causing resource leak.
+
+---
+
+## 36. Additional Algorithmic Inefficiencies (NEW)
+
+### 36.1 O(n²) .index() in List Comprehensions
+
+**Files:**
+- `resources/lib/modules/dialogs.py:247, 265, 281`
+- `resources/lib/modules/source_utils.py:138`
+- `resources/lib/fenom/undesirables.py:80-81`
+- `resources/lib/modules/menu_editor.py:189`
+
+```python
+preselect = [fl.index(i) for i in get_setting(quality_setting).split(', ')]
+```
+
+**Problem:** `.index()` is O(n), called n times = O(n²).
+
+**Fix:**
+```python
+fl_idx = {item: idx for idx, item in enumerate(fl)}
+preselect = [fl_idx[i] for i in get_setting(quality_setting).split(', ') if i in fl_idx]
+```
+
+### 36.2 Inefficient Random Sort
+
+**File:** `resources/lib/modules/utils.py:273`
+
+```python
+elif sort_key == 'random': return sorted(list_data, key=lambda k: random.random())
+```
+
+**Problem:** Calls `random.random()` for every comparison = O(n log n) function calls.
+
+**Fix:**
+```python
+elif sort_key == 'random':
+    result = list_data[:]
+    random.shuffle(result)
+    return result
+```
+
+### 36.3 Excessive String Concatenation with +=
+
+**File:** `resources/lib/indexers/discover.py:533-564`
+
+```python
+name += '| %s %s' % (ls(32672), values['similar'])
+name += '| %s %s' % (ls(32673), values['recommended'])
+# ... 30+ more += operations
+```
+
+**Problem:** 30+ `+=` operations create 30+ intermediate string objects (O(n²) memory).
+
+**Fix:** Use `''.join(parts)` or single format string.
+
+### 36.4 List Comprehension for Single Item Access
+
+**Files:**
+- `resources/lib/indexers/metadata.py:149, 190, 226, 244`
+- `resources/lib/windows/extras.py:396-397, 480, 485, 488`
+
+```python
+director = [i['name'] for i in crew if i['job'] == 'Director'][0]
+info = [i for i in ep_list if i['media_ids']['tmdb'] == self.tmdb_id][0]
+```
+
+**Problem:** Creates entire filtered list just to get first item.
+
+**Fix:**
+```python
+director = next((i['name'] for i in crew if i['job'] == 'Director'), None)
+```
+
+### 36.5 Multiple Sorts on Same List
+
+**File:** `resources/lib/indexers/episodes.py:265, 269, 273`
+
+```python
+self.list = sorted(self.list, key=lambda k: k['sort_title'])
+# ... conditional code ...
+self.list = sorted(self.list, key=lambda k: k['sort_title'])
+# ... more conditional code ...
+self.list = sorted(self.list, key=lambda k: k['sort_title'])
+```
+
+**Problem:** Same list sorted 3 times with identical key.
+
+---
+
+## 37. Caching Anti-Patterns (NEW)
+
+### 37.1 Season Metadata Cache Key Mismatch Bug (CRITICAL)
+
+**File:** `resources/lib/caches/meta_cache.py:89, 101, 108, 129`
+
+```python
+# STORAGE format:
+prop_string = 'pov_meta_season_%s' % media_id
+
+# DELETION format (line 129):
+clear_property('pov_meta_season_%s_%s' % (string(media_id), string(item)))
+```
+
+**Problem:** Storage uses single underscore, cleanup uses double underscore. Season cache is NEVER cleaned up.
+
+### 37.2 Window Property Cleanup Bug
+
+**File:** `resources/lib/modules/dialogs.py:295-304`
+
+```python
+def _clear_property(setting_id):
+    clear_property(setting_id)  # NO 'pov_' prefix!
+
+# Caller uses:
+_clear_property('pov_%s' % name_setting % folder_no)  # DOUBLE prefix!
+```
+
+**Problem:** `_get_property()` and `_set_property()` add `pov_` prefix, but `_clear_property()` doesn't. Results in cleanup of `pov_pov_...` keys that don't exist.
+
+### 37.3 Module-Level Unbounded Lists
+
+**File:** `resources/lib/modules/debrid.py:274`
+
+```python
+class DebridCheck:
+    hash_list, cached_hashes = [], []  # MODULE LEVEL - persists forever
+```
+
+**Problem:** Module-level mutable lists accumulate across multiple debrid checks without cleanup.
+
+### 37.4 Missing PRAGMA Optimizations
+
+**Files missing `mmap_size`:**
+- `resources/lib/caches/main_cache.py`
+- `resources/lib/caches/navigator_cache.py`
+- `resources/lib/caches/debrid_cache.py`
+- `resources/lib/caches/watched_cache.py`
+- `resources/lib/caches/providers_cache.py`
+
+**Fix:** Add to BaseCache:
+```python
+self.dbcur.execute("""PRAGMA mmap_size = 268435456""")
+self.dbcur.execute("""PRAGMA cache_size = -10000""")
+```
+
+---
+
+## 38. API Call Inefficiencies (NEW)
+
+### 38.1 External ID Lookup N+1 Pattern (Trakt)
+
+**File:** `resources/lib/indexers/trakt_api.py:438-496`
+
+```python
+def trakt_indicators_movies():
+    def _process(item):
+        tmdb_id = get_trakt_movie_id(movie['ids'])  # API call per item!
+```
+
+**Problem:** For each watched movie missing TMDB ID, makes separate TMDB API call.
+
+### 38.2 External ID Lookup N+1 Pattern (MDBList)
+
+**File:** `resources/lib/indexers/mdblist_api.py:265-289, 190-219`
+
+```python
+def mdbl_indicators_movies(watched_info):
+    def _process(item):
+        tmdb_id = get_mdbl_movie_id(item['movie']['ids'])  # API per item
+```
+
+**Same Problem:** N+1 API calls for watched status sync.
+
+### 38.3 Repeated IP Address Fetches
+
+**File:** `resources/lib/debrids/torbox_api.py:85-110`
+
+```python
+def unrestrict_link(self, file_id):
+    user_ip = requests.get(ip_url, timeout=2.0).text  # API call
+
+def unrestrict_usenet(self, file_id):
+    user_ip = requests.get(ip_url, timeout=2.0).text  # Duplicate!
+
+def unrestrict_webdl(self, file_id):
+    user_ip = requests.get(ip_url, timeout=2.0).text  # Duplicate!
+```
+
+**Problem:** Same external IP fetched 3 times in same session.
+
+**Fix:** Cache IP at class level:
+```python
+def __init__(self):
+    self._user_ip = None
+
+@property
+def user_ip(self):
+    if self._user_ip is None:
+        self._user_ip = requests.get(ip_url, timeout=2.0).text
+    return self._user_ip
+```
+
+### 38.4 Unused Batch API Endpoint
+
+**File:** `resources/lib/indexers/mdblist_api.py:71-73`
+
+```python
+def mdbl_media_info_batch(items, provider, media_type):
+    return call_mdblist(url, json=items, method='post')  # Never called!
+```
+
+**Problem:** Batch endpoint exists but individual calls made instead.
+
+---
+
+## 39. Updated Comprehensive Issue Totals
+
+| Category | Previous Count | New Additions | Total |
+|----------|----------------|---------------|-------|
+| O(n²) Algorithm Patterns | 9 | 5 | 14 |
+| Database N+1 Queries | 7 | 3 | 10 |
+| Connection/Resource Leaks | 33 | 9 | 42 |
+| Threading Issues | 39 | 4 | 43 |
+| Race Conditions | 5 | 4 | 9 |
+| Caching Inefficiencies | 16 | 4 | 20 |
+| Regex Compilation | 9 | 0 | 9 |
+| Memory Management | 7 | 2 | 9 |
+| String Operations | 8 | 2 | 10 |
+| Collection Misuse | 10 | 4 | 14 |
+| Missing Indexes | 4 | 0 | 4 |
+| Blocking Operations | 4 | 0 | 4 |
+| API Call Inefficiencies | 0 | 6 | 6 |
+| **TOTAL** | **~148** | **~43** | **~191** |
+
+---
+
+## 40. Files Requiring Most Attention (Updated)
+
+| File | Issue Count | Critical Issues |
+|------|-------------|-----------------|
+| `modules/sources.py` | 20+ | O(n²), race conditions, threading |
+| `caches/watched_cache.py` | 12+ | N+1, connection leaks |
+| `fenom/source_utils.py` | 12+ | O(n²) loops, string ops |
+| `modules/dialogs.py` | 8+ | .index() O(n²), cleanup bug |
+| `caches/meta_cache.py` | 8+ | Key mismatch, serialization |
+| `caches/trakt_cache.py` | 8+ | Connection leaks, VACUUM |
+| `indexers/trakt_api.py` | 6+ | N+1 API calls |
+| `indexers/mdblist_api.py` | 6+ | N+1 API calls |
+| `scrapers/*_cloud.py` | 4 files | Race conditions in results |
+| `modules/debrid.py` | 8+ | Fire-and-forget, race conditions |
+
+---
+
+## 41. Recommended Fix Priority Order (Updated)
+
+### Phase 1: Critical (Immediate Impact)
+1. Fix season cache key mismatch in `meta_cache.py:129`
+2. Convert list membership checks to sets in `sources.py`
+3. Add threading locks for cloud scraper results
+4. Fix window property cleanup bug in `dialogs.py`
+5. Replace `.index()` calls with dict lookups
+
+### Phase 2: High Priority (Significant Impact)
+6. Cache user IP in debrid APIs (TorBox, EasyDebrid)
+7. Implement connection cleanup with context managers
+8. Remove individual VACUUM calls, batch at end
+9. Fix N+1 external ID lookups in trakt_api/mdblist_api
+10. Use `next()` for single-item lookups
+
+### Phase 3: Medium Priority (Moderate Impact)
+11. Fix random sort to use `shuffle()`
+12. Replace `+=` string concatenation with `.join()`
+13. Add missing PRAGMA optimizations to all caches
+14. Fix thread join timeouts in offcloud.py
+15. Batch API calls using existing batch endpoints
+
+### Phase 4: Low Priority (Polish)
+16. Standardize on JSON serialization
+17. Add TTL cleanup for window properties
+18. Clear module-level mutable lists between operations
+19. Consolidate multiple sorts on same list
+
+---
+
+*Final extended analysis completed on 2026-01-07*
