@@ -1016,3 +1016,341 @@ The following good patterns were observed and should be maintained:
 ---
 
 *Final analysis completed on 2026-01-07*
+
+---
+
+## 25. Additional Runtime Regex Compilation Issues (NEW)
+
+### 25.1 Identical Pattern Compiled 3 Times in debrid.py
+
+**File:** `resources/lib/modules/debrid.py:291, 303, 315`
+
+```python
+# Line 291 - in mfn_check_cache():
+pattern = re.compile(r'\b\w{40}\b')
+
+# Line 303 - in trz_check_cache():
+pattern = re.compile(r'\b\w{40}\b')
+
+# Line 315 - in tio_check_cache():
+pattern = re.compile(r'\b\w{40}\b')
+```
+
+**Problem:** The exact same regex pattern (matching 40-character hashes) is compiled 3 times in 3 different functions. Each function call recompiles this pattern.
+
+**Fix:** Pre-compile at module level:
+```python
+# At module level
+HASH_PATTERN = re.compile(r'\b\w{40}\b')
+
+# In functions
+matches = HASH_PATTERN.findall(...)
+```
+
+### 25.2 DOM Parser Regex Compiled Per Call
+
+**Files:**
+- `resources/lib/modules/dom_parser.py:10`
+- `resources/lib/fenom/dom_parser.py:10`
+- `resources/lib/fenom/client.py:295`
+
+```python
+if attrs: attrs = dict((key, re.compile(value + ('$' if value else '')))
+                       for key, value in attrs.items())
+```
+
+**Problem:** Every DOM parsing call recompiles regex patterns for HTML attributes. In scraping loops, this is called hundreds of times.
+
+### 25.3 HTML Comment Regex Inside Conditional
+
+**Files:**
+- `resources/lib/fenom/dom_parser.py:126`
+- `resources/lib/modules/dom_parser.py:104`
+
+```python
+if exclude_comments: item = re.sub(re.compile(r'<!--.*?-->', re.S), '', item)
+```
+
+**Fix:** Pre-compile at module level:
+```python
+COMMENT_PATTERN = re.compile(r'<!--.*?-->', re.S)
+# Then use:
+if exclude_comments: item = COMMENT_PATTERN.sub('', item)
+```
+
+---
+
+## 26. Memory Management Anti-Patterns (NEW)
+
+### 26.1 Closures Capturing Large Parent Context
+
+**File:** `resources/lib/modules/sources.py:375-393`
+
+```python
+def _process(item, count, background):
+    # This closure captures:
+    # - self (entire SourceSelect instance with 15+ attributes)
+    # - items (full list of source dictionaries)
+    # - All loop variables
+```
+
+**Problem:** Inner functions capture entire outer scope. When used with ThreadPoolExecutor, each task holds reference to large data structures.
+
+**Similar patterns:**
+- `caches/watched_cache.py:127-153` - Two `_process()` closures capture `bookmarks` list
+- `modules/sources.py:670` - `_process_quality_count()` captures `self`
+
+### 26.2 Race Condition in checked_hashes List
+
+**File:** `resources/lib/modules/debrid.py:253-263`
+
+```python
+checked_hashes = []  # Shared mutable list
+if self.debrid == 'ad': threads = (
+    Thread(target=mfn_check_cache, args=(..., checked_hashes)),
+    Thread(target=trz_check_cache, args=(..., checked_hashes))
+)
+# Both threads call checked_hashes.extend() without synchronization
+```
+
+**Problem:** Multiple threads append to shared list without locks. While list.append() is thread-safe in CPython due to GIL, list.extend() during resize operations can cause data loss.
+
+**Fix:** Use Queue or Lock:
+```python
+from queue import Queue
+hash_queue = Queue()
+# In threads:
+for h in found_hashes:
+    hash_queue.put(h)
+# After join:
+checked_hashes = list(hash_queue.queue)
+```
+
+### 26.3 Unbounded Class Variables
+
+**File:** `resources/lib/modules/debrid.py:274-275`
+
+```python
+class DebridCheck:
+    hash_list, cached_hashes = [], []  # Class-level, grows across instances
+```
+
+**Problem:** These persist and grow across multiple `DebridCheck` usage cycles without automatic cleanup.
+
+### 26.4 Generator Expressions Eagerly Evaluated
+
+**File:** `resources/lib/modules/debrid.py:295, 307, 319`
+
+```python
+collector.extend(pattern.findall(file['url'])[-1] for file in files if '⚡' in file['name'] and 'url' in file)
+```
+
+**Problem:** Generator expression is immediately consumed by `.extend()`, negating lazy evaluation benefits. Creates intermediate iterator objects.
+
+---
+
+## 27. Missing PRAGMA Optimizations (NEW)
+
+### 27.1 Inconsistent PRAGMA Settings Across Caches
+
+Only `meta_cache.py` uses memory-mapped I/O:
+```python
+# meta_cache.py has:
+dbcur.execute("""PRAGMA mmap_size = 268435456""")  # 256MB
+
+# Other caches missing this optimization:
+# - trakt_cache.py
+# - mdbl_cache.py
+# - main_cache.py
+# - debrid_cache.py
+# - watched_cache.py
+```
+
+**Fix:** Standardize PRAGMA settings across all caches:
+```python
+def _set_PRAGMAS(dbcon):
+    dbcur = dbcon.cursor()
+    dbcur.execute("""PRAGMA synchronous = OFF""")
+    dbcur.execute("""PRAGMA journal_mode = OFF""")
+    dbcur.execute("""PRAGMA mmap_size = 268435456""")
+    dbcur.execute("""PRAGMA cache_size = -10000""")  # 10MB page cache
+    return dbcur
+```
+
+### 27.2 Missing Read-Only PRAGMA for Read Operations
+
+**Files:** All caches
+
+For read-only operations, could use:
+```python
+dbcur.execute("""PRAGMA query_only = ON""")
+```
+
+This allows SQLite to optimize for read-only access paths.
+
+---
+
+## 28. Debrid Cache Expiration Bug (NEW)
+
+**File:** `resources/lib/caches/debrid_cache.py:18-22`
+
+```python
+def get_many(self, hash_list):
+    self.dbcur.execute(GET_MANY % (...), hash_list)
+    cache_data = self.dbcur.fetchall()
+    if cache_data:
+        if cache_data[0][3] > current_time:  # Only checks FIRST item's expiry!
+            result = cache_data
+        else: self.remove_many(cache_data)  # Removes ALL items if first is expired
+```
+
+**Problem:** Checks expiration only on the first cached item. If first item is expired but others are valid, all are incorrectly removed.
+
+**Fix:** Filter by expiration per item:
+```python
+current_time = time.time()
+valid_items = [item for item in cache_data if item[3] > current_time]
+expired_items = [item for item in cache_data if item[3] <= current_time]
+if expired_items:
+    self.remove_many(expired_items)
+return valid_items if valid_items else None
+```
+
+---
+
+## 29. ep_strings Pattern Not Pre-compiled (NEW)
+
+**Files:**
+- `resources/lib/magneto/animetosho.py:103`
+- `resources/lib/magneto/piratebay.py:70`
+- `resources/lib/magneto/torrentdownload.py:84`
+
+```python
+if any(re.search(item, name_lower) for item in ep_strings): continue
+```
+
+**Problem:** `ep_strings` patterns are used with `re.search()` on every source title without pre-compilation. With 100+ sources per scraper, this compiles same patterns repeatedly.
+
+**Fix:** Pre-compile ep_strings at scraper initialization:
+```python
+# In __init__ or module level
+self.ep_patterns = [re.compile(s) for s in ep_strings]
+
+# In loop
+if any(p.search(name_lower) for p in self.ep_patterns): continue
+```
+
+---
+
+## 30. Full Database Loads Without Streaming (NEW)
+
+**File:** `resources/lib/caches/watched_cache.py:186, 208`
+
+```python
+data = dbcur.fetchall()  # Loads ENTIRE table into memory
+watched_info = get_watched_info_tv(watched_indicators)  # Also fetchall()
+```
+
+**Problem:** For users with large libraries (10K+ watched items), `fetchall()` loads entire result set into memory at once.
+
+**Fix:** Use iterator or limit results:
+```python
+# Option 1: Iterator
+for row in dbcur:
+    yield row
+
+# Option 2: Pagination
+dbcur.execute("SELECT ... LIMIT ? OFFSET ?", (page_size, offset))
+```
+
+---
+
+## 31. Blocking Sleep Loops (NEW)
+
+### 31.1 CloudFlare Cookie Polling
+
+**File:** `resources/lib/fenom/client.py:354-360`
+
+```python
+for i in list(range(0, 30)):
+    if self.cookie is not None: return self.cookie
+    sleep(1)  # Blocks for up to 30 seconds
+```
+
+**Problem:** Main thread blocks up to 30 seconds polling for cookie. Should use event-based waiting.
+
+**Fix:** Use threading.Event:
+```python
+cookie_event = threading.Event()
+# In thread: cookie_event.set() when cookie found
+# In main: cookie_event.wait(timeout=30)
+```
+
+### 31.2 Container Content Polling
+
+**File:** `resources/lib/modules/kodi_utils.py:282-285`
+
+```python
+while not container_content() == content:
+    hold += 1
+    if hold < 5000: sleep(1)  # 1ms sleep, 5000 iterations = high CPU
+    else: return
+```
+
+**Fix:** Increase sleep interval:
+```python
+if hold < 50: sleep(100)  # 100ms intervals, same 5-second timeout
+```
+
+---
+
+## 32. Comprehensive Issue Totals (Updated)
+
+| Category | Original Count | New Additions | Total |
+|----------|----------------|---------------|-------|
+| O(n²) Algorithm Patterns | 7 | 2 | 9 |
+| Database N+1 Queries | 6 | 1 | 7 |
+| Connection/Resource Leaks | 30 | 3 | 33 |
+| Threading Issues | 35 | 4 | 39 |
+| Race Conditions | 4 | 1 | 5 |
+| Caching Inefficiencies | 12 | 4 | 16 |
+| Regex Compilation | 3 | 6 | 9 |
+| Memory Management | 2 | 5 | 7 |
+| String Operations | 8 | 0 | 8 |
+| Collection Misuse | 10 | 0 | 10 |
+| Missing Indexes | 4 | 0 | 4 |
+| Blocking Operations | 2 | 2 | 4 |
+| **TOTAL** | **~120** | **~28** | **~148** |
+
+---
+
+## 33. Updated Priority Matrix
+
+### Critical (Fix Immediately)
+| Issue | File | Line(s) | Impact |
+|-------|------|---------|--------|
+| O(n²) list membership | sources.py | 206, 458, 490 | Performance |
+| Race condition shared list | debrid.py | 253-263 | Data corruption |
+| Debrid cache expiration bug | debrid_cache.py | 18-22 | Cache invalidation |
+| Unbounded ThreadPoolExecutor | sources.py | 581 | Resource exhaustion |
+
+### High (Fix Soon)
+| Issue | File | Line(s) | Impact |
+|-------|------|---------|--------|
+| Identical regex compiled 3x | debrid.py | 291, 303, 315 | Performance |
+| DOM parser regex per call | dom_parser.py | 10 | Performance |
+| Fire-and-forget threads (25+) | player.py, debrid.py | Multiple | Resource leak |
+| Missing PRAGMA mmap_size | All caches | - | I/O performance |
+| ep_strings not pre-compiled | magneto/*.py | Multiple | Performance |
+
+### Medium (Plan to Fix)
+| Issue | File | Line(s) | Impact |
+|-------|------|---------|--------|
+| Closures capturing context | sources.py | 375-393 | Memory |
+| Generator eagerly evaluated | debrid.py | 295, 307, 319 | Minor inefficiency |
+| Blocking sleep loops | client.py, kodi_utils.py | Multiple | UI responsiveness |
+| Full database loads | watched_cache.py | 186, 208 | Memory for large libraries |
+
+---
+
+*Extended analysis completed on 2026-01-07*
