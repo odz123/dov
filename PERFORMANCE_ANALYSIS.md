@@ -842,3 +842,177 @@ def clear_local_bookmarks():
 ---
 
 *Updated analysis generated on 2026-01-07*
+
+---
+
+## 21. Additional Discovered Issues (NEW)
+
+### 21.1 Repeated List Comprehensions for Single Items in extras.py
+
+**File:** `resources/lib/windows/extras.py:480, 485, 488`
+
+```python
+# Line 480: Finding next episode info
+info = [i for i in ep_list if i['media_ids']['tmdb'] == self.tmdb_id][0]
+
+# Line 485: Finding season data
+curr_season_data = [i for i in season_data if i['season_number'] == current_season][0]
+
+# Line 488: Another season lookup
+info = [i for i in season_data if i['season_number'] == season][0]
+```
+
+**Problem:** Creates complete filtered lists just to extract the first matching item. With large episode/season lists, this is wasteful.
+
+**Fix:** Use `next()` with generator:
+```python
+info = next((i for i in ep_list if i['media_ids']['tmdb'] == self.tmdb_id), None)
+curr_season_data = next((i for i in season_data if i['season_number'] == current_season), None)
+```
+
+### 21.2 Redundant Translation Calls in discover.py
+
+**File:** `resources/lib/indexers/discover.py`
+
+```python
+# Multiple calls to ls() for the same string IDs in menu building
+ls(32451), ls(32592)  # Called repeatedly in movie() and tvshow() methods
+```
+
+**Problem:** Translation function called multiple times for same strings during menu construction.
+
+**Fix:** Cache translation results at method start:
+```python
+str_discover = ls(32451)
+str_similar = ls(32592)
+# Then use cached values
+```
+
+### 21.3 Repeated filter_show_pack Range Building
+
+**File:** `resources/lib/fenom/source_utils.py:370-530`
+
+The `filter_show_pack()` function builds 14+ similar range lists in sequence:
+```python
+# Pattern repeated ~14 times:
+to_season_ranges = []
+season_count = 2
+while season_count <= int(total_seasons):
+    to_season_ranges.append(...)
+    season_count += 1
+if any(i in dot_release_title for i in to_season_ranges):
+    keys = [i for i in to_season_ranges if i in dot_release_title]
+```
+
+**Problem:** Each range type (to, thru, dash, tilde, etc.) builds its own list and does its own iteration. These could be consolidated into a single pass with combined patterns.
+
+### 21.4 Multiple JSON Dumps in extras.py
+
+**File:** `resources/lib/windows/extras.py:354, 361`
+
+```python
+# Line 354: JSON dumps inside loop
+listitem.setProperty('tikiskins.extras.all_images', json_all_images)
+
+# Line 361: Computing same JSON multiple times
+json_all_images = json.dumps([(tmdb_image_base % ('original', i['file_path']), '%sx%s' % (i['height'], i['width'])) for i in data])
+```
+
+**Fix:** The `json_all_images` is correctly computed once before the loop - this is already optimized.
+
+### 21.5 Service Thread Join Pattern
+
+**File:** `resources/lib/service.py:168`
+
+```python
+def __exit__(self, exc_type, exc_value, traceback):
+    for i in self.threads: i.join()
+```
+
+**Status:** GOOD - Uses proper for loop instead of list comprehension for joining threads. This is the correct pattern.
+
+### 21.6 Potential Infinite Loop in set_view_mode
+
+**File:** `resources/lib/modules/kodi_utils.py:282-285`
+
+```python
+while not container_content() == content:
+    hold += 1
+    if hold < 5000: sleep(1)
+    else: return
+```
+
+**Problem:** The loop sleeps for 1ms per iteration up to 5000 times (5 seconds). With 1ms sleep granularity, this could cause high CPU usage during the wait period.
+
+**Fix:** Use larger sleep intervals:
+```python
+while not container_content() == content:
+    hold += 1
+    if hold < 50: sleep(100)  # 100ms intervals, 5 second timeout
+    else: return
+```
+
+### 21.7 Unbounded Session History in episode_tools.py
+
+**File:** `resources/lib/modules/episode_tools.py:25-36` (referenced in existing docs)
+
+**Status:** Already documented in Section 6.2 - confirmed as unbounded window property accumulation.
+
+---
+
+## 22. Positive Patterns Found (Keep These)
+
+The following good patterns were observed and should be maintained:
+
+| Pattern | Location | Description |
+|---------|----------|-------------|
+| Pre-compiled regex | `fenom/source_utils.py:12-76` | 60+ patterns compiled at module level |
+| Whitelist validation | `caches/meta_cache.py:13-14` | SQL injection prevention via frozenset |
+| Context manager | `service.py:163-168` | Proper `__enter__`/`__exit__` for cleanup |
+| Dict-based lookups | `watched_cache.py:66-73, 305-327` | O(1) lookup functions exist |
+| TaskPool | `modules/utils.py:16-43` | Bounded thread pool implementation |
+| Lazy imports | `router.py` | Modules imported only when needed |
+| safe_eval | `caches/meta_cache.py:7` | Uses `literal_eval` instead of `eval` |
+
+---
+
+## 23. Summary Metrics
+
+### Issues by Severity
+
+| Severity | Count | Examples |
+|----------|-------|----------|
+| CRITICAL | 10+ | O(n²) algorithms, race conditions |
+| HIGH | 30+ | N+1 queries, connection leaks, unbounded threads |
+| MEDIUM | 40+ | Redundant operations, missing indexes |
+| LOW | 20+ | String concatenation, minor optimizations |
+| **TOTAL** | **100+** | - |
+
+### Files by Issue Density
+
+| File | Lines | Issues | Density |
+|------|-------|--------|---------|
+| `modules/sources.py` | 703 | 18+ | 1 per 39 lines |
+| `fenom/source_utils.py` | 715 | 12+ | 1 per 60 lines |
+| `caches/watched_cache.py` | 665 | 10+ | 1 per 67 lines |
+| `windows/extras.py` | 771 | 8+ | 1 per 96 lines |
+| `caches/trakt_cache.py` | 205 | 8+ | 1 per 26 lines |
+
+---
+
+## 24. Quick Reference: Top 10 Fixes by Impact
+
+1. **Convert list membership to set** in `sources.py` - O(n²) → O(n)
+2. **Use dict-based lookups** in `watched_cache.py` - Already implemented, needs wider adoption
+3. **Add threading locks** for shared state in `sources.py` - Prevents data corruption
+4. **Cap ThreadPoolExecutor size** in `sources.py:581` - Prevents thread explosion
+5. **Remove VACUUM after each delete** in cache files - Batch at end only
+6. **Fix N+1 queries** in `thumbnails.py`, `kodi_utils.py` - Use batch operations
+7. **Use `next()` for single items** in `extras.py` - Avoids full list creation
+8. **Add database connection cleanup** via context managers - Prevents leaks
+9. **Pre-compute sort keys** to avoid `.index()` in sorts - O(n²) → O(n log n)
+10. **Fix season cache key mismatch** in `meta_cache.py:101, 129` - Cache invalidation bug
+
+---
+
+*Final analysis completed on 2026-01-07*
