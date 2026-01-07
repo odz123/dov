@@ -55,11 +55,91 @@ def batch_mark_episodes_as_watched_unwatched_kodi_library(action, show_info, epi
 
 **Problem:** Makes individual Kodi library queries for each episode instead of batch querying.
 
+### 1.3 Repeated Cache Instantiation (NEW)
+
+**Files:** `resources/lib/caches/mdbl_cache.py:60-115`, `resources/lib/caches/trakt_cache.py:60-137`
+
+```python
+def cache_trakt_object(function, string, url):
+    dbcur = TraktCache().dbcur  # NEW connection opened here
+    dbcur.execute(TC_BASE_GET, (string,))
+```
+
+**Problem:** Each module-level function creates a new database connection by instantiating the cache class. Functions affected:
+- `cache_trakt_object()`, `reset_activity()`, `clear_trakt_*()` (9 instances in trakt_cache.py)
+- `cache_mdbl_object()`, `reset_activity()`, `clear_mdbl_*()` (6 instances in mdbl_cache.py)
+
+### 1.4 N+1 DELETE Loop Pattern (NEW)
+
+**File:** `resources/lib/caches/main_cache.py:66-78`
+
+```python
+def delete_all_lists(self):
+    for item in results:  # Loop starts here
+        self.dbcur.execute(DELETE, (str(item[0]),))  # Individual DELETE per item
+```
+
+**Problem:** If `results` contains 100+ items, this executes 100+ separate DELETE statements. Should use `executemany()`.
+
 ---
 
-## 2. Inefficient Nested Loop Algorithms (MEDIUM-HIGH IMPACT)
+## 2. O(n²) Algorithm Anti-Patterns (CRITICAL)
 
-### 2.1 O(n*m) Title Matching in source_utils.py
+### 2.1 List Membership Checks in Comprehensions (NEW)
+
+**File:** `resources/lib/modules/sources.py`
+
+```python
+# Line 206
+remainder_list = [i for i in results if not i in priority_list]  # O(n²)
+
+# Line 458
+sort_last = [i for i in results if not i in sort_first]  # O(n²)
+
+# Line 490, 505, 683 - Similar patterns
+```
+
+**Problem:** Checking `not i in list` performs O(n) lookup inside O(n) loop = O(n²). With 500 sources, this is 250,000 comparisons.
+
+**Solution:** Convert to set for O(1) lookup:
+```python
+priority_set = set(priority_list)
+remainder_list = [i for i in results if i not in priority_set]
+```
+
+### 2.2 Multiple Passes Over Same Data (NEW)
+
+**File:** `resources/lib/fenom/source_utils.py:370-530`
+
+The `filter_show_pack()` function performs ~14 separate while loops building range lists with identical patterns:
+```python
+while season_count <= int(total_seasons):
+    to_season_ranges.append(...)
+    season_count += 1
+if any(i in dot_release_title for i in to_season_ranges):  # Check
+    keys = [i for i in to_season_ranges if i in dot_release_title]  # Redundant filter
+    # ... then rebuild with .replace() and check again - 4+ more times
+```
+
+**Problem:** ~7 separate iterations for nearly identical operations.
+
+### 2.3 Double Hash Iteration (NEW)
+
+**File:** `resources/lib/modules/sources.py:604-607`
+
+```python
+for name, hashes in ...:
+    self.final_sources.extend({**i} for i in torrent_sources if i['hash'] in hashes)     # First pass
+    self.final_sources.extend({**i} for i in torrent_sources if not i['hash'] in hashes) # Second pass
+```
+
+**Problem:** Iterates torrent_sources twice with opposite conditions. Should be a single pass.
+
+---
+
+## 3. Inefficient Nested Loop Algorithms (MEDIUM-HIGH IMPACT)
+
+### 3.1 O(n*m) Title Matching in source_utils.py
 
 **File:** `resources/lib/fenom/source_utils.py:132-176`
 
@@ -71,161 +151,88 @@ def check_title(title, aliases, release_title, hdlr, year, years=None):
 
 **Problem:** For each source being checked, this iterates through all aliases. With 500 sources and 10 aliases, this is 5000 comparisons.
 
-### 2.2 Expensive Regex Compilation in Loops
+### 3.2 Repeated String Operations in Loops (NEW)
 
-**File:** `resources/lib/fenom/source_utils.py:277-515`
-
-The `filter_show_pack()` function creates multiple regex patterns inside loops:
+**File:** `resources/lib/fenom/source_utils.py`
 
 ```python
-season_regex += tuple([r'complete[.-]%s[.-]season' % x for x in season_ordinal_list])  # 25 items
-season_regex += tuple([r'complete[.-]%s[.-]season' % x for x in season_ordinal2_list])  # 25 items
-# Then loops through all regex patterns for each release title
+# Lines 210, 223, 285, 345
+for i in years: alias = alias.replace(i, '')
+for i in split_list: t = t.split(i)[0]
+
+# Lines 553, 556
+for i in str1_replace: name_info = name_info.replace(i, '')
+for i in str2_replace: name_info = name_info.replace(i, '')
 ```
 
-**Problem:** Regex patterns are created dynamically for every call. They should be pre-compiled once at module load.
+**Problem:** Multiple sequential `.replace()` or `.split()` calls. Should use a single regex pattern.
 
-### 2.3 Repeated String Operations
+### 3.3 Hoster Nested Loop Lookup (NEW)
 
-**File:** `resources/lib/fenom/source_utils.py:348-502`
-
-Multiple while loops build range lists for every title checked:
+**File:** `resources/lib/modules/sources.py:613-614`
 
 ```python
-while season_count <= int(total_seasons):
-    dot_season_ranges.append(all_seasons + '.and.%s' % str(season_count))
-    all_seasons += '.%s' % str(season_count)  # String concatenation in loop
+for item in self.debrid_hosters:
+    for k, v in item.items():
+        valid_hosters = [i for i in result_hosters if i in v]  # O(m*n)
+        self.final_sources.extend([{**i} for i in hoster_sources if i['source'] in valid_hosters])
 ```
 
-**Problem:** These range lists are rebuilt for every release title check but depend only on `total_seasons`, not the specific release.
+**Problem:** Nested loops with list membership checks = O(n³) in worst case.
 
 ---
 
-## 3. String Concatenation Anti-Patterns (LOW-MEDIUM IMPACT)
+## 4. String Concatenation Anti-Patterns (LOW-MEDIUM IMPACT)
 
-### 3.1 String Concatenation with +=
-
-**Multiple files use string building with `+=` instead of join:**
+### 4.1 String Concatenation with +=
 
 **File:** `resources/lib/fenom/source_utils.py:351-358`
 ```python
 all_seasons += '.%s' % str(season_count)  # Creates new string object each iteration
 ```
 
-**File:** `resources/lib/indexers/tmdb_api.py`, `resources/lib/modules/dialogs.py`
-String concatenation in loops creating unnecessary intermediate objects.
-
-### 3.2 Inefficient URL Building
+### 4.2 Inefficient URL Building
 
 **File:** `resources/lib/magneto/*.py` files
 ```python
 url = '%s%s' % (self.base_link, self.movieSearch_link % imdb)
 ```
 
-While not critical, using f-strings or `.format()` would be more readable and slightly faster.
-
 ---
 
-## 4. API Calls in Loops (HIGH IMPACT)
+## 5. Threading Anti-Patterns (HIGH IMPACT)
 
-### 4.1 Sequential External API Calls
+### 5.1 Fire-and-Forget Threads (NEW - CRITICAL)
 
-**File:** `resources/lib/modules/debrid.py:282-335`
-
-```python
-def mfn_check_cache(imdb, season, episode, collector):
-    results = session.get(url, timeout=7.05)  # Individual HTTP request
-```
-
-These functions are called sequentially from `external_check_cache()`. While some parallelism exists via threading, the pattern of making multiple HTTP calls per debrid check adds latency.
-
-### 4.2 Thread Joining Pattern
-
-**File:** `resources/lib/caches/watched_cache.py:196-197`
+**Locations:**
+- `resources/lib/modules/player.py:187, 209, 216, 225, 233`
+- `resources/lib/modules/debrid.py:96, 98, 102, 163, 248`
+- `resources/lib/windows/people.py:32-35` (4 threads)
+- `resources/lib/windows/extras.py:43-49` (12 threads)
+- `resources/lib/debrids/torbox_api.py:178, 182`
+- `resources/lib/indexers/trakt_api.py:624`
+- `resources/lib/indexers/tmdb_api.py:594, 615`
 
 ```python
-threads = list(make_thread_list(_process, prelim_data, Thread))
-[i.join() for i in threads]  # Blocks until ALL threads complete
+Thread(target=self.run_media_watched, args=(...)).start()  # No join, no tracking
+Thread(target=execute_nextep, args=(...)).start()
 ```
 
-**Problem:** List comprehension creates unnecessary list just to wait for threads. Also blocks on all threads serially instead of waiting for them in parallel.
+**Problem:** 25+ locations create threads without:
+- Wait mechanism
+- Exception handling
+- Lifecycle tracking
+- Graceful shutdown
 
-**Better pattern:**
-```python
-for t in threads:
-    t.join()
-```
+### 5.2 Thread Join in List Comprehension (NEW)
 
----
-
-## 5. Caching Inefficiencies (MEDIUM IMPACT)
-
-### 5.1 eval() for Cache Deserialization
-
-**File:** `resources/lib/caches/meta_cache.py:40,80,105`
+**File:** `resources/lib/indexers/tmdb_api.py:572`
 
 ```python
-meta, expiry = eval(cache_data[0]), cache_data[1]  # SECURITY RISK + SLOW
+[i.join(3/4) for i in threads]  # Creates unnecessary list
 ```
 
-**Problem:**
-1. `eval()` is significantly slower than `json.loads()`
-2. Security vulnerability - arbitrary code execution if cache is corrupted
-
-**Solution:** Use `json.loads()` instead of `eval()`, store data as JSON.
-
-### 5.2 No Connection Pooling for Database
-
-**File:** `resources/lib/caches/watched_cache.py:21-22`
-
-```python
-def _database_connect(database_file):
-    return kodi_utils.database_connect(database_file, timeout=timeout, isolation_level=None)
-```
-
-New database connections are created for each operation instead of using a connection pool.
-
-### 5.3 PRAGMA Settings Per Connection
-
-**File:** `resources/lib/caches/watched_cache.py:24-28`
-
-```python
-def set_PRAGMAS(dbcon):
-    dbcur = dbcon.cursor()
-    dbcur.execute("""PRAGMA synchronous = OFF""")
-    dbcur.execute("""PRAGMA journal_mode = OFF""")
-```
-
-These PRAGMA settings are reset on every connection. They should be set once at database initialization.
-
----
-
-## 6. Memory & Object Creation Issues (LOW-MEDIUM IMPACT)
-
-### 6.1 Unnecessary List Creation
-
-**File:** `resources/lib/modules/sources.py:128`
-```python
-if self.providers: [i.join() for i in self.threads]
-```
-
-Creates a list just to iterate - should be a simple for loop or generator.
-
-### 6.2 Property String Building in Loops
-
-**File:** `resources/lib/caches/meta_cache.py:116-117`
-```python
-def delete_all_seasons_memory_cache(self, media_id):
-    for item in range(1, 51): clear_property('pov_meta_season_%s_%s' % (string(media_id), string(item)))
-```
-
-String formatting 50 times when a single batch clear could work.
-
----
-
-## 7. Threading Issues (MEDIUM IMPACT)
-
-### 7.1 Unbounded Thread Creation
+### 5.3 Unbounded Thread Creation
 
 **File:** `resources/lib/modules/utils.py:48-52`
 
@@ -233,50 +240,174 @@ String formatting 50 times when a single batch clear could work.
 def make_thread_list(_target, _list, _thread):
     for item in _list:
         threaded_object = _thread(target=_target, args=(item,))
-        threaded_object.start()  # Starts immediately, no limit
+        threaded_object.start()  # Creates threads for every item!
 ```
 
 **Problem:** Creates as many threads as items in the list. With 500 sources, this creates 500 threads.
 
 **Good pattern exists at:** `TaskPool` class (lines 16-43) which limits thread count - but not used consistently.
 
-### 7.2 Race Conditions
+### 5.4 Excessive UI Initialization Threads (NEW)
 
-**File:** `resources/lib/caches/watched_cache.py:326-328`
+**File:** `resources/lib/windows/extras.py:42-49`
+
 ```python
-episodes = {}
-for i in insert_list:
-    episodes[i[2]] = episodes.get(i[2], []).append({'number': i[3]})
+for i in (
+    Thread(target=self.set_poster), Thread(target=self.make_cast),
+    Thread(target=self.make_recommended), Thread(target=self.make_reviews),
+    # ... 12-13 threads total
+): i.start()
 ```
 
-**Bug:** `.append()` returns `None`, so this always sets values to `None`.
+**Problem:** Creates 12-13 threads on dialog initialization with no synchronization.
+
+### 5.5 Race Condition in CloudFlare Cookie Fetch (NEW)
+
+**File:** `resources/lib/fenom/client.py:352-361`
+
+```python
+def get(self, netloc, ua, timeout):
+    for i in list(range(0, 15)):  # Creates 15 threads!
+        threads.append(Thread(target=self.get_cookie, args=(...)))
+    for i in threads: i.start()
+    for i in list(range(0, 30)):  # Sleep loop instead of join!
+        if self.cookie is not None: return self.cookie
+        sleep(1)
+```
+
+**Issues:**
+- Creates 15 threads for a single cookie
+- Uses `sleep()` loop instead of `.join()`
+- Reads `self.cookie` without synchronization
 
 ---
 
-## 8. Algorithm Complexity Issues (MEDIUM IMPACT)
+## 6. Caching & Memory Issues (MEDIUM-HIGH IMPACT)
 
-### 8.1 Sorting After Filtering
+### 6.1 Database Connection Leaks (NEW - CRITICAL)
 
-**File:** `resources/lib/indexers/movies.py:150`
+**Files:** `resources/lib/caches/trakt_cache.py`, `resources/lib/caches/mdbl_cache.py`
+
+Each function creates new `TraktCache()` or `MDBLCache()` instance without closing connections.
+
+### 6.2 Unbounded Window Property Accumulation (NEW)
+
+**File:** `resources/lib/modules/episode_tools.py:25-36`
+
 ```python
-self.items.sort(key=lambda k: int(k[1].getProperty('pov_sort_order')))
+episode_history = json.loads(kodi_utils.get_property('pov_random_episode_history'))
+episode_list.append(chosen_episode)
+episode_history[tmdb_key] = episode_list  # GROWS INDEFINITELY
+kodi_utils.set_property('pov_random_episode_history', json.dumps(episode_history))
 ```
 
-Sorting happens after building items. If items are already ordered during insertion, this would be unnecessary.
+**Problem:** `pov_random_episode_history` accumulates all episodes played across session with no cleanup.
 
-### 8.2 Multiple Passes Over Same Data
+### 6.3 No TTL Cleanup for Window Properties (NEW)
 
-**File:** `resources/lib/modules/sources.py:149-163`
+**Files:** `resources/lib/caches/meta_cache.py:85-103`, `resources/lib/caches/main_cache.py:40-54`
+
+SQLite caches have TTL tracking, but window property caches:
+- Never auto-expire
+- No background cleanup task
+- Persist indefinitely if not accessed
+
+### 6.4 Hardcoded Season Cleanup Limit (NEW)
+
+**File:** `resources/lib/caches/meta_cache.py:128-129`
+
 ```python
-results = self.filter_results(results)
-results = self.sort_results(results)
-results = self._special_filter(results, hevc_filter_key, self.filter_hevc)
-results = self._special_filter(results, hdr_filter_key, self.filter_hdr)
-results = self._special_filter(results, dolby_vision_filter_key, self.filter_dv)
-results = self._special_filter(results, av1_filter_key, self.filter_av1)
+def delete_all_seasons_memory_cache(self, media_id):
+    for item in range(1, 51): clear_property('pov_meta_season_%s_%s' % (...))
 ```
 
-**Problem:** 6 separate passes through the results list. These could be combined into a single pass.
+**Problem:** Only clears seasons 1-50. Shows with 50+ seasons leak memory.
+
+### 6.5 No Connection Pooling
+
+**File:** `resources/lib/caches/watched_cache.py:21-22`
+
+New database connections are created for each operation instead of using a connection pool.
+
+### 6.6 Unbounded Bookmarks Dict (NEW)
+
+**File:** `resources/lib/caches/watched_cache.py:66-72`
+
+```python
+return {(i[0], i[3], i[4]): (...) for i in result.fetchall()}  # Loads ALL bookmarks
+```
+
+**Problem:** All bookmarks loaded into memory at once. For large libraries (10K+ episodes), significant memory footprint.
+
+### 6.7 Repeated VACUUM Operations (NEW)
+
+**File:** `resources/lib/caches/mdbl_cache.py:49`
+
+```python
+def _delete(self, command, args):
+    self.dbcur.execute(command, args)
+    self.dbcur.execute("""VACUUM""")  # After EVERY delete operation
+```
+
+**Problem:** `VACUUM` rewrites entire database. Should batch operations and VACUUM once.
+
+---
+
+## 7. Redundant Operations (MEDIUM IMPACT)
+
+### 7.1 Multiple Sorts on Same Data (NEW)
+
+**File:** `resources/lib/modules/sources.py:463-481`
+
+```python
+results.sort(key=lambda k: 'Unchecked' in k.get('cache_provider', ''), reverse=False)
+# ... conditional code ...
+results.sort(key=lambda k: 'Uncached' in k.get('cache_provider', ''), reverse=False)
+# ... filter operations ...
+results.sort(key=lambda k: 'Uncached' in k.get('cache_provider', ''), reverse=False)
+```
+
+**Problem:** Up to 3 sorts on same list. Can be combined into one.
+
+### 7.2 Duplicate Dict Initialization (NEW)
+
+**File:** `resources/lib/modules/sources.py:575-576`
+
+```python
+self.internal_resolutions = dict.fromkeys(resolutions.split(), 0)
+self.resolutions = dict.fromkeys(resolutions.split(), 0)
+```
+
+**Problem:** `resolutions.split()` called twice.
+
+### 7.3 Set-to-List Conversions (NEW)
+
+**File:** `resources/lib/modules/sources.py:156, 596, 610, 690`
+
+```python
+self.all_scrapers = list(set(...))
+result_hashes = list({i['hash'] for i in torrent_sources})
+```
+
+**Problem:** Creates set then converts to list, losing O(1) lookup benefit.
+
+### 7.4 Inconsistent Dict Lookup Usage (NEW)
+
+**File:** `resources/lib/caches/watched_cache.py`
+
+Efficient dict lookups exist (`get_bookmarks_dict`, `make_watched_info_*_dict`) but inefficient list versions are used in most places.
+
+---
+
+## 8. Runtime Regex Compilation (NEW)
+
+**File:** `resources/lib/modules/source_utils.py:250`
+
+```python
+reg_pattern = re.compile(final_string)  # Compiled inside function, called repeatedly
+```
+
+**Problem:** Regex compiled on every function call instead of at module level.
 
 ---
 
@@ -284,11 +415,15 @@ results = self._special_filter(results, av1_filter_key, self.filter_av1)
 
 | Issue | Impact | Effort to Fix |
 |-------|--------|---------------|
+| O(n²) list membership checks | CRITICAL | LOW |
+| Fire-and-forget threads (25+ locations) | HIGH | MEDIUM |
+| Database connection leaks | HIGH | MEDIUM |
 | N+1 watched status lookups | HIGH | LOW |
-| eval() in cache | HIGH (security) | LOW |
-| Regex recompilation | MEDIUM-HIGH | LOW |
+| Unbounded window property growth | HIGH | LOW |
 | Unbounded thread creation | MEDIUM-HIGH | LOW |
-| Multiple list passes | MEDIUM | MEDIUM |
+| Multiple list passes / redundant iterations | MEDIUM | MEDIUM |
+| Missing TTL cleanup for memory cache | MEDIUM | MEDIUM |
+| Repeated VACUUM operations | MEDIUM | LOW |
 | String concatenation in loops | LOW-MEDIUM | LOW |
 | Database connection pooling | MEDIUM | HIGH |
 
@@ -296,12 +431,28 @@ results = self._special_filter(results, av1_filter_key, self.filter_av1)
 
 ## Quick Wins (Recommended First)
 
-1. **Convert watched_info to dict** - Single change, biggest impact
-2. **Replace eval() with json.loads()** - Security + performance
-3. **Pre-compile regex patterns** - Move to module level constants
-4. **Use TaskPool consistently** - Already exists, just needs wider adoption
+1. **Convert list membership to set** - `priority_set = set(priority_list)` - Biggest impact
+2. **Use TaskPool consistently** - Already exists, just needs wider adoption
+3. **Add cleanup for episode history** - Clear on session end
+4. **Use `get_bookmarks_dict()` everywhere** - Already implemented, just use it
 5. **Combine filter passes** - Single iteration over results
+6. **Fix repeated cache instantiation** - Use module-level cache instance
+7. **Remove VACUUM from individual operations** - Batch at end only
 
 ---
 
-*Analysis generated on 2026-01-05*
+## Files Most Needing Attention
+
+| File | Issue Count | Priority |
+|------|-------------|----------|
+| `modules/sources.py` | 12+ | CRITICAL |
+| `caches/watched_cache.py` | 8+ | HIGH |
+| `fenom/source_utils.py` | 7+ | HIGH |
+| `caches/trakt_cache.py` | 6+ | HIGH |
+| `caches/mdbl_cache.py` | 6+ | HIGH |
+| `windows/extras.py` | 3+ | MEDIUM |
+| `modules/player.py` | 5+ | MEDIUM |
+
+---
+
+*Analysis generated on 2026-01-07*
