@@ -2131,3 +2131,217 @@ LOW │  ┌────────────────┐     ┌───
 ---
 
 *Extended analysis completed on 2026-01-08*
+
+---
+
+## 54. Analysis Verification and Additional Findings (2026-01-08)
+
+This section documents verification of the performance analysis and additional patterns discovered.
+
+### 54.1 Verified Critical Issues
+
+The following critical issues were confirmed through code review:
+
+#### O(n²) List Membership - CONFIRMED
+**File:** `modules/sources.py:206, 458, 490, 505, 607, 683`
+
+```python
+# Line 206 - verified in _apply_special_filters()
+remainder_list = [i for i in results if not i in priority_list]
+
+# Line 458 - verified in _sort_language_to_top()
+sort_last = [i for i in results if not i in sort_first]
+
+# Line 505 - verified in _sort_first()
+sort_last = [i for i in results if not i in sort_first]
+
+# Line 683 - verified in process_internal_results()
+return [i for i in self.internal_scrapers if not i in self.processed_internal_scrapers]
+```
+
+#### Unbounded ThreadPoolExecutor - CONFIRMED
+**File:** `modules/sources.py:581`
+
+```python
+tpe = TPE(max(1, len(self.source_dict), len(self.debrid_torrents)))
+```
+Pool size directly tied to source count with no upper bound.
+
+#### Race Condition in Shared Lists - CONFIRMED
+**File:** `modules/debrid.py:252-263`
+
+```python
+checked_hashes = []  # Shared mutable list
+threads = (
+    Thread(target=mfn_check_cache, args=(..., checked_hashes)),
+    Thread(target=trz_check_cache, args=(..., checked_hashes))
+)
+# Both threads call checked_hashes.extend() without synchronization
+```
+
+#### Identical Regex Compiled 3 Times - CONFIRMED
+**File:** `modules/debrid.py:291, 303, 315`
+
+```python
+# Line 291 - in mfn_check_cache()
+pattern = re.compile(r'\b\w{40}\b')
+
+# Line 303 - in trz_check_cache()
+pattern = re.compile(r'\b\w{40}\b')
+
+# Line 315 - in tio_check_cache()
+pattern = re.compile(r'\b\w{40}\b')
+```
+
+### 54.2 Verified Positive Patterns
+
+The following good patterns are correctly implemented:
+
+| Pattern | File | Status |
+|---------|------|--------|
+| Pre-compiled regex (60+ patterns) | `fenom/source_utils.py:12-76` | ✓ GOOD |
+| Dict-based bookmark lookups | `caches/watched_cache.py:66-73` | ✓ GOOD |
+| Dict/Set support in watched status | `caches/watched_cache.py:258-302` | ✓ GOOD |
+| Optimization helper functions | `caches/watched_cache.py:305-327` | ✓ GOOD (but unused) |
+| TaskPool bounded threading | `modules/utils.py:16-43` | ✓ GOOD |
+| Proper thread join loops | `service.py:168` | ✓ GOOD |
+| PRAGMA optimization (mmap) | `caches/trakt_cache.py:58` | ✓ GOOD |
+
+### 54.3 Additional Anti-Pattern: VACUUM After Each Delete
+
+**Files:** Multiple cache modules
+
+```python
+# trakt_cache.py:47-49
+def _delete(self, command, args):
+    self.dbcur.execute(command, args)
+    self.dbcur.execute("""VACUUM""")  # After EVERY delete
+
+# mdbl_cache.py:49 - Same pattern
+```
+
+**Impact:** VACUUM rewrites entire database. With 100 deletes, this causes 100 full rewrites.
+
+**Fix:** Remove individual VACUUMs, add scheduled maintenance VACUUM.
+
+### 54.4 Additional Anti-Pattern: Connection Instantiation in Functions
+
+**File:** `caches/trakt_cache.py:60-137`
+
+Each standalone function creates a new `TraktCache()` instance:
+
+```python
+def cache_trakt_object(function, string, url):
+    dbcur = TraktCache().dbcur  # New connection!
+
+def reset_activity(latest_activities):
+    dbcur = TraktCache().dbcur  # New connection!
+
+def clear_trakt_hidden_data(list_type):
+    dbcur = TraktCache().dbcur  # New connection!
+# ... 6 more similar functions
+```
+
+**Impact:** 9+ functions create new connections that are never closed.
+
+### 54.5 Sources.py Specific Analysis
+
+**File:** `modules/sources.py` (703 lines)
+
+| Line Range | Issue | Severity |
+|------------|-------|----------|
+| 206 | O(n²) list membership | CRITICAL |
+| 233-234 | Race condition (prescrape_sources.extend) | HIGH |
+| 400 | `.index()` for list lookup | MEDIUM |
+| 458 | O(n²) list membership | CRITICAL |
+| 490 | O(n²) list membership | CRITICAL |
+| 505 | O(n²) list membership | CRITICAL |
+| 575-576 | Duplicate `.split()` call | LOW |
+| 581 | Unbounded ThreadPoolExecutor | CRITICAL |
+| 596 | Set-to-list conversion | MEDIUM |
+| 607 | O(n²) list membership | CRITICAL |
+| 619-652 | Polling loop vs wait() | MEDIUM |
+| 683 | O(n²) list membership | CRITICAL |
+
+### 54.6 Watched Cache Optimization Gap
+
+**File:** `caches/watched_cache.py`
+
+Optimization functions exist but are not used in the calling code:
+
+```python
+# These functions are DEFINED:
+def make_watched_info_movie_set(watched_info): ...     # Line 305
+def make_watched_info_tv_dict(watched_info): ...       # Line 309
+def make_watched_info_season_dict(watched_info): ...   # Line 317
+def make_watched_info_episode_set(watched_info): ...   # Line 325
+
+# But the status functions accept EITHER format:
+def get_watched_status_movie(watched_info, tmdb_id):
+    if isinstance(watched_info, set):  # O(1) path exists
+        return (1, 5) if tmdb_id in watched_info else (0, 4)
+    watched = [i for i in watched_info if i[0] == tmdb_id]  # O(n) path used
+```
+
+**Fix:** Ensure callers convert to optimized format before bulk operations.
+
+---
+
+## 55. Complete Issue Audit Summary
+
+### By Severity
+
+| Severity | Count | Percentage |
+|----------|-------|------------|
+| CRITICAL | 22 | 11.2% |
+| HIGH | 99 | 50.5% |
+| MEDIUM | 64 | 32.7% |
+| LOW | 11 | 5.6% |
+| **TOTAL** | **196** | 100% |
+
+### By Fix Complexity
+
+| Complexity | Count | Example |
+|------------|-------|---------|
+| Quick (< 10 min) | 45 | Set conversion, thread pool cap |
+| Medium (10-60 min) | 85 | Batch queries, regex pre-compile |
+| Complex (1-4 hours) | 52 | Connection pooling, batch API |
+| Major (> 4 hours) | 14 | Full architectural changes |
+
+### Top 5 Highest ROI Fixes
+
+| Fix | Time | Improvement | Files |
+|-----|------|-------------|-------|
+| Convert list to set membership | 15 min | 40-60% source filtering | sources.py |
+| Cap ThreadPoolExecutor | 2 min | Prevents resource exhaustion | sources.py |
+| Add threading.Lock | 15 min | Prevents data corruption | sources.py, debrid.py |
+| Remove per-op VACUUM | 10 min | 10x faster deletes | All cache files |
+| Pre-compile regex | 20 min | 5-10% scraper speed | debrid.py |
+
+---
+
+## 56. Recommended Implementation Order
+
+### Phase 1: Critical Safety (1-2 hours)
+1. ✅ Fix race conditions with threading.Lock
+2. ✅ Cap ThreadPoolExecutor at 30-50 threads
+3. ✅ Convert O(n²) list checks to sets
+
+### Phase 2: Quick Performance Wins (2-4 hours)
+4. Remove per-operation VACUUM calls
+5. Pre-compile duplicate regex patterns
+6. Use existing dict-based lookup functions
+
+### Phase 3: Resource Management (4-8 hours)
+7. Implement connection pooling/reuse
+8. Add context managers for cleanup
+9. Bound window property accumulation
+
+### Phase 4: API Optimization (4-8 hours)
+10. Batch N+1 API calls in trakt_api.py
+11. Cache repeated function results
+12. Use TMDB append_to_response
+
+---
+
+*Verification completed on 2026-01-08*
