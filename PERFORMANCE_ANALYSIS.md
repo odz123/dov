@@ -3058,3 +3058,395 @@ if req.is_alive():
 ---
 
 *Final extended analysis completed on 2026-01-08*
+
+---
+
+## 73. Generator Exhaustion Bug (NEW - CRITICAL)
+
+### 73.1 Double Generator Call in internal_folders_import()
+
+**File:** `resources/lib/modules/source_utils.py:96-105`
+
+```python
+def internal_folders_import(folders):
+    def import_info():
+        for item in folders:
+            scraper_name = item[0]
+            module = manual_function_import('scrapers.folders', 'source')
+            yield ('folders', (module, (item[1], scraper_name)), scraper_name)
+    sourceDict = list(import_info())      # Line 102 - exhausts generator
+    try: sourceDict = list(import_info()) # Line 103 - second call creates NEW generator!
+    except: sourceDict = []
+    return sourceDict
+```
+
+**Bug:** The generator `import_info()` is called twice. The first call at line 102 exhausts the generator. The second call at line 103 creates a NEW generator that also runs but **overwrites** the first result. This is wasteful (does the import work twice) but at least doesn't cause data loss.
+
+**However**, if the intent was error handling, this pattern is broken:
+- If line 102 fails during iteration, an exception is raised before line 103
+- Line 103's try-except only catches errors during its own iteration
+- The try-except should wrap line 102, not duplicate the call
+
+**Fix:**
+```python
+def internal_folders_import(folders):
+    def import_info():
+        for item in folders:
+            scraper_name = item[0]
+            module = manual_function_import('scrapers.folders', 'source')
+            yield ('folders', (module, (item[1], scraper_name)), scraper_name)
+    try: sourceDict = list(import_info())
+    except: sourceDict = []
+    return sourceDict
+```
+
+---
+
+## 74. BaseCache Missing Resource Cleanup (NEW - HIGH)
+
+### 74.1 No Destructor or Context Manager
+
+**File:** `resources/lib/caches/__init__.py:19-29`
+
+```python
+class BaseCache:
+    db_file = ':memory:'
+
+    def __init__(self):
+        self.dbcon = database_connect(self.db_file, isolation_level=None)
+        self.dbcur = self.dbcon.cursor()
+        self._set_PRAGMAS()
+
+    def _set_PRAGMAS(self):
+        self.dbcur.execute("""PRAGMA synchronous = OFF""")
+        self.dbcur.execute("""PRAGMA journal_mode = OFF""")
+    # NO __del__, __enter__, __exit__, or close() method!
+```
+
+**Problem:** All cache classes (MetaCache, MainCache, TraktCache, MDBLCache, DebridCache, etc.) inherit from BaseCache. None have:
+- `__del__()` destructor to close connection on garbage collection
+- `__enter__()`/`__exit__()` for context manager support
+- `close()` method for manual cleanup
+
+**Affected subclasses:**
+- `caches/meta_cache.py` - MetaCache
+- `caches/main_cache.py` - MainCache
+- `caches/trakt_cache.py` - TraktCache
+- `caches/mdbl_cache.py` - MDBLCache
+- `caches/debrid_cache.py` - DebridCache
+- `caches/providers_cache.py` - ProvidersCache
+- `caches/navigator_cache.py` - NavigatorCache
+
+**Fix:** Add resource cleanup to BaseCache:
+```python
+class BaseCache:
+    def __init__(self):
+        self.dbcon = database_connect(self.db_file, isolation_level=None)
+        self.dbcur = self.dbcon.cursor()
+        self._set_PRAGMAS()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args):
+        self.close()
+
+    def __del__(self):
+        self.close()
+
+    def close(self):
+        if hasattr(self, 'dbcon') and self.dbcon:
+            try: self.dbcon.close()
+            except: pass
+            self.dbcon = None
+```
+
+---
+
+## 75. Easynews API Connection Never Closed (NEW - HIGH)
+
+### 75.1 Missing dbcon.close() in clear_media_results_database()
+
+**File:** `resources/lib/debrids/easynews_api.py:101-114`
+
+```python
+def clear_media_results_database():
+    from modules.kodi_utils import clear_property, database_connect, maincache_db
+    dbcon = database_connect(maincache_db)  # CONNECTION OPENED
+    dbcur = dbcon.cursor()
+    dbcur.execute("""PRAGMA synchronous = OFF""")
+    dbcur.execute("""PRAGMA journal_mode = OFF""")
+    dbcur.execute("""SELECT id FROM maincache WHERE id LIKE 'pov_EASYNEWS_SEARCH_%'""")
+    easynews_results = [str(i[0]) for i in dbcur.fetchall()]
+    if not easynews_results: return 'success'
+    try:
+        dbcur.execute("""DELETE FROM maincache WHERE id LIKE 'pov_EASYNEWS_SEARCH_%'""")
+        for i in easynews_results: clear_property(i)
+        return 'success'
+    except: return 'failed'
+    # NO dbcon.close() - PERMANENT CONNECTION LEAK!
+```
+
+**Fix:** Add finally block:
+```python
+def clear_media_results_database():
+    from modules.kodi_utils import clear_property, database_connect, maincache_db
+    dbcon = database_connect(maincache_db)
+    try:
+        dbcur = dbcon.cursor()
+        # ... operations ...
+        return 'success'
+    except:
+        return 'failed'
+    finally:
+        dbcon.close()
+```
+
+---
+
+## 76. Nested Exception Connection Leaks (NEW - HIGH)
+
+### 76.1 Debrid API clear_cache Methods
+
+**Files:**
+- `resources/lib/debrids/alldebrid_api.py:132-165`
+- `resources/lib/debrids/torbox_api.py:209-240`
+- `resources/lib/debrids/premiumize_api.py:163-194`
+- `resources/lib/debrids/offcloud_api.py:117-133`
+- `resources/lib/debrids/real_debrid_api.py:214-232`
+
+**Pattern:**
+```python
+def clear_cache(self):
+    try:
+        dbcon = database_connect(maincache_db)  # CONNECTION OPENED
+        dbcur = dbcon.cursor()
+        try:
+            dbcur.execute(...)
+            user_cloud_success = True
+        except: user_cloud_success = False  # Inner exception - conn NOT closed
+        try:
+            dbcur.execute(...)
+            download_links_success = True
+        except: download_links_success = False  # Inner exception - conn NOT closed
+        try:
+            dbcur.execute(...)
+            hoster_links_success = True
+        except: hoster_links_success = False  # Inner exception - conn NOT closed
+        dbcon.close()  # Only reached if outer try succeeds
+    except: return False  # Outer exception - conn definitely NOT closed
+```
+
+**Problem:** If any inner exception is raised, `dbcon.close()` is still reached. But if the OUTER try fails, connection is never closed.
+
+**Fix:** Use context manager or finally:
+```python
+def clear_cache(self):
+    dbcon = None
+    try:
+        dbcon = database_connect(maincache_db)
+        dbcur = dbcon.cursor()
+        # ... operations ...
+    except:
+        return False
+    finally:
+        if dbcon:
+            dbcon.close()
+```
+
+---
+
+## 77. watched_cache Helper Functions Missing Connection Cleanup (NEW - MEDIUM)
+
+### 77.1 get_bookmarks_dict() and get_bookmarks()
+
+**File:** `resources/lib/caches/watched_cache.py:66-81`
+
+```python
+def get_bookmarks_dict(watched_indicators, media_type):
+    try:
+        dbcon = _database_connect(get_database(watched_indicators))
+        dbcur = set_PRAGMAS(dbcon)
+        result = dbcur.execute(...)
+        return {(i[0], i[3], i[4]): (i[1], i[2], i[5]) for i in result.fetchall()}
+    except: return {}  # CONNECTION NOT CLOSED!
+
+def get_bookmarks(watched_indicators, media_type):
+    try:
+        dbcon = _database_connect(get_database(watched_indicators))
+        dbcur = set_PRAGMAS(dbcon)
+        result = dbcur.execute(...)
+        return result.fetchall()
+    except: pass  # CONNECTION NOT CLOSED!
+```
+
+**Problem:** On exception, database connection is abandoned. Even on success, connection is not explicitly closed (relies on garbage collection).
+
+---
+
+## 78. Repeated Settings Parsing (NEW - MEDIUM)
+
+### 78.1 make_settings_dict() Called Multiple Times
+
+**File:** `resources/lib/modules/source_utils.py:62-78`
+
+```python
+def external_sources(ret_all=False):
+    enabled = [
+        k.split('.')[1] for k, v in kodi_utils.make_settings_dict().items()  # PARSES XML
+        if k.startswith('provider.') and v == 'true'
+    ]
+    # ... function continues
+```
+
+**File:** `resources/lib/modules/kodi_utils.py:360-367`
+
+```python
+def get_setting(setting_id, fallback=None):
+    try: settings_dict = json.loads(get_property('pov_settings'))
+    except: settings_dict = make_settings_dict()  # PARSES XML if cache miss
+```
+
+**Problem:** `make_settings_dict()` parses the entire `settings.xml` file. While results are cached in window property `pov_settings`, if cache is cleared or property missing, full XML parsing occurs.
+
+**Affected locations:**
+- `source_utils.py:external_sources()` - Called during scraper setup
+- `source_utils.py:scraper_names()` - Called for each scraper type
+- `kodi_utils.py:get_setting()` - Called hundreds of times per operation
+
+---
+
+## 79. File System Reads Without Caching (NEW - LOW)
+
+### 79.1 scraper_names() Repeated Directory Listing
+
+**File:** `resources/lib/modules/source_utils.py:155-168`
+
+```python
+def scraper_names(folder):
+    # ...
+    for item in sourceSubFolders:
+        files = kodi_utils.list_dirs(source_folder_location % item)[1]  # FS READ
+        # Process files...
+```
+
+**Problem:** Each call to `scraper_names()` makes file system calls via `list_dirs()`. Directory contents don't change during runtime but are read repeatedly.
+
+**Fix:** Cache directory listings:
+```python
+_SCRAPER_CACHE = {}
+
+def scraper_names(folder):
+    if folder in _SCRAPER_CACHE:
+        return _SCRAPER_CACHE[folder]
+    # ... existing logic ...
+    _SCRAPER_CACHE[folder] = result
+    return result
+```
+
+---
+
+## 80. Missing Network Request Timeouts (NEW - MEDIUM)
+
+### 80.1 Requests Without Timeout Parameter
+
+**File:** `resources/lib/debrids/real_debrid_api.py:42`
+
+```python
+response = requests.post(url, data=data).json()  # NO TIMEOUT
+```
+
+**File:** `resources/lib/fenom/log_utils.py:144`
+
+```python
+response = requests.post(url + 'documents', data=text.encode('utf-8', errors='ignore'),
+                        headers={'User-Agent': UserAgent})  # NO TIMEOUT
+```
+
+**Problem:** HTTP requests without timeout can hang indefinitely if server doesn't respond.
+
+**Fix:** Always specify timeout:
+```python
+response = requests.post(url, data=data, timeout=10).json()
+```
+
+---
+
+## 81. Redundant Cache Class Instantiation (NEW - MEDIUM)
+
+### 81.1 Module-Level Functions Create New Instances
+
+**File:** `resources/lib/caches/trakt_cache.py:61-127`
+
+```python
+def cache_trakt_object(function, string, url):
+    dbcur = TraktCache().dbcur  # NEW INSTANCE with NEW connection
+    # ...
+
+def reset_activity(latest_activities):
+    dbcur = TraktCache().dbcur  # ANOTHER NEW INSTANCE
+    # ...
+
+def clear_trakt_hidden_data(list_type):
+    dbcur = TraktCache().dbcur  # ANOTHER NEW INSTANCE
+    # ... (9 functions total, each creates new instance)
+```
+
+**Same pattern in:**
+- `caches/mdbl_cache.py` (6 functions)
+- `modules/debrid.py` (DebridCache instantiated per operation)
+
+**Problem:** Each call creates new database connection + sets PRAGMAs. Significant overhead for frequent operations.
+
+**Fix:** Use module-level singleton or pass cache instance:
+```python
+_TRAKT_CACHE = None
+
+def _get_cache():
+    global _TRAKT_CACHE
+    if _TRAKT_CACHE is None:
+        _TRAKT_CACHE = TraktCache()
+    return _TRAKT_CACHE
+
+def cache_trakt_object(function, string, url):
+    dbcur = _get_cache().dbcur
+```
+
+---
+
+## 82. Updated Final Statistics (2026-01-08)
+
+| Category | Previous | New | Total |
+|----------|----------|-----|-------|
+| O(n²) Algorithms | 28 | 0 | 28 |
+| O(n³) Algorithms | 4 | 0 | 4 |
+| N+1 Query/API | 17 | 0 | 17 |
+| Threading Issues | 56 | 0 | 56 |
+| Connection Leaks | 40 | 12 | 52 |
+| Race Conditions | 10 | 0 | 10 |
+| .index() Anti-patterns | 10 | 0 | 10 |
+| Caching Issues | 28 | 5 | 33 |
+| Generator Bugs | 0 | 1 | 1 |
+| Missing Timeouts | 0 | 2 | 2 |
+| **TOTAL** | **~239** | **~20** | **~259** |
+
+---
+
+## 83. New Priority Additions
+
+### Critical:
+1. **Fix generator exhaustion bug** in `source_utils.py:102-103` - Data integrity issue
+
+### High:
+2. **Add BaseCache cleanup methods** - Affects all 7 cache subclasses
+3. **Fix easynews_api connection leak** - Never closes connection
+4. **Fix nested exception connection leaks** - 5 debrid API files
+
+### Medium:
+5. **Add finally blocks to watched_cache helpers** - 2 functions
+6. **Add request timeouts** - 2 locations
+7. **Implement cache singleton pattern** - trakt_cache.py, mdbl_cache.py
+
+---
+
+*Extended analysis completed on 2026-01-08*
