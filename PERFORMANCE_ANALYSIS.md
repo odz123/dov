@@ -2754,3 +2754,307 @@ With all critical fixes implemented:
 ---
 
 *Extended analysis completed on 2026-01-08*
+
+---
+
+## 63. Cloud Scraper Race Conditions (NEW - 2026-01-08)
+
+### 63.1 Shared List Append Without Synchronization
+
+**Files:**
+- `resources/lib/scrapers/tb_cloud.py:68-89`
+- `resources/lib/scrapers/rd_cloud.py:60-85`
+- `resources/lib/scrapers/oc_cloud.py:61-83`
+- `resources/lib/scrapers/ad_cloud.py:60-85`
+
+```python
+# tb_cloud.py:68-89
+def _scrape_cloud(self):
+    for i in (threads := (
+        Thread(target=self._scrape_folders, args=(self.user_cloud, 'torrent')),
+        Thread(target=self._scrape_folders, args=(self.user_cloud_usenet, 'usenet')),
+        Thread(target=self._scrape_folders, args=(self.user_cloud_webdl, 'webdl'))
+    )): i.start()
+    for i in threads: i.join()
+
+def _scrape_folders(self, function, media_type):
+    results_append = self.scrape_results.append  # Race condition!
+    for file in folder:
+        for item in file['files']:
+            results_append(item)  # Concurrent append without lock
+```
+
+**Problem:** 3-4 threads in each cloud scraper modify `self.scrape_results` concurrently without synchronization. List `.append()` is thread-safe in CPython due to GIL, but `.extend()` during resize operations can cause data loss.
+
+**Fix:** Use threading.Lock:
+```python
+def __init__(self):
+    self._results_lock = threading.Lock()
+
+def _scrape_folders(self, ...):
+    for item in items:
+        with self._results_lock:
+            self.scrape_results.append(item)
+```
+
+---
+
+## 64. Additional .index() Anti-Patterns (NEW - 2026-01-08)
+
+### 64.1 Redundant Sequential Index Generation (CRITICAL)
+
+**File:** `resources/lib/modules/menu_editor.py:189`
+
+```python
+index_list = [list_items.index(i) for i in list_items]
+```
+
+**Problem:** This generates `[0, 1, 2, 3...]` by calling `.index()` on each item - O(n²) time. With 100 items, this makes 5,050 comparisons.
+
+**Fix:**
+```python
+index_list = list(range(len(list_items)))
+```
+
+### 64.2 .index() in Dialog Preselects
+
+**File:** `resources/lib/modules/dialogs.py`
+
+```python
+# Line 247
+preselect = [fl.index(i) for i in get_setting(quality_setting).split(', ')]
+
+# Line 265
+preselect = [fl.index(i) for i in settings.extras_enabled_menus()]
+
+# Line 281
+preselect = [fl.index(i) for i in get_setting(filter_setting).split(', ')]
+```
+
+**Fix:** Pre-build index mapping:
+```python
+fl_idx = {item: idx for idx, item in enumerate(fl)}
+preselect = [fl_idx[i] for i in items if i in fl_idx]
+```
+
+### 64.3 Undesirables Double .index() Lookup
+
+**File:** `resources/lib/fenom/undesirables.py:80-81`
+
+```python
+try: preselect = [UNDESIRABLES.index(i) for i in chosen]  # O(n²)
+except: preselect = [UNDESIRABLES.index(i) for i in UNDESIRABLES]  # O(n²) fallback!
+```
+
+**Problem:** The fallback line is especially wasteful - rebuilds `[0, 1, 2, ...]` using O(n²) .index() calls.
+
+### 64.4 Source Utils Preselect
+
+**File:** `resources/lib/modules/source_utils.py:138`
+
+```python
+preselect = [all_sources.index(i) for i in enabled]  # O(n) per item
+```
+
+### 64.5 Letter Position via .index()
+
+**File:** `resources/lib/modules/utils.py:294`
+
+```python
+start_list = [chr(i) for i in range(97, 123)]  # ['a', 'b', 'c', ..., 'z']
+letter_index = start_list.index(letter)  # O(26) lookup
+```
+
+**Fix:** Use arithmetic: `letter_index = ord(letter) - 97`
+
+---
+
+## 65. Navigator Cache N+1 Pattern (NEW - 2026-01-08)
+
+**File:** `resources/lib/caches/navigator_cache.py:71-72`
+
+```python
+def rebuild_database(self):
+    for list_name in default_menus.default_menu_items:
+        self.set_list(list_name, 'default', main_menus[list_name])  # DB call per item
+```
+
+**Problem:** The `set_list()` method executes an INSERT/REPLACE statement for each menu item. With 20 menu items, this is 20 separate database operations.
+
+**Fix:** Use `executemany()`:
+```python
+def rebuild_database(self):
+    data = [(name, 'default', repr(main_menus[name]))
+            for name in default_menus.default_menu_items]
+    self.dbcur.executemany(SET_LIST, data)
+```
+
+---
+
+## 66. O(n³) Trakt Duplicate Removal (NEW - 2026-01-08)
+
+**File:** `resources/lib/indexers/trakt_api.py`
+
+**Lines:** 540, 570, 586, 602
+
+```python
+# Line 540
+all_shows = [i for n, i in enumerate(all_shows) if i not in all_shows[n + 1:]]
+
+# Line 570
+data = [i for n, i in enumerate(data) if i not in data[n + 1:]]
+
+# Line 586, 602 - identical pattern
+```
+
+**Problem:** Each `all_shows[n + 1:]` creates a new list slice (O(n)), then membership check is O(n). With n items in outer loop = **O(n³)** total.
+
+**Fix:** Use seen set:
+```python
+seen = set()
+data = [i for i in data if i not in seen and not seen.add(i)]
+```
+
+---
+
+## 67. IMDb Spoiler Filtering O(n²) (NEW - 2026-01-08)
+
+**File:** `resources/lib/indexers/imdb_api.py:335`
+
+```python
+results = [i for i in results if not i in spoiler_results]
+```
+
+**Problem:** O(n²) list membership check.
+
+**Fix:**
+```python
+spoiler_set = set(spoiler_results)
+results = [i for i in results if i not in spoiler_set]
+```
+
+---
+
+## 68. Additional O(n²) Filtering Patterns (NEW - 2026-01-08)
+
+### 68.1 Speedtest Module
+
+**File:** `resources/lib/fenom/speedtest.py:94`
+
+```python
+modules = results + [i for i in modules if not i in results]
+```
+
+### 68.2 Menu Editor
+
+**File:** `resources/lib/modules/menu_editor.py:153, 195`
+
+```python
+# Line 153
+new_entry = [i for i in new_contents if not i in default][0]
+
+# Line 195
+return [i for i in default_list_items if not i in list_items]
+```
+
+### 68.3 Episode Tools
+
+**File:** `resources/lib/modules/episode_tools.py:31`
+
+```python
+episodes_data = [i for i in episodes_data if not i in episode_list] or episodes_data
+```
+
+### 68.4 Undesirables Module
+
+**File:** `resources/lib/fenom/undesirables.py:85, 125`
+
+```python
+# Line 85
+disabled = [i for i in UNDESIRABLES if not i in enabled]
+
+# Line 125
+new_undesirables = [i for i in UNDESIRABLES if not i in current_undesirables]
+```
+
+---
+
+## 69. Downloader Fire-and-Forget Threads (NEW - 2026-01-08)
+
+**File:** `resources/lib/modules/downloader.py:48-57`
+
+```python
+chosen_list = [{**params, 'pack_files': item} for item in chosen_list]
+for item in chosen_list:
+    append(Thread(target=Downloader(item).run))
+for i in threads: i.start()
+# No join() - threads continue in background unsupervised
+```
+
+**Problem:** Pack download threads are started without completion tracking, error handling, or join mechanism.
+
+---
+
+## 70. Offcloud Short Join Timeout (NEW - 2026-01-08)
+
+**File:** `resources/lib/debrids/offcloud.py:98-104`
+
+```python
+def clear_all_files(self, files):
+    for count, i in enumerate(files, 1):
+        req = Thread(target=self.delete_torrent, args=(i['requestId'],))
+        req.start()
+        progressBG.update(...)
+        req.join(1)  # Only waits 1 second!
+```
+
+**Problem:** If deletion takes >1 second, thread continues without completion. Orphaned threads may cause incomplete deletions.
+
+**Fix:**
+```python
+req.join(timeout=10)  # Reasonable timeout
+if req.is_alive():
+    logger('offcloud', 'delete_torrent timeout for %s' % i['fileName'])
+```
+
+---
+
+## 71. Updated Total Issue Count (Final - 2026-01-08)
+
+| Category | Previous | New | Total |
+|----------|----------|-----|-------|
+| O(n²) Algorithms | 20 | 8 | 28 |
+| O(n³) Algorithms | 0 | 4 | 4 |
+| N+1 Query/API | 16 | 1 | 17 |
+| Threading Issues | 51 | 5 | 56 |
+| Connection Leaks | 40 | 0 | 40 |
+| Race Conditions | 6 | 4 | 10 |
+| .index() Anti-patterns | 4 | 6 | 10 |
+| Caching Issues | 28 | 0 | 28 |
+| **TOTAL** | **~211** | **~28** | **~239** |
+
+---
+
+## 72. Updated Priority Quick Wins
+
+### Immediate (< 30 min total)
+
+| Fix | Time | Impact | Location |
+|-----|------|--------|----------|
+| Convert list membership to set | 15 min | 50%+ | sources.py, trakt_api.py |
+| Fix menu_editor O(n²) index generation | 2 min | HIGH | menu_editor.py:189 |
+| Fix O(n³) Trakt duplicate removal | 10 min | CRITICAL | trakt_api.py:540,570,586,602 |
+| Add locks to cloud scrapers | 10 min | HIGH | 4 cloud scraper files |
+
+### Short-term (1-2 hours)
+
+| Fix | Time | Impact | Location |
+|-----|------|--------|----------|
+| Pre-build index mappings | 30 min | MEDIUM | dialogs.py, source_utils.py |
+| Batch navigator rebuild | 15 min | MEDIUM | navigator_cache.py |
+| Add proper thread timeouts | 30 min | MEDIUM | offcloud.py, downloader.py |
+| Fix IMDb spoiler filtering | 5 min | MEDIUM | imdb_api.py:335 |
+
+---
+
+*Final extended analysis completed on 2026-01-08*
