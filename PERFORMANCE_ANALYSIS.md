@@ -1857,3 +1857,148 @@ done, not_done = wait(self.threads, timeout=self.timeout, return_when=ALL_COMPLE
 ---
 
 *Final comprehensive analysis completed on 2026-01-08*
+
+---
+
+## 49. Additional Discovered Issues (Supplementary Analysis)
+
+### 49.1 Window Initialization Spin Loop
+
+**File:** `resources/lib/windows/__init__.py:37`
+
+```python
+for i in range(50):
+    if instance.window_id:
+        return instance
+    sleep(50)  # 50ms * 50 iterations = 2.5 second max wait
+```
+
+**Problem:** Polling loop with arbitrary 50-iteration limit. Uses fixed sleep intervals instead of event-based waiting.
+
+**Fix:** Use threading.Event or callback pattern:
+```python
+ready_event = threading.Event()
+# Set event when window_id assigned
+ready_event.wait(timeout=2.5)
+```
+
+### 49.2 Easynews Pagination Loop
+
+**File:** `resources/lib/debrids/easynews.py:68`
+
+```python
+for i in range(20):
+    # Makes up to 20 sequential API calls
+```
+
+**Problem:** Sequential pagination can make 20 API calls even when results are exhausted. No early exit on empty page.
+
+### 49.3 DOM Parser Attribute Regex Compilation Per Call
+
+**Files:**
+- `resources/lib/fenom/client.py:295`
+- `resources/lib/modules/dom_parser.py:10`
+
+```python
+attrs = dict((key, re.compile(value + ('$' if value else '')))
+             for key, value in iter(attrs.items()))
+```
+
+**Problem:** Creates new compiled regex objects for every DOM parsing call. In scraping loops with 100+ pages, this compiles thousands of identical patterns.
+
+**Impact:** High CPU overhead during scraping operations.
+
+**Fix:** Cache compiled patterns:
+```python
+_compiled_cache = {}
+def get_compiled_attr(value):
+    if value not in _compiled_cache:
+        _compiled_cache[value] = re.compile(value + ('$' if value else ''))
+    return _compiled_cache[value]
+```
+
+### 49.4 DMM Scraper Hard-coded Page Loop
+
+**File:** `resources/lib/magneto/dmm.py:46`
+
+```python
+for page in range(2):
+    # Always fetches exactly 2 pages regardless of results
+```
+
+**Problem:** Fixed 2-page fetch regardless of whether first page returns results.
+
+### 49.5 Container Refresh Consolidation Opportunity
+
+**Observation:** 35+ `container_refresh()` calls across codebase. While individually appropriate, grouped operations could batch refreshes.
+
+**Pattern found in:** `watched_cache.py`, `trakt_api.py`, `dialogs.py`
+
+**Example improvement:**
+```python
+# Instead of refresh after each operation:
+def batch_operation():
+    # Multiple changes without refresh
+    pass
+# Single refresh at end
+container_refresh()
+```
+
+---
+
+## 50. Scrapers with Unbounded Result Processing
+
+### 50.1 TorrentsDB Regex Per Result
+
+**File:** `resources/lib/magneto/torrentsdb.py:48`
+
+```python
+_INFO = re.compile(r'💾.*')  # Compiled inside results loop
+```
+
+### 50.2 Torrentio Regex Per Result
+
+**File:** `resources/lib/magneto/torrentio.py:50`
+
+```python
+_INFO = re.compile(r'👤.*')  # Compiled inside results loop
+```
+
+**Fix:** Move to module level constants.
+
+---
+
+## 51. Positive Patterns Identified (Reference Implementation)
+
+### Good Patterns to Preserve/Replicate:
+
+| Pattern | Location | Description |
+|---------|----------|-------------|
+| Pre-compiled regex | `fenom/source_utils.py:13-76` | 60+ patterns at module level |
+| Whitelist SQL validation | `caches/meta_cache.py:13-14`, `trakt_cache.py:15` | Prevents SQL injection |
+| TaskPool bounded threading | `modules/utils.py:16-43` | Limits concurrent threads |
+| Chunked batch inserts | `caches/trakt_cache.py:28-34` | Uses `chunks()` for large inserts |
+| Lazy imports in router | `router.py` | Only loads needed modules |
+| Dict-based lookup functions | `watched_cache.py:66-73, 305-327` | O(1) lookup implementations |
+
+---
+
+## 52. Summary of New Findings
+
+| Category | New Issues | Priority |
+|----------|------------|----------|
+| Polling loops | 2 | MEDIUM |
+| DOM parser regex | 2 | HIGH |
+| Scraper regex | 2 | MEDIUM |
+| Container refresh batching | 1 | LOW |
+| **Total New** | **7** | - |
+
+### Updated Grand Total
+
+| Category | Previous | New | Total |
+|----------|----------|-----|-------|
+| All Issues | 191 | 7 | **198** |
+
+---
+
+*Supplementary analysis completed on 2026-01-08*
