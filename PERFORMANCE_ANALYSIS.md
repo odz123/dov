@@ -1354,3 +1354,290 @@ if hold < 50: sleep(100)  # 100ms intervals, same 5-second timeout
 ---
 
 *Extended analysis completed on 2026-01-07*
+
+---
+
+## 34. N+1 API Call Patterns in Indexers (NEW)
+
+### 34.1 Individual TMDB API Calls Per Trakt Item
+
+**File:** `resources/lib/indexers/trakt_api.py:438-476`
+
+```python
+# Line 438-446: Called for EACH movie
+def get_trakt_movie_id(item):
+    if item['tmdb']: return item['tmdb']
+    tmdb_id = None
+    if item['imdb']:
+        try:
+            meta = movie_external_id('imdb_id', item['imdb'])  # API CALL
+            tmdb_id = meta['id']
+        except: pass
+    return tmdb_id
+
+# Line 464-476: Uses above function in loop
+def trakt_indicators_movies():
+    def _process(item):
+        tmdb_id = get_trakt_movie_id(movie['ids'])  # N+1 pattern
+        if not tmdb_id: return
+        insert_append(...)
+    result = [(i,) for i in call_trakt('sync/watched/movies')]
+    for i in TaskPool().tasks(_process, result, Thread): i.join()
+```
+
+**Problem:** When syncing 100 watched movies from Trakt, if any lack TMDB IDs, this makes up to 100 separate TMDB API calls. Trakt API rate limit is 40 requests per 60 seconds.
+
+**Similar issue for TV shows at lines 448-462:**
+```python
+def get_trakt_tvshow_id(item):
+    # Can make TWO API calls per item (IMDB then TVDB fallback)
+    meta = tvshow_external_id('imdb_id', item['imdb'])  # API CALL #1
+    # If that fails:
+    meta = tvshow_external_id('tvdb_id', item['tvdb'])  # API CALL #2
+```
+
+**Also affects:**
+- `trakt_indicators_tv()` - lines 478-492
+- `trakt_official_status()` - lines 494-514
+- `trakt_get_hidden_items()` - lines 536-562
+
+### 34.2 Same Pattern in MDBList
+
+**File:** `resources/lib/indexers/mdblist_api.py:265-289`
+
+```python
+def get_mdbl_movie_id(item):
+    if item['tmdb']: return item['tmdb']
+    if item['imdb']:
+        meta = movie_external_id('imdb_id', item['imdb'])  # API CALL per item
+```
+
+### 34.3 Impact Analysis
+
+| Sync Operation | Items | Max API Calls | Time at Rate Limit |
+|----------------|-------|---------------|-------------------|
+| Watched Movies | 100 | 100 | 2.5 minutes |
+| Watched TV Shows | 50 | 100 (2 per item) | 2.5 minutes |
+| Hidden Items | 200 | 400 | 10 minutes |
+| Progress Sync | 50 | 50 | 1.25 minutes |
+
+**Fix:** Implement batch ID resolution:
+```python
+# Collect all missing IDs first
+missing_imdb_ids = [item['imdb'] for item in items if not item['tmdb'] and item['imdb']]
+
+# Single batch query to TMDB
+tmdb_ids = batch_resolve_external_ids(missing_imdb_ids, 'imdb_id')
+
+# Apply results
+for item in items:
+    if not item['tmdb'] and item['imdb']:
+        item['tmdb'] = tmdb_ids.get(item['imdb'])
+```
+
+---
+
+## 35. Inefficient Single-Item List Comprehensions (NEW)
+
+### 35.1 Full List Creation for First Match
+
+**File:** `resources/lib/indexers/metadata.py`
+
+```python
+# Line 226: Creates entire filtered list for first item
+tmdblogo_path = [i['file_path'] for i in data_get('images')['logos']
+                 if 'file_path' in i if i['file_path'].endswith('png')][0]
+
+# Line 231
+english_title = [i['data']['title'] for i in data_get('translations')['translations']
+                 if i['iso_639_1'] == 'en'][0]
+
+# Line 244-245: Double filter with fallback
+studio = [i['name'] for i in companies if i['logo_path'] not in empty_value_check][0] \
+         or [i['name'] for i in companies][0]
+```
+
+**Problem:** Creates complete filtered lists just to extract `[0]`. With 50 translations, builds a 50-item list to get one value.
+
+**Fix:** Use `next()`:
+```python
+tmdblogo_path = next((i['file_path'] for i in data_get('images')['logos']
+                      if 'file_path' in i and i['file_path'].endswith('png')), None)
+```
+
+**Same pattern in:**
+- `resources/lib/windows/extras.py:480, 485, 488`
+- `resources/lib/indexers/discover.py:290`
+- `resources/lib/windows/extras.py:396-397`
+
+---
+
+## 36. providers_cache.py Missing Parameter Bug (NEW)
+
+**File:** `resources/lib/caches/providers_cache.py:22, 32`
+
+```python
+# Line 6-7: SQL statements require 7 parameters
+DELETE_RESULTS = 'DELETE FROM results_data WHERE provider = ? AND db_type = ? AND tmdb_id = ? AND title = ? AND year = ? AND season = ? AND episode = ?'
+
+# Line 15: get() method has year parameter
+def get(self, source, media_type, tmdb_id, title, year, season, episode):
+    # ...
+    else: self.delete(source, media_type, tmdb_id, title, season, episode)  # MISSING year!
+
+# Line 32: delete() signature missing year
+def delete(self, source, media_type, tmdb_id, title, season, episode):  # Only 6 params!
+    try: self.dbcur.execute(DELETE_RESULTS, (source, media_type, tmdb_id, title, season, episode))
+```
+
+**Bug:** `DELETE_RESULTS` expects 7 parameters but `delete()` only provides 6. This causes SQLite binding errors.
+
+**Fix:** Add `year` parameter:
+```python
+def delete(self, source, media_type, tmdb_id, title, year, season, episode):
+    try: self.dbcur.execute(DELETE_RESULTS, (source, media_type, tmdb_id, title, year, season, episode))
+
+# And fix the call:
+else: self.delete(source, media_type, tmdb_id, title, year, season, episode)
+```
+
+---
+
+## 37. Redundant any() + List Comprehension Pattern (NEW)
+
+**File:** `resources/lib/fenom/source_utils.py` - 13+ occurrences in `filter_show_pack()`
+
+```python
+# Lines 379-382, 393-396, 400-403, 407-410, 428-431, 435-438, 442-445, 449-452,
+# 463-466, 470-473, 477-480, 484-487, 498-501, 505-508, 512-515, 519-522, 526-529
+
+if any(i in dot_release_title for i in dot_season_ranges):
+    keys = [i for i in dot_season_ranges if i in dot_release_title]  # REDUNDANT - searches again!
+    last_season = int(keys[-1].split('.')[-1])
+```
+
+**Problem:** The `any()` check iterates through `dot_season_ranges` to find a match. Then immediately the list comprehension iterates AGAIN through the same list. This pattern appears 13+ times in the function.
+
+**Fix:** Find first match once:
+```python
+matching_key = next((i for i in dot_season_ranges if i in dot_release_title), None)
+if matching_key:
+    last_season = int(matching_key.split('.')[-1])
+```
+
+Or if multiple keys needed:
+```python
+keys = [i for i in dot_season_ranges if i in dot_release_title]
+if keys:
+    last_season = int(keys[-1].split('.')[-1])
+```
+
+---
+
+## 38. Double Crew List Iteration (NEW)
+
+**File:** `resources/lib/indexers/metadata.py:147-150, 270-273, 363-366`
+
+```python
+# Lines 147-150 (season_episodes_meta)
+crew = ep_data_get('crew')
+if crew:
+    try: writer = ', '.join([i['name'] for i in crew if i['job'] in writer_credits])  # Pass 1
+    except: pass
+    try: director = [i['name'] for i in crew if i['job'] == 'Director'][0]  # Pass 2
+    except: pass
+```
+
+**Problem:** Same `crew` list iterated twice (once for writers, once for director).
+
+**Fix:** Single-pass extraction:
+```python
+if crew:
+    writers = []
+    director = None
+    for person in crew:
+        if person['job'] in writer_credits:
+            writers.append(person['name'])
+        elif person['job'] == 'Director' and director is None:
+            director = person['name']
+    writer = ', '.join(writers) if writers else None
+```
+
+---
+
+## 39. Set vs List for Membership Tests (NEW)
+
+**File:** `resources/lib/indexers/discover.py:42, 71`
+
+```python
+# Line 42
+if not any(i in names for i in ('similar', 'recommended')):  # Tuple: O(n) per check
+
+# Line 71
+if not any(i in names for i in ['similar', 'recommended']):  # List: O(n) per check
+```
+
+**Problem:** Using tuple/list for `in` operator is O(n). With sets, it's O(1).
+
+**Fix:**
+```python
+SPECIAL_NAMES = {'similar', 'recommended'}  # Frozenset at module level
+if not any(i in names for i in SPECIAL_NAMES):
+```
+
+---
+
+## 40. Sort Using .index() O(n²) Pattern (NEW)
+
+**File:** `resources/lib/windows/sources.py:239`
+
+```python
+provider_choices.sort(key=choice_sorter.index)  # O(n²log n)!
+```
+
+**Problem:** `.index()` is O(n), called O(n log n) times during sort = O(n² log n) total.
+
+**Also in:** `resources/lib/modules/dialogs.py:247, 265, 281`
+```python
+preselect = [fl.index(i) for i in get_setting(...).split(', ')]  # O(n) per item
+```
+
+**Fix:** Pre-build index mapping:
+```python
+positions = {v: i for i, v in enumerate(choice_sorter)}
+provider_choices.sort(key=lambda x: positions.get(x, len(positions)))
+```
+
+---
+
+## 41. Updated Total Issue Count
+
+| Category | Previous | New | Total |
+|----------|----------|-----|-------|
+| N+1 Query/API Patterns | 7 | 5 | 12 |
+| O(n²) Algorithms | 9 | 3 | 12 |
+| Collection Misuse | 10 | 4 | 14 |
+| Redundant Iterations | 4 | 2 | 6 |
+| Bug (Missing Param) | 0 | 1 | 1 |
+| **Grand Total (All)** | **~148** | **~15** | **~163** |
+
+---
+
+## 42. Recommended Priority Additions
+
+### Add to Phase 1 (Critical):
+1. Fix N+1 API calls in `trakt_api.py` - implement batch ID resolution
+2. Fix `providers_cache.py` missing `year` parameter bug
+
+### Add to Phase 2 (High):
+3. Replace `any()` + list comprehension pattern in `source_utils.py` (13 locations)
+4. Use `next()` instead of `[...][0]` in `metadata.py`, `extras.py`
+5. Single-pass crew extraction in `metadata.py`
+
+### Add to Phase 3 (Medium):
+6. Pre-build sort key mappings in `sources.py`, `dialogs.py`
+7. Use sets for membership tests in `discover.py`
+
+---
+
+*Analysis extended on 2026-01-08*
