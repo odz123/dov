@@ -1354,3 +1354,369 @@ if hold < 50: sleep(100)  # 100ms intervals, same 5-second timeout
 ---
 
 *Extended analysis completed on 2026-01-07*
+
+---
+
+## 34. Thread Synchronization Primitives Missing (NEW)
+
+### 34.1 Zero Synchronization Across Codebase
+
+A full codebase search for `Lock|RLock|Semaphore` returns **zero results**. Despite:
+- 25+ fire-and-forget threads
+- Multiple threads appending to shared lists
+- Concurrent set modifications
+- Shared dictionary updates in TaskPool
+
+**Affected areas:**
+- `caches/watched_cache.py:197-248` - `data_append()` and `duplicates_add()` called from multiple threads
+- `modules/sources.py:37-39` - `self.sources` and `self.prescrape_sources` extended by multiple threads
+- `modules/debrid.py:253-263` - `checked_hashes` list modified by parallel threads
+
+**Risk:** While Python's GIL provides some protection, `list.extend()` during resize and `set.add()` are NOT atomic operations, risking data corruption.
+
+**Fix Pattern:**
+```python
+from threading import Lock
+sources_lock = Lock()
+
+with sources_lock:
+    self.sources.extend(new_sources)
+```
+
+### 34.2 TaskPool Queue Race Condition
+
+**File:** `resources/lib/modules/utils.py:28-31`
+
+```python
+def _thread_target(self, queue, target):
+    while not queue.empty():
+        try: target(*queue.get())
+```
+
+**Problem:** TOCTOU race - between checking `queue.empty()` and calling `queue.get()`, another thread could drain the queue.
+
+**Fix:** Use exception-based termination:
+```python
+def _thread_target(self, queue, target):
+    while True:
+        try: target(*queue.get_nowait())
+        except Empty: break
+```
+
+---
+
+## 35. Cache Instance Proliferation (NEW)
+
+### 35.1 Module-Level Cache Instantiation Count
+
+Each of these module-level functions creates a NEW cache instance:
+
+| File | Function Count | Instance Creates |
+|------|---------------|------------------|
+| `trakt_cache.py` | 9 functions | 9 instances |
+| `mdbl_cache.py` | 6 functions | 6 instances |
+| `meta_cache.py` | 5 functions | 5 instances |
+| `main_cache.py` | 3 functions | 3 instances |
+| **Total** | 23 functions | 23 instances |
+
+**Impact:** Each instance:
+1. Opens new SQLite connection
+2. Executes PRAGMA setup (4-5 queries)
+3. Creates cursor object
+4. Never explicitly closed
+
+**Fix:** Use singleton pattern:
+```python
+_cache_instance = None
+
+def get_cache():
+    global _cache_instance
+    if _cache_instance is None:
+        _cache_instance = TraktCache()
+    return _cache_instance
+```
+
+### 35.2 Settings Lookup Without Caching
+
+**File:** `resources/lib/modules/sources.py:84`
+
+```python
+self.timeout = int(get_setting('scrapers.timeout.1', '10')) * 2 if self.disabled_ignored else int(get_setting('scrapers.timeout.1', '10'))
+```
+
+**Problem:** Same setting read twice in one line.
+
+**Additional instances:**
+- `dialogs.py:310-316` - Multiple `_get_property()` calls for folder settings
+- `source_utils.py:66` - `make_settings_dict()` rebuilds entire dict on each call
+
+---
+
+## 36. Double-Pass Filtering Patterns (NEW)
+
+### 36.1 Redundant any() + List Comprehension
+
+**File:** `resources/lib/fenom/source_utils.py:379-396`
+
+This pattern appears 14+ times in `filter_show_pack()`:
+
+```python
+# First pass: check if ANY match exists
+if any(i in dot_release_title for i in dot_season_ranges):
+    # Second pass: filter to get matching items
+    keys = [i for i in dot_season_ranges if i in dot_release_title]
+```
+
+**Problem:** `any()` iterates to find first match, then list comprehension iterates again to collect matches.
+
+**Fix:** Use single pass with `next()` or collect while checking:
+```python
+keys = [i for i in dot_season_ranges if i in dot_release_title]
+if keys:
+    last_season = int(keys[-1].split('.')[-1])
+    return True, last_season
+```
+
+### 36.2 Dual Iteration Over Metadata Companies
+
+**File:** `resources/lib/indexers/metadata.py:244, 338`
+
+```python
+# Attempts with logo first, then fallback to any
+studio = [i['name'] for i in companies if i['logo_path'] not in empty_value_check][0] \
+         or [i['name'] for i in companies][0]
+```
+
+**Fix:** Single-pass with fallback:
+```python
+with_logo = next((i['name'] for i in companies if i['logo_path'] not in empty_value_check), None)
+studio = with_logo or next((i['name'] for i in companies), None)
+```
+
+---
+
+## 37. Inefficient Sort Key Operations (NEW)
+
+### 37.1 .index() as Sort Key
+
+**File:** `resources/lib/windows/sources.py:239`
+
+```python
+provider_choices.sort(key=choice_sorter.index)  # O(n) per comparison
+```
+
+**Complexity:** O(n² log n) - `.index()` is O(n), called O(n log n) times during sort.
+
+**File:** `resources/lib/modules/dialogs.py:247, 265, 281`
+
+```python
+preselect = [fl.index(i) for i in get_setting(...).split(', ')]  # O(n*m)
+```
+
+**Fix for both:** Pre-build position dictionary:
+```python
+positions = {v: i for i, v in enumerate(choice_sorter)}
+provider_choices.sort(key=lambda x: positions.get(x, len(positions)))
+```
+
+### 37.2 Multiple Sorts on Same List
+
+**File:** `resources/lib/modules/sources.py:463-481`
+
+Three sequential sorts with different keys:
+```python
+results.sort(key=lambda k: 'Unchecked' in k.get('cache_provider', ''))
+# ... conditional processing ...
+results.sort(key=lambda k: 'Uncached' in k.get('cache_provider', ''))
+# ... more processing ...
+results.sort(key=lambda k: 'Uncached' in k.get('cache_provider', ''))
+```
+
+**Fix:** Combine into single sort with tuple key:
+```python
+results.sort(key=lambda k: (
+    'Unchecked' in k.get('cache_provider', ''),
+    'Uncached' in k.get('cache_provider', '')
+))
+```
+
+---
+
+## 38. Excessive Thread Creation for UI (NEW)
+
+### 38.1 12+ Threads on Dialog Init
+
+**File:** `resources/lib/windows/extras.py:42-49`
+
+```python
+for i in (
+    Thread(target=self.set_poster),
+    Thread(target=self.make_cast),
+    Thread(target=self.make_recommended),
+    Thread(target=self.make_reviews),
+    Thread(target=self.make_comments),
+    Thread(target=self.make_trivia),
+    Thread(target=self.make_blunders),
+    Thread(target=self.make_parentsguide),
+    Thread(target=self.get_extra_art),
+    Thread(target=self.make_videos),
+    Thread(target=self.get_images),
+    Thread(target=self.make_albums)
+): i.start()
+```
+
+**Problem:** 12 threads spawned immediately on dialog open with:
+- No synchronization
+- No thread pool limiting
+- No error handling
+- No lifecycle management
+
+**Fix:** Use ThreadPoolExecutor with limit:
+```python
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
+with ThreadPoolExecutor(max_workers=4) as executor:
+    futures = [
+        executor.submit(self.set_poster),
+        executor.submit(self.make_cast),
+        # ...
+    ]
+    for future in as_completed(futures, timeout=10):
+        try: future.result()
+        except Exception as e: logger('extras_init', str(e))
+```
+
+### 38.2 People Window Thread Storm
+
+**File:** `resources/lib/windows/people.py:32-35`
+
+```python
+for i in (
+    Thread(target=self.set_properties), Thread(target=self.make_movies),
+    Thread(target=self.make_tvshows), Thread(target=self.make_images)
+): i.start()
+```
+
+**Problem:** 4 threads spawned without coordination for single window.
+
+---
+
+## 39. Memory Accumulation Without Cleanup (NEW)
+
+### 39.1 Episode History Grows Indefinitely
+
+**File:** `resources/lib/modules/episode_tools.py:25-36`
+
+```python
+episode_history = json.loads(kodi_utils.get_property('pov_random_episode_history'))
+episode_list.append(chosen_episode)
+episode_history[tmdb_key] = episode_list  # Never shrinks
+kodi_utils.set_property('pov_random_episode_history', json.dumps(episode_history))
+```
+
+**Impact:** After 1000 random episode plays, this JSON can grow to 100KB+ in window properties.
+
+**Fix:** Add LRU-style cleanup:
+```python
+MAX_HISTORY_PER_SHOW = 10
+if len(episode_list) > MAX_HISTORY_PER_SHOW:
+    episode_list = episode_list[-MAX_HISTORY_PER_SHOW:]
+```
+
+### 39.2 Hardcoded Season Cleanup Limit
+
+**File:** `resources/lib/caches/meta_cache.py:128-129`
+
+```python
+def delete_all_seasons_memory_cache(self, media_id):
+    for item in range(1, 51): clear_property('pov_meta_season_%s_%s' % (...))
+```
+
+**Problem:** Only clears seasons 1-50. Shows with 50+ seasons leak memory cache entries.
+
+**Fix:** Track actual cached seasons or use pattern-based clearing.
+
+---
+
+## 40. O(n³) Worst Case in Hoster Matching (NEW)
+
+**File:** `resources/lib/modules/sources.py:611-614`
+
+```python
+for item in self.debrid_hosters:                              # O(d) debrid services
+    for k, v in item.items():                                 # O(1) typically
+        valid_hosters = [i for i in result_hosters if i in v] # O(h) hosters * O(v) check
+        self.final_sources.extend([{**i} for i in hoster_sources if i['source'] in valid_hosters])
+        # O(s) sources * O(h) check in valid_hosters list
+```
+
+**Complexity:** O(d × h × v + d × s × h) → can approach O(n³) with large datasets.
+
+**Fix:** Use sets for O(1) membership:
+```python
+result_hosters_set = set(result_hosters)
+for item in self.debrid_hosters:
+    for k, v in item.items():
+        v_set = set(v)
+        valid_hosters = result_hosters_set & v_set  # O(min(h,v))
+        valid_sources = [i for i in hoster_sources if i['source'] in valid_hosters]  # O(s)
+```
+
+---
+
+## 41. Comprehensive Updated Statistics
+
+### Issue Count by Category (Final)
+
+| Category | Count | Critical | High | Medium |
+|----------|-------|----------|------|--------|
+| O(n²)+ Algorithm Patterns | 12 | 5 | 5 | 2 |
+| Database N+1 Queries | 8 | 2 | 4 | 2 |
+| Threading/Concurrency | 45 | 8 | 20 | 17 |
+| Race Conditions | 6 | 4 | 2 | 0 |
+| Caching Inefficiencies | 20 | 3 | 10 | 7 |
+| Memory Management | 10 | 2 | 5 | 3 |
+| Connection/Resource Leaks | 35 | 10 | 15 | 10 |
+| String Operations | 10 | 0 | 4 | 6 |
+| Collection Misuse | 12 | 2 | 6 | 4 |
+| Missing Optimizations | 8 | 0 | 3 | 5 |
+| **TOTAL** | **166** | **36** | **74** | **56** |
+
+### Files Requiring Immediate Attention
+
+| File | Critical Issues | All Issues |
+|------|-----------------|------------|
+| `modules/sources.py` | 5 | 22 |
+| `caches/watched_cache.py` | 3 | 14 |
+| `fenom/source_utils.py` | 2 | 12 |
+| `modules/debrid.py` | 3 | 10 |
+| `windows/extras.py` | 2 | 9 |
+| `caches/trakt_cache.py` | 2 | 9 |
+
+---
+
+## 42. Actionable Fix Checklist
+
+### Immediate (< 1 hour each)
+- [ ] Convert list membership checks to sets in `sources.py:206, 458, 490, 505`
+- [ ] Add `HASH_PATTERN` pre-compiled regex to `debrid.py` module level
+- [ ] Cap ThreadPoolExecutor to 10 workers in `sources.py:581`
+- [ ] Remove VACUUM from individual delete operations in cache files
+- [ ] Cache `get_setting()` results before conditional in `sources.py:84`
+
+### Short-term (1-4 hours each)
+- [ ] Implement singleton pattern for cache instances
+- [ ] Add threading.Lock for shared list/set access in `sources.py`, `watched_cache.py`
+- [ ] Replace `next()` with list comprehension `[0]` patterns in `extras.py`
+- [ ] Pre-build position dicts for sort key `.index()` calls
+- [ ] Add LRU cleanup for episode history
+
+### Medium-term (4-8 hours each)
+- [ ] Consolidate 14 range-building loops in `filter_show_pack()`
+- [ ] Implement connection pooling for SQLite databases
+- [ ] Add context managers (`__enter__`/`__exit__`) to all cache classes
+- [ ] Replace fire-and-forget threads with tracked ThreadPoolExecutor
+
+---
+
+*Analysis updated on 2026-01-08*
