@@ -2345,3 +2345,412 @@ def get_watched_status_movie(watched_info, tmdb_id):
 ---
 
 *Verification completed on 2026-01-08*
+
+---
+
+## 57. Additional sources.py Anti-Patterns (NEW - 2026-01-08)
+
+### 57.1 List Membership in prepare_internal_scrapers()
+
+**File:** `resources/lib/modules/sources.py:215`
+
+```python
+active_internal_scrapers = [i for i in self.active_internal_scrapers if not i in self.remove_scrapers]
+```
+
+**Problem:** `self.remove_scrapers` is a list (line 39). O(n) lookup per item.
+
+**Fix:** Convert to set: `remove_set = set(self.remove_scrapers)`
+
+### 57.2 Multiple Filter Passes in Loop
+
+**File:** `resources/lib/modules/sources.py:198-209`
+
+```python
+for key, setting in [
+    (hevc_filter_key, self.filter_hevc),
+    (hdr_filter_key, self.filter_hdr),
+    (dolby_vision_filter_key, self.filter_dv),
+    (av1_filter_key, self.filter_av1)
+]:
+    if setting == 2 and self.autoplay:
+        priority_list = [i for i in results if key in i['extraInfo']]
+        remainder_list = [i for i in results if not i in priority_list]
+        results = priority_list + remainder_list
+```
+
+**Problem:** Loop iterates 4 times. Each iteration that hits `setting == 2` does a complete two-pass filter.
+
+**Fix:** Collect all priority items in a single pass.
+
+### 57.3 Repeated pack_capable Iteration
+
+**File:** `resources/lib/modules/sources.py:256-260`
+
+```python
+pack_capable = [i for i in self.external_providers if i[1].pack_capable]
+if pack_capable:
+    self.external_providers.extend([(i[0], i[1], season_str) for i in pack_capable])
+if pack_capable and show_packs:
+    self.external_providers.extend([(i[0], i[1], show_str) for i in pack_capable])
+```
+
+**Problem:** `pack_capable` list iterated twice with similar tuple construction.
+
+**Fix:** Combine into single extension with conditional.
+
+### 57.4 Triple Filter Passes in filter_results()
+
+**File:** `resources/lib/modules/sources.py:421-431`
+
+```python
+def filter_results(self, results):
+    results = [i for i in results if i['quality'] in self.quality_filter]           # PASS 1
+    if not self.include_3D_results:
+        results = [i for i in results if not '3D' in i['extraInfo']]                # PASS 2
+    # ... size filter logic ...
+    if self.include_unknown_size:
+        results = [i for i in results if i['scrape_provider'].startswith('folder') or i['size'] <= max_size]  # PASS 3
+```
+
+**Problem:** Up to 3 separate list comprehensions over entire results.
+
+**Fix:** Combine into single pass with compound conditions.
+
+### 57.5 Multiple Sorts on Same List
+
+**File:** `resources/lib/modules/sources.py:464, 468, 480`
+
+```python
+results.sort(key=lambda k: 'Unchecked' in k.get('cache_provider', ''), reverse=False)  # SORT 1
+# ... conditional ...
+results.sort(key=lambda k: 'Uncached' in k.get('cache_provider', ''), reverse=False)   # SORT 2
+# ... else path ...
+results.sort(key=lambda k: 'Uncached' in k.get('cache_provider', ''), reverse=False)   # SORT 3
+```
+
+**Problem:** Three O(n log n) operations on same data.
+
+**Fix:** Combine into single sort with composite key.
+
+### 57.6 Set-to-List Conversion (Hashes)
+
+**File:** `resources/lib/modules/sources.py:596`
+
+```python
+torrent_sources = [i for i in self.sources if 'hash' in i]
+result_hashes = list({i['hash'] for i in torrent_sources})  # Creates set then converts to list!
+```
+
+**Problem:** Set is created for deduplication then immediately converted to list, losing O(1) lookup benefit.
+
+**Fix:** Keep as set for subsequent membership checks.
+
+### 57.7 valid_hosters Should Be a Set
+
+**File:** `resources/lib/modules/sources.py:610-614`
+
+```python
+result_hosters = list({i['source'].lower() for i in hoster_sources})
+for item in self.debrid_hosters:
+    for k, v in item.items():
+        valid_hosters = [i for i in result_hosters if i in v]
+        self.final_sources.extend([{**i, 'debrid': k} for i in hoster_sources if i['source'] in valid_hosters])
+```
+
+**Problem:** `valid_hosters` is a list; `i['source'] in valid_hosters` is O(n) per item.
+
+**Fix:** Use set for O(1) lookup.
+
+---
+
+## 58. Scraper Module Anti-Patterns (magneto/) (NEW - 2026-01-08)
+
+### 58.1 Regex Compiled Inside Methods
+
+**Files:**
+- `torrentio.py:50` - `_INFO = re.compile(r'👤.*')`
+- `torrentsdb.py:48` - `_INFO = re.compile(r'💾.*')`
+- `piratebay.py:40, 109` - `re.sub(r'[^A-Za-z0-9\s\.-]+', ...)`
+- `animetosho.py:46, 49, 145` - Complex regex pattern compiled each call
+
+**Impact:** Regex recompiled on every method call.
+
+**Fix:** Move to module level:
+```python
+_INFO_PATTERN = re.compile(r'👤.*')  # At module level
+```
+
+### 58.2 Regex Patterns Inside Loops (SEVERE)
+
+**Files:**
+- `piratebay.py:68-70` (inside `for file in files:` loop)
+- `animetosho.py:101-103, 167-169` (inside `for row in rows:` loops)
+- `torrentdownload.py:82-84` (inside loop)
+
+```python
+for file in files:
+    # ...
+    ep_strings = [r'[.-]s\d{2}e\d{2}([.-]?)', r'[.-]s\d{2}([.-]?)', r'[.-]season[.-]?\d{1,2}[.-]?']
+    if any(re.search(item, name_lower) for item in ep_strings): continue
+```
+
+**Problem:** For 100 results, list and regex searches recreated 100 times!
+
+**Fix:** Pre-compile at module level:
+```python
+EP_PATTERNS = [re.compile(p) for p in [r'[.-]s\d{2}e\d{2}...', ...]]
+```
+
+### 58.3 Missing Session Pooling
+
+**Files:**
+- `zilean.py:49` - `requests.get(url, timeout=self.timeout)`
+- `prowlarr.py:49` - `requests.get(url, params=params, ...)`
+- `torrentsdb.py:46` - `requests.get(url, timeout=self.timeout)`
+
+**Problem:** Each request creates new TCP connection. No HTTP keep-alive.
+
+**Contrast with good practice (animetosho.py:12-13):**
+```python
+session = requests.Session()
+session.headers = {'User-Agent': client.randomagent()}
+```
+
+### 58.4 Duplicated Regex Patterns Across Methods
+
+**Files:**
+- `animetosho.py`: Same `ep_strings` in `get_sources()` (101-103) and `get_sources_packs()` (167-169)
+- `piratebay.py`: Same pattern in `sources()` and `get_sources_packs()`
+
+**Fix:** Define once at module level.
+
+---
+
+## 59. Debrid Module Anti-Patterns (Detailed) (NEW - 2026-01-08)
+
+### 59.1 Hardcoded Delays Without Exponential Backoff
+
+**Files:**
+- `real_debrid_api.py:135-139` - Fixed 500ms × 3 loop
+- `alldebrid_api.py:101-105` - Fixed 500ms × 3 loop
+- `modules/debrid.py:187` - Fixed 500ms polling
+
+```python
+for key in ['ended'] * 3:
+    kodi_utils.sleep(500)
+    torrent_info = self.torrent_info(torrent_id)
+    if key in torrent_info: break
+```
+
+**Fix:** Implement exponential backoff:
+```python
+delay = 100
+for attempt in range(5):
+    if 'ended' in self.torrent_info(torrent_id): break
+    kodi_utils.sleep(min(delay, 2000))
+    delay *= 2
+```
+
+### 59.2 Repeated IP Lookups (Network Cost)
+
+**Files:**
+- `torbox_api.py:85-92, 94-101, 103-110` (3 methods)
+- `easydebrid_api.py:59-62`
+
+```python
+def unrestrict_link(self, file_id):
+    try: user_ip = requests.get(ip_url, timeout=2.0).text  # External API call
+    except: user_ip = ''
+```
+
+**Problem:** IP fetched per file, adding 2+ seconds latency per call.
+
+**Fix:** Cache IP at instance level with TTL.
+
+### 59.3 Single-Hash Methods Losing Batch Opportunity
+
+**Files:** All debrid API modules (5+ files)
+
+```python
+# premiumize_api.py:69-71
+def check_single_magnet(self, hash_string):
+    cache_info = self.check_cache([hash_string])  # Array of 1
+    return hash_string in cache_info
+```
+
+**Problem:** `check_single_magnet()` called in filtering loops instead of batching.
+
+### 59.4 Fire-and-Forget Threads Without Cleanup
+
+**Files:**
+- `torbox_api.py:178, 182`
+- `modules/debrid.py:96, 98, 102`
+- `offcloud.py:100`
+
+```python
+Thread(target=self.delete_torrent, args=(torrent_id,)).start()
+```
+
+**Issues:**
+- No `.join()` to ensure completion
+- No error handling/logging
+- No rate limiting
+- Silent failures leave orphaned torrents
+
+### 59.5 Redundant DB Queries in clear_cache Methods
+
+**Files:** All debrid API modules
+
+```python
+# real_debrid_api.py:180-185
+dbcur.execute("""SELECT id FROM maincache WHERE id LIKE ?""", ('pov_rd_user_cloud%',))
+user_cloud_cache = [str(i[0]) for i in dbcur.fetchall()]
+if user_cloud_cache:
+    dbcur.execute("""DELETE FROM maincache WHERE id LIKE ?""", ('pov_rd_user_cloud%',))
+```
+
+**Problem:** SELECT then DELETE with same WHERE clause. Should be single DELETE.
+
+---
+
+## 60. Cache Module Anti-Patterns (Detailed) (NEW - 2026-01-08)
+
+### 60.1 Connection Leaks in BaseCache
+
+**File:** `caches/__init__.py:22-25`
+
+```python
+def __init__(self):
+    self.dbcon = database_connect(self.db_file, isolation_level=None)
+    self.dbcur = self.dbcon.cursor()
+    # No __del__, __enter__, or __exit__ methods
+```
+
+**Impact:** Connections never explicitly closed.
+
+### 60.2 Per-Function Cache Instantiation
+
+**Files:** `trakt_cache.py:60-137`, `mdbl_cache.py:60-115`
+
+```python
+def cache_trakt_object(function, string, url):
+    dbcur = TraktCache().dbcur  # New connection created, never closed
+```
+
+**Count:** 9+ functions in trakt_cache.py, 6+ in mdbl_cache.py create new instances.
+
+### 60.3 VACUUM After Each Delete (8 Files)
+
+| File | Lines |
+|------|-------|
+| `trakt_cache.py` | 49, 132 |
+| `mdbl_cache.py` | 49, 110 |
+| `debrid_cache.py` | 42, 49 |
+| `favourites_cache.py` | 36 |
+| `navigator_cache.py` | 41 |
+| `main_cache.py` | 77, 86 |
+| `providers_cache.py` | 39, 46 |
+| `meta_cache.py` | 139 |
+
+**Fix:** Remove individual VACUUMs; add periodic maintenance VACUUM only.
+
+### 60.4 Missing Database Indexes
+
+**File:** `modules/cache.py` (schema creation)
+
+| Table | Missing Index |
+|-------|---------------|
+| `watched_status` | `(db_type, media_id)` |
+| `progress` | `(db_type, media_id)` |
+| `metadata` | `(expires)` for TTL cleanup |
+| `debrid_data` | `(expires)` |
+| `results_data` | `(db_type, tmdb_id)`, `(expires)` |
+
+### 60.5 N+1 DELETE Loops
+
+**File:** `main_cache.py:72-77`
+
+```python
+for item in results:
+    self.dbcur.execute(DELETE, (str(item[0]),))  # Individual delete
+    self.delete_memory_cache(str(item[0]))
+```
+
+**Fix:** Use `executemany()`.
+
+### 60.6 fenom/cache.py Has No Cleanup
+
+**File:** `fenom/cache.py`
+
+Issues:
+- No TTL expiration validation on read
+- No VACUUM operations
+- `CREATE TABLE IF NOT EXISTS` inside transaction on every insert
+- Cache grows unbounded
+
+---
+
+## 61. Updated Issue Statistics (Final - 2026-01-08)
+
+### Issues by Category
+
+| Category | Previous | New | Total |
+|----------|----------|-----|-------|
+| O(n²) Algorithms | 16 | 4 | 20 |
+| N+1 Query/API | 14 | 2 | 16 |
+| Threading Issues | 45 | 6 | 51 |
+| Connection Leaks | 35 | 5 | 40 |
+| Race Conditions | 6 | 0 | 6 |
+| Caching Issues | 20 | 8 | 28 |
+| Regex Compilation | 12 | 8 | 20 |
+| Memory Management | 10 | 2 | 12 |
+| Debrid API Patterns | 8 | 4 | 12 |
+| Scraper Patterns | 0 | 6 | 6 |
+| **TOTAL** | **~166** | **~45** | **~211** |
+
+### Files Most Needing Attention (Updated)
+
+| File | Issue Count | Priority |
+|------|-------------|----------|
+| `modules/sources.py` | 25+ | CRITICAL |
+| `caches/trakt_cache.py` | 12+ | HIGH |
+| `caches/watched_cache.py` | 12+ | HIGH |
+| `fenom/source_utils.py` | 14+ | HIGH |
+| `magneto/animetosho.py` | 6+ | HIGH |
+| `magneto/piratebay.py` | 5+ | HIGH |
+| `debrids/torbox_api.py` | 5+ | MEDIUM |
+| `caches/mdbl_cache.py` | 8+ | MEDIUM |
+
+---
+
+## 62. Final Summary and Recommendations
+
+### Critical Quick Wins (Implement First)
+
+| Fix | Time | Impact | Files |
+|-----|------|--------|-------|
+| Convert list membership to set | 15 min | 50%+ filter speed | sources.py (7 locations) |
+| Cap ThreadPoolExecutor at 30 | 2 min | Prevents resource exhaustion | sources.py:581 |
+| Add threading.Lock for shared lists | 15 min | Prevents data corruption | sources.py, debrid.py |
+| Remove per-delete VACUUM | 15 min | 10x faster cache cleanup | 8 cache files |
+| Pre-compile scraper regex | 20 min | 5-10% scraper speed | magneto/*.py |
+
+### Architecture Improvements (Plan Later)
+
+1. **Connection Pooling** - Reuse database connections across cache operations
+2. **Batch API Calls** - Implement batch ID resolution in trakt_api.py
+3. **Session Reuse** - Use requests.Session in all scrapers
+4. **Context Managers** - Add `__enter__`/`__exit__` to BaseCache
+
+### Estimated Total Performance Gain
+
+With all critical fixes implemented:
+- **Source scraping**: 50-70% faster
+- **Cache operations**: 10-20x faster deletes
+- **Memory usage**: 20-30% reduction
+- **API calls**: 40-60% reduction through batching
+
+---
+
+*Extended analysis completed on 2026-01-08*
