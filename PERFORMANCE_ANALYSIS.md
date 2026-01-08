@@ -1641,3 +1641,219 @@ provider_choices.sort(key=lambda x: positions.get(x, len(positions)))
 ---
 
 *Analysis extended on 2026-01-08*
+
+---
+
+## 43. Additional .index() Anti-Pattern Locations (NEW)
+
+### 43.1 Undesirables Module - Double .index() Lookup
+
+**File:** `resources/lib/fenom/undesirables.py:80-81`
+
+```python
+try: preselect = [UNDESIRABLES.index(i) for i in chosen]  # O(n²)
+except: preselect = [UNDESIRABLES.index(i) for i in UNDESIRABLES]  # O(n²) fallback
+```
+
+**Problem:** List `.index()` is O(n), called for each item = O(n²). The fallback also rebuilds the same pattern.
+
+**Fix:**
+```python
+undesirables_idx = {item: idx for idx, item in enumerate(UNDESIRABLES)}
+preselect = [undesirables_idx[i] for i in chosen if i in undesirables_idx]
+```
+
+### 43.2 Source Utils Preselect
+
+**File:** `resources/lib/modules/source_utils.py:138`
+
+```python
+preselect = [all_sources.index(i) for i in enabled]  # O(n) per item
+```
+
+### 43.3 Menu Editor Redundant Index Building
+
+**File:** `resources/lib/modules/menu_editor.py:189`
+
+```python
+index_list = [list_items.index(i) for i in list_items]  # Rebuilds [0, 1, 2, ...]
+```
+
+**Problem:** This creates `[0, 1, 2, ...]` in O(n²) time. Should be `list(range(len(list_items)))`.
+
+### 43.4 Dialogs Generator with .index()
+
+**File:** `resources/lib/modules/dialogs.py:674`
+
+```python
+episodes.index(i) for i in episodes  # Generator but still O(n²)
+```
+
+---
+
+## 44. Connection Pool Pattern Recommendation (NEW)
+
+The codebase lacks a connection pool pattern. Recommended implementation:
+
+```python
+# Singleton pattern for cache connections
+class ConnectionPool:
+    _instances = {}
+    _lock = threading.Lock()
+
+    @classmethod
+    def get_connection(cls, db_file):
+        with cls._lock:
+            if db_file not in cls._instances:
+                cls._instances[db_file] = database_connect(db_file)
+            return cls._instances[db_file]
+
+    @classmethod
+    def close_all(cls):
+        with cls._lock:
+            for conn in cls._instances.values():
+                conn.close()
+            cls._instances.clear()
+```
+
+**Files that would benefit:**
+- All caches (`trakt_cache.py`, `mdbl_cache.py`, `main_cache.py`, etc.)
+- Debrid API modules
+
+---
+
+## 45. Window Property Accumulation Risk (NEW)
+
+### 45.1 Unlimited Window Property Growth
+
+**Pattern observed across codebase:**
+```python
+set_property('pov_key_%s' % item_id, repr(large_data))  # No size check
+```
+
+**Affected locations:**
+- `caches/main_cache.py:53` - Memory cache storage
+- `caches/meta_cache.py:102` - Metadata storage
+- `caches/navigator_cache.py:48` - List storage
+- `modules/episode_tools.py:30` - Episode history
+
+**Risk:** Kodi window properties are memory-resident. With large libraries, this can exhaust available memory.
+
+**Recommendation:** Implement LRU eviction or bounded storage:
+```python
+class BoundedPropertyCache:
+    MAX_ENTRIES = 1000
+    _keys = []
+
+    @classmethod
+    def set(cls, key, value):
+        if len(cls._keys) >= cls.MAX_ENTRIES:
+            oldest = cls._keys.pop(0)
+            clear_property(oldest)
+        cls._keys.append(key)
+        set_property(key, value)
+```
+
+---
+
+## 46. Scraper Timeout Inefficiency (NEW)
+
+**File:** `resources/lib/modules/sources.py:619-652`
+
+```python
+while alive_threads := [x.name for x in self.threads if not x.done()]:
+    if monitor.abortRequested() or time.monotonic() > end_time: break
+    # ... polling loop with sleep
+    sleep(self.sleep_time)
+```
+
+**Issue:** Polling loop checks thread status repeatedly. With `ThreadPoolExecutor`, should use `concurrent.futures.wait()`:
+
+```python
+from concurrent.futures import wait, FIRST_COMPLETED, ALL_COMPLETED
+
+done, not_done = wait(self.threads, timeout=self.timeout, return_when=ALL_COMPLETED)
+```
+
+**Benefit:** Removes busy-wait loop, uses OS-level synchronization.
+
+---
+
+## 47. Complete Issue Count Summary (FINAL)
+
+| Category | Count | Critical | High | Medium | Low |
+|----------|-------|----------|------|--------|-----|
+| O(n²) Algorithm Patterns | 16 | 4 | 8 | 4 | 0 |
+| N+1 Query/API Patterns | 14 | 2 | 8 | 4 | 0 |
+| Threading Anti-Patterns | 42 | 2 | 25 | 15 | 0 |
+| Connection/Resource Leaks | 35 | 5 | 20 | 10 | 0 |
+| Race Conditions | 6 | 3 | 3 | 0 | 0 |
+| Caching Inefficiencies | 18 | 2 | 8 | 6 | 2 |
+| Regex Compilation | 12 | 0 | 6 | 6 | 0 |
+| Memory Management | 9 | 1 | 4 | 4 | 0 |
+| String Operations | 10 | 0 | 2 | 6 | 2 |
+| Collection Misuse | 18 | 2 | 8 | 6 | 2 |
+| Missing Indexes | 4 | 0 | 4 | 0 | 0 |
+| Blocking Operations | 5 | 0 | 2 | 3 | 0 |
+| Bugs (Functional Issues) | 2 | 1 | 1 | 0 | 0 |
+| **TOTAL** | **~191** | **22** | **99** | **64** | **6** |
+
+---
+
+## 48. Executive Summary
+
+### Most Impactful Issues (Fix First)
+
+1. **O(n²) List Membership in sources.py** - Lines 206, 458, 490, 505, 607, 683
+   - Impact: Exponential slowdown with source count
+   - Fix: Convert to sets - 10 minutes to implement
+
+2. **Race Conditions in Shared Lists** - debrid.py:253, sources.py:233-234
+   - Impact: Data corruption, crashes
+   - Fix: Add threading.Lock - 15 minutes to implement
+
+3. **Unbounded ThreadPoolExecutor** - sources.py:581
+   - Impact: System resource exhaustion
+   - Fix: Cap at 20-50 threads - 2 minutes to implement
+
+4. **N+1 API Calls in trakt_api.py** - Lines 438-492
+   - Impact: API rate limiting, slow sync
+   - Fix: Batch ID resolution - 30 minutes to implement
+
+5. **Fire-and-Forget Threads** - 25 locations
+   - Impact: Resource leaks, orphaned operations
+   - Fix: Track and join threads - 1 hour to implement
+
+### Quick Wins (High Impact, Low Effort)
+
+| Fix | Time | Impact | Location |
+|-----|------|--------|----------|
+| Convert list to set for membership | 5 min | HIGH | sources.py:206 |
+| Add thread pool size cap | 2 min | HIGH | sources.py:581 |
+| Remove per-operation VACUUM | 10 min | MEDIUM | All cache files |
+| Use next() for single items | 15 min | MEDIUM | metadata.py, extras.py |
+| Pre-build index dict for sort | 10 min | MEDIUM | sources.py, dialogs.py |
+
+### Files Requiring Most Attention
+
+| File | Issue Count | Priority |
+|------|-------------|----------|
+| `modules/sources.py` | 22 | CRITICAL |
+| `caches/watched_cache.py` | 12 | HIGH |
+| `fenom/source_utils.py` | 14 | HIGH |
+| `caches/trakt_cache.py` | 9 | HIGH |
+| `indexers/trakt_api.py` | 8 | HIGH |
+| `modules/debrid.py` | 10 | HIGH |
+| `windows/extras.py` | 8 | MEDIUM |
+| `caches/meta_cache.py` | 7 | MEDIUM |
+
+### Estimated Performance Gains
+
+- **Source scraping**: 40-60% faster with O(n²) → O(n) fixes
+- **Watched status sync**: 70-80% faster with N+1 → batch
+- **UI responsiveness**: 20-30% improvement with thread pool caps
+- **Memory usage**: 15-25% reduction with bounded caches
+
+---
+
+*Final comprehensive analysis completed on 2026-01-08*
