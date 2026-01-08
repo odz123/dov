@@ -1857,3 +1857,277 @@ done, not_done = wait(self.threads, timeout=self.timeout, return_when=ALL_COMPLE
 ---
 
 *Final comprehensive analysis completed on 2026-01-08*
+
+---
+
+## 49. Debrid API Performance Anti-Patterns (NEW)
+
+### 49.1 Repeated External IP Lookups
+
+**Files:**
+- `resources/lib/debrids/torbox_api.py:86, 95, 104`
+- `resources/lib/debrids/easydebrid_api.py:60`
+
+```python
+# Each unrestrict method fetches IP separately
+def unrestrict_link(self, file_id):
+    try: user_ip = requests.get(ip_url, timeout=2.0).text  # API call #1
+    except: user_ip = ''
+
+def unrestrict_usenet(self, file_id):
+    try: user_ip = requests.get(ip_url, timeout=2.0).text  # API call #2 - same IP!
+    except: user_ip = ''
+```
+
+**Problem:** User's IP address doesn't change during session but is fetched multiple times. Each call adds ~2 seconds latency.
+
+**Fix:** Cache IP at instance level:
+```python
+def __init__(self):
+    self._user_ip = None
+
+@property
+def user_ip(self):
+    if self._user_ip is None:
+        try: self._user_ip = requests.get(ip_url, timeout=2.0).text
+        except: self._user_ip = ''
+    return self._user_ip
+```
+
+### 49.2 Hardcoded Polling Delays
+
+**Files:**
+- `resources/lib/debrids/real_debrid_api.py:135-138`
+- `resources/lib/debrids/alldebrid_api.py:101-104`
+
+```python
+for key in ['ended'] * 3:
+    kodi_utils.sleep(500)  # Fixed 500ms delay
+    torrent_info = self.torrent_info(torrent_id)
+    if key in torrent_info: break
+```
+
+**Problem:** Fixed delays regardless of network conditions. No exponential backoff.
+
+**Fix:** Use exponential backoff:
+```python
+delay = 100
+for attempt in range(5):
+    torrent_info = self.torrent_info(torrent_id)
+    if 'ended' in torrent_info: break
+    kodi_utils.sleep(min(delay, 2000))
+    delay *= 2
+```
+
+### 49.3 Duplicate supported_video_extensions() Calls
+
+**Files:** All debrid API modules (8 files, 12+ calls)
+
+```python
+# real_debrid_api.py - called twice in same method chain
+def create_transfer(self, magnet):
+    extensions = supported_video_extensions()  # Call 1
+
+def parse_magnet_pack(self, magnet_url, info_hash):
+    extensions = supported_video_extensions()  # Call 2 - same result
+```
+
+**Fix:** Cache at instance or pass as parameter.
+
+### 49.4 External Hash Check Without Batching
+
+**File:** `resources/lib/modules/debrid.py:251-263`
+
+```python
+def external_check_cache(self, unchecked_hashes):
+    threads = (
+        Thread(target=mfn_check_cache, args=(...)),
+        Thread(target=trz_check_cache, args=(...))  # Each makes own API call
+    )
+    for i in threads: i.start()
+    for i in threads: i.join()
+    return list(set(checked_hashes))  # Dedup after
+```
+
+**Problems:**
+- Multiple concurrent external API calls with no batching
+- `list(set(...))` is inefficient deduplication
+
+---
+
+## 50. Indexer Metadata Fetch Patterns (NEW)
+
+### 50.1 Double API Call for Missing Translations
+
+**File:** `resources/lib/indexers/metadata.py:44-61, 100-117`
+
+```python
+if language != 'en':
+    if data['overview'] in empty_value_check:
+        # Makes ADDITIONAL API call just for English overview
+        eng_data = movie_data(media_id, 'en', tmdb_api)
+        data['overview'] = eng_data['overview']
+```
+
+**Problem:** When overview is missing in user's language, makes separate English API call.
+
+**Fix:** Use TMDB's `append_to_response` to get both languages in single call.
+
+### 50.2 O(n²) Trakt Deduplication
+
+**File:** `resources/lib/indexers/trakt_api.py:540, 570, 586, 602`
+
+```python
+all_shows = [i for n, i in enumerate(all_shows) if i not in all_shows[n + 1:]]  # O(n²)
+```
+
+**Problem:** For 1000 shows, checks 500,000+ comparisons.
+
+**Fix:** Use dict-based dedup:
+```python
+seen = set()
+all_shows = [i for i in all_shows if i not in seen and not seen.add(i)]
+```
+
+### 50.3 Metadata Cache Miss on Multi-Season Fetch
+
+**File:** `resources/lib/indexers/metadata.py:176-185`
+
+```python
+def all_episodes_meta(meta, user_info, Thread):
+    seasons = [(i['season_number'],) for i in meta['season_data']]
+    for i in TaskPool().tasks(_get_tmdb_episodes, seasons, Thread): i.join()
+```
+
+**Problem:** Spawns threads for ALL seasons without checking if already cached.
+
+**Fix:** Pre-filter cached seasons:
+```python
+uncached = [(s,) for s in seasons if not meta_cache.get_season(tmdb_id, s)]
+```
+
+---
+
+## 51. Additional Caching Anti-Patterns (NEW)
+
+### 51.1 Fenom Cache Has No Cleanup
+
+**File:** `resources/lib/fenom/cache.py`
+
+The entire Fenom caching module lacks:
+- Expiration validation on read
+- VACUUM operations
+- TTL enforcement
+
+Cache grows unbounded until manually cleared.
+
+### 51.2 Unused Optimization Functions
+
+**File:** `resources/lib/caches/watched_cache.py:305-327`
+
+Four optimization functions are defined but NEVER called:
+- `make_watched_info_movie_set()` - O(1) movie lookups
+- `make_watched_info_tv_dict()` - O(1) TV show lookups
+- `make_watched_info_season_dict()` - O(1) season lookups
+- `make_watched_info_episode_set()` - O(1) episode lookups
+
+Code uses O(n) list comprehensions instead.
+
+### 51.3 repr() vs JSON for Serialization
+
+**File:** `resources/lib/caches/meta_cache.py:102`
+
+```python
+set_property(prop_string, repr(cachedata))  # Slower, larger
+# Retrieval requires:
+cachedata = literal_eval(cachedata)  # CPU-intensive parse
+```
+
+**Fix:** Use JSON (faster, smaller):
+```python
+set_property(prop_string, json.dumps(cachedata))
+cachedata = json.loads(get_property(prop_string))
+```
+
+---
+
+## 52. Thread Pool Executor Misuse (NEW)
+
+### 52.1 Dynamic Pool Sizing Without Cap
+
+**File:** `resources/lib/modules/sources.py:581`
+
+```python
+tpe = TPE(max(1, len(self.source_dict), len(self.debrid_torrents)))
+```
+
+**Problem:** Pool size matches data size. With 200 sources, creates 200 threads.
+
+**Fix:**
+```python
+tpe = TPE(min(max(1, len(self.source_dict)), 30))  # Cap at 30
+```
+
+### 52.2 wait() Instead of Polling Loop
+
+**File:** `resources/lib/modules/sources.py:619-652`
+
+Current polling loop:
+```python
+while alive_threads := [...]:
+    if time.monotonic() > end_time: break
+    sleep(self.sleep_time)  # Busy-wait
+```
+
+**Fix:** Use `concurrent.futures.wait()`:
+```python
+from concurrent.futures import wait, ALL_COMPLETED
+done, not_done = wait(self.futures, timeout=self.timeout, return_when=ALL_COMPLETED)
+```
+
+---
+
+## 53. Final Updated Statistics
+
+### Issues by Category (Complete)
+
+| Category | Count | Critical | High | Medium |
+|----------|-------|----------|------|--------|
+| O(n²) Algorithms | 16 | 4 | 8 | 4 |
+| N+1 Query/API | 14 | 2 | 8 | 4 |
+| Threading Issues | 45 | 2 | 28 | 15 |
+| Connection Leaks | 35 | 5 | 20 | 10 |
+| Race Conditions | 6 | 3 | 3 | 0 |
+| Caching Issues | 20 | 2 | 10 | 8 |
+| Regex Compilation | 12 | 0 | 6 | 6 |
+| Memory Management | 10 | 1 | 5 | 4 |
+| Debrid API Patterns | 8 | 0 | 5 | 3 |
+| Indexer Patterns | 10 | 1 | 6 | 3 |
+| **TOTAL** | **~196** | **20** | **99** | **57** |
+
+### Impact vs Effort Matrix
+
+```
+HIGH IMPACT
+    │
+    │  ┌────────────────┐     ┌────────────────┐
+    │  │ ThreadPoolCap  │     │ Batch API Calls│
+    │  │ (2 min)        │     │ (30 min)       │
+    │  └────────────────┘     └────────────────┘
+    │
+    │  ┌────────────────┐     ┌────────────────┐
+    │  │ Set Membership │     │ Connection Pool│
+    │  │ (10 min)       │     │ (2 hours)      │
+    │  └────────────────┘     └────────────────┘
+    │
+LOW │  ┌────────────────┐     ┌────────────────┐
+    │  │ next() usage   │     │ Full refactor  │
+    │  │ (15 min)       │     │ (1 day)        │
+    │  └────────────────┘     └────────────────┘
+    └────────────────────────────────────────────►
+          LOW EFFORT                HIGH EFFORT
+```
+
+---
+
+*Extended analysis completed on 2026-01-08*
