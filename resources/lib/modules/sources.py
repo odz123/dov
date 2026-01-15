@@ -291,7 +291,7 @@ class SourceSelect:
 				current_progress = time.monotonic() - start_time
 				line2 = dialog_format % (int_dialog_hl, line2_inst, *int_totals)
 				line3 = remaining_format % ', '.join(alive_threads).upper()
-				percent = int((current_progress/float(timeout))*100)
+				percent = int((current_progress/float(timeout))*100) if timeout > 0 else 0
 				self.progress_dialog.update(format_line % (line1, line2, line3), percent)
 			except: pass
 			sleep(self.sleep_time)
@@ -380,7 +380,8 @@ class SourceSelect:
 					try:
 						if monitor.abortRequested(): break
 						elif self.progress_dialog and self.progress_dialog.iscanceled(): break
-						percent = int(((total_items := len(items))-count)/total_items*100)
+						total_items = len(items)
+						percent = int((total_items - count) / total_items * 100) if total_items > 0 else 0
 						name = item['name'].replace('.', ' ').replace('-', ' ').upper()
 						line1 = item.get('scrape_provider'), item.get('cache_provider'), item.get('provider')
 						line1 = ' | '.join(i for i in line1 if i and i != 'external').upper()
