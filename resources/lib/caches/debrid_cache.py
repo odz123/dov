@@ -17,7 +17,7 @@ class DebridCache(BaseCache):
 			current_time = self._get_timestamp(datetime.now())
 			self.dbcur.execute(GET_MANY % (', '.join('?' for _ in hash_list)), hash_list)
 			cache_data = self.dbcur.fetchall()
-			if cache_data:
+			if cache_data and len(cache_data[0]) > 3:
 				if cache_data[0][3] > current_time: result = cache_data
 				else: self.remove_many(cache_data)
 		except: pass

@@ -393,8 +393,14 @@ class Extras(BaseDialog):
 		if not networks_id in self.enabled_lists: return
 		try:
 			network = self.meta['studio']
-			if self.media_type == 'movie': network_id = [i['id'] for i in tmdb_api.tmdb_company_id(network)['results'] if i['name'] == network][0]
-			else: network_id = [item['id'] for item in networks if 'name' in item and item['name'] == network][0]
+			if self.media_type == 'movie':
+				matching_companies = [i['id'] for i in tmdb_api.tmdb_company_id(network)['results'] if i['name'] == network]
+				if not matching_companies: return
+				network_id = matching_companies[0]
+			else:
+				matching_networks = [item['id'] for item in networks if 'name' in item and item['name'] == network]
+				if not matching_networks: return
+				network_id = matching_networks[0]
 			function = tmdb_api.tmdb_movies_networks if self.media_type == 'movie' else tmdb_api.tmdb_tv_networks
 			data = self.remove_current_tmdb_mediaitem(function(network_id, 1)['results'])
 			item_list = list(self.make_tmdb_listitems(data))
@@ -477,16 +483,20 @@ class Extras(BaseDialog):
 	def get_next_episode(self):
 		watched_info = ws.get_watched_info_tv(self.watched_indicators)
 		ep_list = ws.get_next_episodes(watched_info)
-		try: info = [i for i in ep_list if i['media_ids']['tmdb'] == self.tmdb_id][0]
-		except: return ''
+		matching_eps = [i for i in ep_list if i['media_ids']['tmdb'] == self.tmdb_id]
+		if not matching_eps: return ''
+		info = matching_eps[0]
 		current_season = info['season']
 		current_episode = info['episode']
 		season_data = self.meta['season_data']
-		curr_season_data = [i for i in season_data if i['season_number'] == current_season][0]
+		matching_curr_season = [i for i in season_data if i['season_number'] == current_season]
+		if not matching_curr_season: return ''
+		curr_season_data = matching_curr_season[0]
 		season = current_season if current_episode < curr_season_data['episode_count'] else current_season + 1
 		episode = current_episode + 1 if current_episode < curr_season_data['episode_count'] else 1
-		try: info = [i for i in season_data if i['season_number'] == season][0]
-		except: return ''
+		matching_next_season = [i for i in season_data if i['season_number'] == season]
+		if not matching_next_season: return ''
+		info = matching_next_season[0]
 		if info['episode_count'] >= episode:
 			next_episode = 'S%.2dE%.2d' % (season, episode)
 			return '%s: %s' % (ls(32999), next_episode)

@@ -56,7 +56,9 @@ def nextep_playback_info(meta):
 	def _build_next_episode_play():
 		ep_data = season_episodes_meta(season, meta, settings.metadata_user_info())
 		if not ep_data: return 'no_next_episode'
-		ep_data = [i for i in ep_data if i['episode'] == episode][0]
+		matching_eps = [i for i in ep_data if i['episode'] == episode]
+		if not matching_eps: return 'no_next_episode'
+		ep_data = matching_eps[0]
 		airdate = ep_data['premiered']
 		d = airdate.split('-')
 		episode_date = date(int(d[0]), int(d[1]), int(d[2]))
@@ -79,7 +81,9 @@ def nextep_playback_info(meta):
 	try:
 		current_date = get_datetime()
 		season_data = meta_get('season_data')
-		curr_season_data = [i for i in season_data if i['season_number'] == current_season][0]
+		matching_seasons = [i for i in season_data if i['season_number'] == current_season]
+		if not matching_seasons: return meta, 'error'
+		curr_season_data = matching_seasons[0]
 		season = current_season if current_episode < curr_season_data['episode_count'] else current_season + 1
 		episode = current_episode + 1 if current_episode < curr_season_data['episode_count'] else 1
 		nextep_info = _build_next_episode_play()
