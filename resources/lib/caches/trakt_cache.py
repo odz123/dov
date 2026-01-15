@@ -46,7 +46,7 @@ class TraktCache:
 
 	def _delete(self, command, args):
 		self.dbcur.execute(command, args)
-		self.dbcur.execute("""VACUUM""")
+		# VACUUM removed - should be run during maintenance only, not per-operation
 
 	def _connect_database(self):
 		self.dbcon = database_connect(trakt_db, timeout=timeout, isolation_level=None)

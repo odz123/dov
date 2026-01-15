@@ -203,7 +203,8 @@ class SourceSelect:
 		]:
 			if setting == 2 and self.autoplay:
 				priority_list = [i for i in results if key in i['extraInfo']]
-				remainder_list = [i for i in results if not i in priority_list]
+				priority_set = set(id(i) for i in priority_list)  # O(1) lookup using object id
+				remainder_list = [i for i in results if id(i) not in priority_set]
 				results = priority_list + remainder_list
 			elif setting == 3:
 				results.sort(key=lambda k: key in k['extraInfo'] and not 'Uncached' in k.get('cache_provider', ''), reverse=True)
@@ -212,7 +213,8 @@ class SourceSelect:
 
 	def prepare_internal_scrapers(self):
 		if self.active_external and len(self.active_internal_scrapers) == 1: return
-		active_internal_scrapers = [i for i in self.active_internal_scrapers if not i in self.remove_scrapers]
+		remove_set = set(self.remove_scrapers)  # O(1) lookup
+		active_internal_scrapers = [i for i in self.active_internal_scrapers if i not in remove_set]
 		self.active_folders = 'folders' in active_internal_scrapers
 		if self.active_folders:
 			self.folder_info = self.get_folderscraper_info()
@@ -455,7 +457,8 @@ class SourceSelect:
 			if self.priority_language == 'Spanish': language += 'latino', 'lat', 'esp'
 			pattern = r'\b(%s)\b' % '|'.join(i for i in language if i)
 			sort_first = [i for i in results if re.search(pattern, i.get('name_info', ''), re.I)]
-			sort_last = [i for i in results if not i in sort_first]
+			sort_first_ids = set(id(i) for i in sort_first)  # O(1) lookup using object id
+			sort_last = [i for i in results if id(i) not in sort_first_ids]
 			results = sort_first + sort_last
 		except: pass
 		return results
@@ -487,7 +490,8 @@ class SourceSelect:
 			else: results = [i for i in results if not key in i['extraInfo']]
 		elif enable_setting == 2 and self.autoplay:
 			priority_list = [i for i in results if key in i['extraInfo']]
-			remainder_list = [i for i in results if not i in priority_list]
+			priority_set = set(id(i) for i in priority_list)  # O(1) lookup using object id
+			remainder_list = [i for i in results if id(i) not in priority_set]
 			results = priority_list + remainder_list
 		elif enable_setting == 3:
 			priority_list = lambda k: key in k['extraInfo'] and not 'Uncached' in k.get('cache_provider', '')
@@ -500,9 +504,11 @@ class SourceSelect:
 			if 'folders' in self.all_scrapers and sort_to_top('folders'): sort_first_scrapers.append('folders')
 			sort_first_scrapers.extend([i for i in self.all_scrapers if i in cloud_scrapers and sort_to_top(i)])
 			if not sort_first_scrapers: return results
-			sort_first = [i for i in results if i['scrape_provider'] in sort_first_scrapers]
+			sort_first_scrapers_set = set(sort_first_scrapers)  # O(1) lookup
+			sort_first = [i for i in results if i['scrape_provider'] in sort_first_scrapers_set]
 			sort_first.sort(key=lambda k: (self._sort_folder_to_top(k['scrape_provider']), k['quality_rank']))
-			sort_last = [i for i in results if not i in sort_first]
+			sort_first_ids = set(id(i) for i in sort_first)  # O(1) lookup using object id
+			sort_last = [i for i in results if id(i) not in sort_first_ids]
 			results = sort_first + sort_last
 		except: pass
 		return results
@@ -578,7 +584,9 @@ class Manager:
 	@dialog_hook
 	def results(self, info):
 		ExternalSource.resolutions, ExternalSource.timeout = self.resolutions, self.timeout
-		tpe = TPE(max(1, len(self.source_dict), len(self.debrid_torrents)))
+		# Cap thread pool at 50 to prevent resource exhaustion
+		pool_size = min(50, max(1, len(self.source_dict), len(self.debrid_torrents)))
+		tpe = TPE(pool_size)
 		self.threads = set()
 		try:
 			random.shuffle(self.source_dict)
@@ -593,8 +601,8 @@ class Manager:
 			providers = (i for fut in self.threads for i in (fut.result() if fut.done() else []))
 			self.sources.extend(self.process_duplicates(providers))
 			torrent_sources = [i for i in self.sources if 'hash' in i]
-			result_hashes = list({i['hash'] for i in torrent_sources})
-			DebridCheck.set_cached_hashes(result_hashes)
+			result_hashes = {i['hash'] for i in torrent_sources}  # Keep as set for O(1) lookup
+			DebridCheck.set_cached_hashes(list(result_hashes))
 			self.threads = set()
 			for item in self.debrid_torrents:
 				fut = tpe.submit(DebridCheck(self.meta, item).cache_check)
@@ -602,16 +610,18 @@ class Manager:
 				self.threads.add(fut)
 			self.wait(debrid_check=True)
 			for name, hashes in ((fut.name, fut.result() if fut.done() else []) for fut in self.threads):
+				hashes_set = set(hashes) if hashes else set()  # O(1) lookup
 				status = ('Unchecked %s' if name in ('real-debrid', 'alldebrid') else 'Uncached %s') % name
-				self.final_sources.extend({**i, 'cache_provider': name, 'debrid': name} for i in torrent_sources if i['hash'] in hashes)
-				self.final_sources.extend({**i, 'cache_provider': status, 'debrid': name} for i in torrent_sources if not i['hash'] in hashes)
+				self.final_sources.extend({**i, 'cache_provider': name, 'debrid': name} for i in torrent_sources if i['hash'] in hashes_set)
+				self.final_sources.extend({**i, 'cache_provider': status, 'debrid': name} for i in torrent_sources if i['hash'] not in hashes_set)
 			self.final_sources = [i for i in self.final_sources if not (i['source'] == 'usenet' and 'Unchecked' in i['cache_provider'])]
 			hoster_sources = [i for i in self.sources if not 'hash' in i]
-			result_hosters = list({i['source'].lower() for i in hoster_sources})
+			result_hosters = {i['source'].lower() for i in hoster_sources}  # Keep as set for O(1) lookup
 			for item in self.debrid_hosters:
 				for k, v in item.items():
-					valid_hosters = [i for i in result_hosters if i in v]
-					self.final_sources.extend([{**i, 'debrid': k} for i in hoster_sources if i['source'] in valid_hosters])
+					v_set = set(v)  # O(1) lookup
+					valid_hosters = {i for i in result_hosters if i in v_set}
+					self.final_sources.extend([{**i, 'debrid': k} for i in hoster_sources if i['source'].lower() in valid_hosters])
 		except: notification(32574)
 		finally: tpe.shutdown(False)
 		return self.final_sources
@@ -680,7 +690,8 @@ class Manager:
 			set_property('%s.internal_results' % i, 'checked')
 			self.processed_internal_scrapers_append(i)
 			_process_quality_count(internal_sources)
-		return [i for i in self.internal_scrapers if not i in self.processed_internal_scrapers]
+		processed_set = set(self.processed_internal_scrapers)  # O(1) lookup
+		return [i for i in self.internal_scrapers if i not in processed_set]
 
 	def make_host_dict(self):
 		pr_list = []

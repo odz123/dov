@@ -244,7 +244,8 @@ def set_quality_choice(quality_setting):
 	include = ls(32188)
 	dl = ['%s SD' % include, '%s 720p' % include, '%s 1080p' % include, '%s 4K' % include]
 	fl = ['SD', '720p', '1080p', '4K']
-	try: preselect = [fl.index(i) for i in get_setting(quality_setting).split(', ')]
+	fl_idx = {item: idx for idx, item in enumerate(fl)}  # O(1) lookup
+	try: preselect = [fl_idx[i] for i in get_setting(quality_setting).split(', ') if i in fl_idx]
 	except: preselect = []
 	list_items = [{'line1': item} for item in dl]
 	kwargs = {'items': json.dumps(list_items), 'heading': 'POV', 'multi_choice': 'true', 'preselect': preselect}
@@ -262,7 +263,8 @@ def extras_lists_choice():
 		'%s %s' % (ls(32612), ls(32543)), '%s %s' % (ls(32612), ls(32470)),
 		'%s %s' % (ls(32612), ls(32480)), '%s %s' % (ls(32612), ls(32499))
 	]
-	try: preselect = [fl.index(i) for i in settings.extras_enabled_menus()]
+	fl_idx = {item: idx for idx, item in enumerate(fl)}  # O(1) lookup
+	try: preselect = [fl_idx[i] for i in settings.extras_enabled_menus() if i in fl_idx]
 	except: preselect = []
 	list_items = [{'line1': item} for item in dl]
 	kwargs = {'items': json.dumps(list_items), 'heading': 'POV', 'multi_choice': 'true', 'preselect': preselect}
@@ -278,7 +280,8 @@ def set_language_filter_choice(filter_setting):
 	lang_choices.pop('None')
 	dl = list(lang_choices.keys())
 	fl = list(lang_choices.values())
-	try: preselect = [fl.index(i) for i in get_setting(filter_setting).split(', ')]
+	fl_idx = {item: idx for idx, item in enumerate(fl)}  # O(1) lookup
+	try: preselect = [fl_idx[i] for i in get_setting(filter_setting).split(', ') if i in fl_idx]
 	except: preselect = []
 	list_items = [{'line1': item} for item in dl]
 	kwargs = {'items': json.dumps(list_items), 'heading': 'POV', 'multi_choice': 'true', 'preselect': preselect}

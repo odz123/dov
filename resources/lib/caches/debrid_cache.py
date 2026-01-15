@@ -46,7 +46,7 @@ class DebridCache(BaseCache):
 	def clear_debrid_results(self, debrid):
 		try:
 			self.dbcur.execute(CLEAR_DEBRID, (debrid,))
-			self.dbcur.execute("""VACUUM""")
+			# VACUUM removed - should be run during bulk operations only
 			return True
 		except: return False
 

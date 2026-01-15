@@ -43,7 +43,7 @@ class ExternalProvidersCache(BaseCache):
 	def delete_cache_single(self, media_type, tmdb_id):
 		try:
 			self.dbcur.execute(SINGLE_DELETE, (media_type, tmdb_id))
-			self.dbcur.execute("""VACUUM""")
+			# VACUUM removed - should be run during bulk operations only
 			return True
 		except: return False
 

@@ -38,7 +38,7 @@ class NavigatorCache(BaseCache):
 	def delete_list(self, list_name, list_type):
 		self.dbcur.execute(DELETE_LIST, (list_name, list_type))
 		self.delete_memory_cache(list_name, list_type)
-		self.dbcur.execute("""VACUUM""")
+		# VACUUM removed - should be run during maintenance only
 
 	def get_memory_cache(self, list_name, list_type):
 		try: return literal_eval(get_property(self._get_list_prop(list_type) % list_name))
@@ -69,7 +69,11 @@ class NavigatorCache(BaseCache):
 		return list_items
 
 	def rebuild_database(self):
-		for list_name in default_menus.default_menu_items: self.set_list(list_name, 'default', main_menus[list_name])
+		# Use executemany to batch insert instead of N+1 pattern
+		data = [(name, 'default', repr(main_menus[name])) for name in default_menus.default_menu_items]
+		self.dbcur.executemany(SET_LIST, data)
+		for name in default_menus.default_menu_items:
+			self.set_memory_cache(name, 'default', main_menus[name])
 
 	def _get_list_prop(self, list_type):
 		return prop_dict[list_type]

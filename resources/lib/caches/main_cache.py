@@ -69,12 +69,12 @@ class MainCache(BaseCache):
 		self.dbcur.execute(command)
 		results = self.dbcur.fetchall()
 		try:
-			for item in results:
-				try:
-					self.dbcur.execute(DELETE, (str(item[0]),))
+			# Batch delete using executemany instead of N+1 pattern
+			if results:
+				self.dbcur.executemany(DELETE, [(str(item[0]),) for item in results])
+				for item in results:
 					self.delete_memory_cache(str(item[0]))
-				except: pass
-			self.dbcur.execute("""VACUUM""")
+			# VACUUM removed - should be run during maintenance only
 		except: pass
 
 	def delete_all_folderscrapers(self):
@@ -83,7 +83,7 @@ class MainCache(BaseCache):
 		if not remove_list: return 'success'
 		try:
 			self.dbcur.execute(LIKE_DELETE % "'pov_FOLDERSCRAPER_%'")
-			self.dbcur.execute("""VACUUM""")
+			# VACUUM removed - should be run during maintenance only
 			for item in remove_list: self.delete_memory_cache(str(item))
 		except: pass
 

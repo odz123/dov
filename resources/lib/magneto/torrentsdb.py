@@ -6,6 +6,14 @@
 import re, requests
 from fenom import source_utils
 
+# Module-level session for connection pooling (HTTP keep-alive)
+session = requests.Session()
+
+# Pre-compiled regex patterns
+_INFO_PATTERN = re.compile(r'💾.*')
+_SEEDERS_PATTERN = re.compile(r'👤\s*(\d+)')
+_SIZE_PATTERN = re.compile(r'((?:\d+\,\d+\.\d+|\d+\.\d+|\d+\,\d+|\d+)\s*(?:GB|GiB|Gb|MB|MiB|Mb))')
+
 
 class source:
 	timeout = 7
@@ -43,9 +51,8 @@ class source:
 				url = '%s%s' % (self.base_link, self.movieSearch_link % imdb)
 			# log_utils.log('url = %s' % url)
 			if 'timeout' in data: self.timeout = int(data['timeout'])
-			results = requests.get(url, timeout=self.timeout)
+			results = session.get(url, timeout=self.timeout)
 			files = results.json()['streams']
-			_INFO = re.compile(r'💾.*')
 			undesirables = source_utils.get_undesirables()
 			check_foreign_audio = source_utils.check_foreign_audio()
 		except:
@@ -57,7 +64,7 @@ class source:
 				package, episode_start = None, 0
 				hash = file['infoHash']
 				file_title = file['title'].split('\n')
-				file_info = [x for x in file_title if _INFO.search(x)][0]
+				file_info = next((x for x in file_title if _INFO_PATTERN.search(x)), '')
 
 				name = source_utils.clean_name(file_title[0])
 
@@ -76,13 +83,13 @@ class source:
 				url = 'magnet:?xt=urn:btih:%s&dn=%s' % (hash, name)
 
 				try:
-					seeders = int(re.search(r'👤\s*(\d+)', file_info).group(1))
+					seeders = int(_SEEDERS_PATTERN.search(file_info).group(1))
 					if self.min_seeders > seeders: continue
 				except: seeders = 0
 
 				quality, info = source_utils.get_release_quality(name_info, url)
 				try:
-					size = re.search(r'((?:\d+\,\d+\.\d+|\d+\.\d+|\d+\,\d+|\d+)\s*(?:GB|GiB|Gb|MB|MiB|Mb))', file_info).group(0)
+					size = _SIZE_PATTERN.search(file_info).group(0)
 					dsize, isize = source_utils._size(size)
 					info.insert(0, isize)
 				except: dsize = 0

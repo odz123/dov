@@ -228,7 +228,7 @@ class DebridCheck:
 		try:
 			self.cached_list.extend(i[0] for i in self.cached_hashes if i[1] == self.debrid and i[2] == 'True')
 			unchecked_filter = {h[0] for h in self.cached_hashes if h[1] == self.debrid}
-			unchecked_hashes = [i for i in self.hash_list if not i in unchecked_filter]
+			unchecked_hashes = [i for i in self.hash_list if i not in unchecked_filter]  # O(1) set lookup
 			if not unchecked_hashes: return
 			if self.debrid in ('rd', 'ad'): checked_hashes = self.external_check_cache(unchecked_hashes)
 			else: checked_hashes = self.function().check_cache(unchecked_hashes)
@@ -250,12 +250,13 @@ class DebridCheck:
 
 	def external_check_cache(self, unchecked_hashes):
 		checked_hashes = []
+		lock = Lock()  # Thread-safe lock for collector list
 		if self.debrid == 'ad': threads = (
-			Thread(target=mfn_check_cache, args=(self.imdb, self.season, self.episode, checked_hashes)),
-			Thread(target=trz_check_cache, args=(self.imdb, self.season, self.episode, checked_hashes))
+			Thread(target=mfn_check_cache, args=(self.imdb, self.season, self.episode, checked_hashes, lock)),
+			Thread(target=trz_check_cache, args=(self.imdb, self.season, self.episode, checked_hashes, lock))
 		)
 		else: threads = (
-			Thread(target=tio_check_cache, args=(self.imdb, self.season, self.episode, checked_hashes)),
+			Thread(target=tio_check_cache, args=(self.imdb, self.season, self.episode, checked_hashes, lock)),
 			Thread(target=dmm_check_cache, args=(unchecked_hashes, self.imdb, checked_hashes))
 		)
 		for i in threads: i.start()
@@ -274,12 +275,16 @@ class DebridCheck:
 	hash_list, cached_hashes = [], []
 
 import requests
+from threading import Lock
 from fenom.client import randomagent
 
 session = requests.session()
 session.headers.update({'User-Agent': randomagent(), 'Accept': 'application/json'})
 
-def mfn_check_cache(imdb, season, episode, collector):
+# Pre-compile regex pattern for hash extraction (used by multiple functions)
+HASH_PATTERN = re.compile(r'\b\w{40}\b')
+
+def mfn_check_cache(imdb, season, episode, collector, lock):
 	if str(season).isdigit(): url = 'series/%s:%s:%s.json' % (imdb, season, episode)
 	else: url = 'movie/%s.json' % (imdb)
 	params = (
@@ -288,35 +293,38 @@ def mfn_check_cache(imdb, season, episode, collector):
 		'wRD0c_QsSxlcQ'
 	)
 	url = 'https://mediafusion.elfhosted.com/%s/stream/%s' % (params, url)
-	pattern = re.compile(r'\b\w{40}\b')
 	try:
 		results = session.get(url, timeout=7.05)
 		files = results.json()['streams']
-		collector.extend(pattern.findall(file['url'])[-1] for file in files if '⚡' in file['name'] and 'url' in file)
+		found_hashes = [HASH_PATTERN.findall(file['url'])[-1] for file in files if '⚡' in file['name'] and 'url' in file]
+		with lock:  # Thread-safe append
+			collector.extend(found_hashes)
 	except Exception as e: kodi_utils.logger('mfn error', str(e))
 
-def trz_check_cache(imdb, season, episode, collector):
+def trz_check_cache(imdb, season, episode, collector, lock):
 	if str(season).isdigit(): url = 'series/%s:%s:%s.json' % (imdb, season, episode)
 	else: url = 'movie/%s.json' % (imdb)
 	params = 'eyJzdG9yZXMiOlt7ImMiOiJhZCIsInQiOiJzdGF0aWNEZW1vQXBpa2V5UHJlbSJ9XSwiY2FjaGVkIjp0cnVlfQ=='
 	url = 'https://stremthru.elfhosted.com/stremio/torz/%s/stream/%s' % (params, url)
-	pattern = re.compile(r'\b\w{40}\b')
 	try:
 		results = session.get(url, timeout=7.05)
 		files = results.json()['streams']
-		collector.extend(pattern.findall(file['url'])[-1] for file in files if '⚡' in file['name'] and 'url' in file)
+		found_hashes = [HASH_PATTERN.findall(file['url'])[-1] for file in files if '⚡' in file['name'] and 'url' in file]
+		with lock:  # Thread-safe append
+			collector.extend(found_hashes)
 	except Exception as e: kodi_utils.logger('trz error', str(e))
 
-def tio_check_cache(imdb, season, episode, collector):
+def tio_check_cache(imdb, season, episode, collector, lock):
 	if str(season).isdigit(): url = 'series/%s:%s:%s.json' % (imdb, season, episode)
 	else: url = 'movie/%s.json' % (imdb)
 	params = 'debridoptions=nodownloadlinks,nocatalog|realdebrid=T2iZoymNCCD1T5c2sX5u8tIZVcgcFWlCsCJ72rCmrU2mDdmvgieM'
 	url = 'https://torrentio.strem.fun/%s/stream/%s' % (params, url)
-	pattern = re.compile(r'\b\w{40}\b')
 	try:
 		results = session.get(url, timeout=7.05)
 		files = results.json()['streams']
-		collector.extend(pattern.findall(file['url'])[-1] for file in files if '+' in file['name'] and 'url' in file)
+		found_hashes = [HASH_PATTERN.findall(file['url'])[-1] for file in files if '+' in file['name'] and 'url' in file]
+		with lock:  # Thread-safe append
+			collector.extend(found_hashes)
 	except Exception as e: kodi_utils.logger('tio error', str(e))
 
 def dmm_check_cache(unchecked_hashes_chunk, imdb, collector): # DMM API Allows max 100 hashes per request.
