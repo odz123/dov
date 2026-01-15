@@ -3058,3 +3058,263 @@ if req.is_alive():
 ---
 
 *Final extended analysis completed on 2026-01-08*
+
+---
+
+## 73. Additional Scraper Session Pooling Issues (NEW - 2026-01-15)
+
+### 73.1 Scrapers Missing requests.Session()
+
+**Files using `requests.get()` without Session pooling:**
+
+| File | Line | Impact |
+|------|------|--------|
+| `magneto/zilean.py` | 49 | New TCP connection per request |
+| `magneto/torrentsdb.py` | 46 | New TCP connection per request |
+| `magneto/prowlarr.py` | 49 | New TCP connection per request |
+| `magneto/torz.py` | Various | New TCP connection per request |
+| `magneto/bitmagnet.py` | Various | New TCP connection per request |
+| `magneto/dmm.py` | Various | New TCP connection per request |
+| `magneto/aiostreams.py` | Various | New TCP connection per request |
+| `magneto/torboxnews.py` | Various | New TCP connection per request |
+
+**Contrast with good practice (magneto/animetosho.py:12-13):**
+```python
+session = requests.Session()
+session.headers = {'User-Agent': client.randomagent()}
+```
+
+**Problem:** Each scraper call creates new TCP connections without HTTP keep-alive, adding latency and increasing server load.
+
+**Fix:** Add module-level session:
+```python
+# At module level
+session = requests.Session()
+
+# In sources method
+results = session.get(url, timeout=self.timeout)
+```
+
+### 73.2 Regex Compilation Inside Try Block
+
+**File:** `resources/lib/magneto/torrentsdb.py:48`
+
+```python
+try:
+    # ... setup code ...
+    _INFO = re.compile(r'💾.*')  # Compiled on every scrape call
+except:
+    ...
+```
+
+**Problem:** Regex pattern compiled inside try block, executed on every `sources()` call.
+
+**Fix:** Move to module level:
+```python
+# At module level
+_INFO_PATTERN = re.compile(r'💾.*')
+
+# In try block
+file_info = [x for x in file_title if _INFO_PATTERN.search(x)][0]
+```
+
+---
+
+## 74. Additional supported_video_extensions() Overhead (NEW - 2026-01-15)
+
+### 74.1 Function Called Multiple Times in Same Flow
+
+**Files with repeated calls:**
+
+| File | Lines | Calls per Flow |
+|------|-------|----------------|
+| `debrids/torbox_api.py` | 141, 159 | 2 calls |
+| `debrids/real_debrid_api.py` | 116, 133 | 2 calls |
+| `modules/debrid.py` | 76 | Per file check |
+
+**Problem:** `supported_video_extensions()` returns the same static list each time but is called multiple times during a single torrent parsing flow.
+
+**Good Pattern (already implemented in some files):**
+```python
+# At module level - cached once
+extensions = supported_video_extensions()
+```
+
+**Files with good pattern:**
+- `scrapers/folders.py:11`
+- `scrapers/pm_cloud.py:9`
+- `scrapers/rd_cloud.py:10`
+- `debrids/alldebrid.py:15`
+- `debrids/premiumize.py:14`
+
+**Fix for files with repeated calls:** Cache at method start or module level.
+
+---
+
+## 75. Cloud Scraper Thread Pattern Analysis (NEW - 2026-01-15)
+
+### 75.1 Thread Walrus Pattern in Cloud Scrapers
+
+**File:** `resources/lib/scrapers/tb_cloud.py:69-74`
+
+```python
+for i in (threads := (
+    Thread(target=self._scrape_folders, args=(self.user_cloud, 'torent')),  # Note: typo 'torent'
+    Thread(target=self._scrape_folders, args=(self.user_cloud_usenet, 'usenet')),
+    Thread(target=self._scrape_folders, args=(self.user_cloud_webdl, 'webdl'))
+)): i.start()
+for i in threads: i.join()
+```
+
+**Status:** Pattern is correct (threads are joined). However:
+1. Contains typo: `'torent'` should be `'torrent'`
+2. Similar pattern in `rd_cloud.py`, `ad_cloud.py`, `oc_cloud.py`
+
+### 75.2 List Comprehension for First Match Pattern
+
+**Files:** All cloud scrapers have similar patterns:
+
+```python
+file_info = [x for x in file_title if _INFO.search(x)][0]
+```
+
+**Problem:** Creates full filtered list to get first item.
+
+**Fix:** Use `next()`:
+```python
+file_info = next((x for x in file_title if _INFO.search(x)), '')
+```
+
+---
+
+## 76. Extras Filter Tuple Creation in Loops (NEW - 2026-01-15)
+
+### 76.1 Repeated Tuple Creation Inside Conditional
+
+**Files:**
+- `scrapers/pm_cloud.py:27`
+- `scrapers/rd_cloud.py:28`
+- `scrapers/tb_cloud.py:28`
+- `scrapers/oc_cloud.py:28`
+- `scrapers/ad_cloud.py:28`
+- `debrids/torbox_api.py:160`
+- `modules/debrid.py:77`
+
+```python
+# Inside file processing loop
+extras_filtering_list = tuple(i for i in extras_filter if not i in title.lower())
+```
+
+**Problem:**
+1. Creates new tuple for each file being processed
+2. `title.lower()` called repeatedly
+3. O(n) membership check in string
+
+**Fix:** Pre-compute outside loop:
+```python
+# Before loop
+title_lower = title.lower()
+extras_filtering = tuple(i for i in extras_filter if i not in title_lower)
+
+# In loop - use cached value
+if not extras_filtering: continue
+```
+
+---
+
+## 77. Consolidated Issue Count Update (2026-01-15)
+
+### New Issues Discovered
+
+| Category | Count |
+|----------|-------|
+| Missing Session Pooling | 8 scrapers |
+| Additional Regex in Function | 1 |
+| Repeated Function Calls | 5 locations |
+| Tuple Creation in Loops | 7 locations |
+| **New Total** | **~21** |
+
+### Updated Grand Total
+
+| Category | Previous | New | Total |
+|----------|----------|-----|-------|
+| All Issues | 239 | 21 | **~260** |
+
+---
+
+## 78. Updated Quick Wins (2026-01-15)
+
+### Immediate Additions
+
+| Fix | Time | Impact | Files |
+|-----|------|--------|-------|
+| Add session pooling to scrapers | 20 min | Network latency | 8 magneto files |
+| Cache `extras_filter` tuple | 15 min | Loop overhead | 7 files |
+| Move `_INFO` regex to module | 5 min | Regex compilation | torrentsdb.py |
+| Fix `'torent'` typo | 1 min | Bug | tb_cloud.py:70 |
+
+---
+
+## 79. Summary of All Performance Categories
+
+### Complete Issue Breakdown
+
+| Category | Critical | High | Medium | Low | Total |
+|----------|----------|------|--------|-----|-------|
+| O(n²) and O(n³) Algorithms | 8 | 16 | 8 | 0 | 32 |
+| N+1 Query/API Patterns | 3 | 12 | 5 | 0 | 20 |
+| Threading Issues | 2 | 30 | 20 | 4 | 56 |
+| Connection/Resource Leaks | 5 | 25 | 15 | 0 | 45 |
+| Race Conditions | 4 | 6 | 0 | 0 | 10 |
+| Caching Inefficiencies | 2 | 12 | 14 | 2 | 30 |
+| Regex Compilation | 0 | 12 | 9 | 0 | 21 |
+| Memory Management | 2 | 8 | 6 | 0 | 16 |
+| String Operations | 0 | 4 | 8 | 4 | 16 |
+| Session/HTTP Pooling | 0 | 8 | 6 | 0 | 14 |
+| **TOTAL** | **26** | **133** | **91** | **10** | **~260** |
+
+### Files by Issue Density (Updated)
+
+| File | Lines | Issues | Density |
+|------|-------|--------|---------|
+| `modules/sources.py` | 703 | 28+ | 1 per 25 lines |
+| `fenom/source_utils.py` | 714 | 16+ | 1 per 45 lines |
+| `caches/trakt_cache.py` | 204 | 14+ | 1 per 15 lines |
+| `caches/watched_cache.py` | 665 | 14+ | 1 per 47 lines |
+| `indexers/trakt_api.py` | 680 | 12+ | 1 per 57 lines |
+| `magneto/animetosho.py` | 179 | 8+ | 1 per 22 lines |
+| `modules/debrid.py` | 336 | 12+ | 1 per 28 lines |
+
+---
+
+## 80. Recommended Implementation Phases (Final)
+
+### Phase 1: Critical Safety & Quick Wins (2-4 hours)
+1. ✅ Convert O(n²) list membership to sets in `sources.py`
+2. ✅ Cap ThreadPoolExecutor at 30-50 threads
+3. ✅ Add threading.Lock for shared lists
+4. ✅ Fix O(n³) Trakt duplicate removal patterns
+5. Add session pooling to 8 scrapers
+6. Pre-compile `_INFO` regex in `torrentsdb.py`
+
+### Phase 2: Network & I/O Optimization (4-8 hours)
+7. Remove per-operation VACUUM calls (16 locations)
+8. Batch N+1 API calls in `trakt_api.py`
+9. Cache `extras_filter` tuple outside loops
+10. Use `next()` for single-item lookups
+
+### Phase 3: Resource Management (1-2 days)
+11. Implement connection pooling for databases
+12. Add context managers to BaseCache
+13. Fix debrid cache expiration bug
+14. Add missing database indexes
+
+### Phase 4: Architecture Improvements (Long-term)
+15. Full connection pool implementation
+16. Batch ID resolution for TMDB lookups
+17. Memory-bounded window property caching
+18. Comprehensive thread lifecycle management
+
+---
+
+*Extended analysis completed on 2026-01-15*
