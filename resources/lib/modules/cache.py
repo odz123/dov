@@ -44,7 +44,8 @@ def check_databases():
 		with kodi_utils.database.connect(meta_file) as dbcon:
 			dbcur = dbcon.cursor()
 			dbcur.execute("""pragma journal_mode""")
-			truncate = True if dbcur.fetchone()[0].lower() == 'wal' else False
+			row = dbcur.fetchone()
+			truncate = row and row[0].lower() == 'wal'
 		if not truncate: raise Exception
 		with open(meta_file, 'w') as file: pass
 	except: pass

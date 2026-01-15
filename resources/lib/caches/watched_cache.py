@@ -549,18 +549,25 @@ def set_bookmark_kodi_library(media_type, tmdb_id, curr_time, total_time, season
 		method = 'VideoLibrary.GetMovies' if media_type == 'movie' else 'VideoLibrary.GetTVShows'
 		r = execJSONRPC(json.dumps({"jsonrpc": "2.0", "method": method, "params": params, "id": 1}))
 		r = json.loads(r)['result']['movies'] if media_type == 'movie' else json.loads(r)['result']['tvshows']
-		if media_type == 'movie': r = [i for i in r if clean_file_name(title).lower() in clean_file_name(i['title']).lower()][0]
+		if media_type == 'movie':
+				matches = [i for i in r if clean_file_name(title).lower() in clean_file_name(i['title']).lower()]
+				if not matches: return None
+				r = matches[0]
 		else:
-			r = [
+			matches = [
 				i for i in r
 				if clean_file_name(title).lower()
 				in (clean_file_name(i['title']).lower() if not ' (' in i['title'] else clean_file_name(i['title']).lower().split(' (')[0])
-			][0]
+			]
+			if not matches: return
+			r = matches[0]
 		if media_type == 'episode':
 			filters = [{"field": "season", "operator": "is", "value": str(season)}, {"field": "episode", "operator": "is", "value": str(episode)}]
 			params = {"filter": {"and": filters}, "properties": ["file"], "tvshowid": r['tvshowid']}
 			r = execJSONRPC(json.dumps({"jsonrpc": "2.0", "method": "VideoLibrary.GetEpisodes", "params": params, "id": 1}))
-			r = json.loads(r)['result']['episodes'][0]
+			episodes = json.loads(r).get('result', {}).get('episodes', [])
+			if not episodes: return
+			r = episodes[0]
 		if media_type == 'movie': method, id_name, library_id = 'VideoLibrary.SetMovieDetails', 'movieid', r['movieid']
 		else: method, id_name, library_id = 'VideoLibrary.SetEpisodeDetails', 'episodeid', r['episodeid']
 		query = {"jsonrpc": "2.0", "id": "setResumePoint", "method": method, "params": {id_name: library_id, "resume": {"position": curr_time, "total": total_time}}}
@@ -581,18 +588,25 @@ def get_bookmark_kodi_library(media_type, tmdb_id, season='', episode=''):
 		method = 'VideoLibrary.GetMovies' if media_type == 'movie' else 'VideoLibrary.GetTVShows'
 		r = execJSONRPC(json.dumps({"jsonrpc": "2.0", "method": method, "params": params, "id": 1}))
 		r = json.loads(r)['result']['movies'] if media_type == 'movie' else json.loads(r)['result']['tvshows']
-		if media_type == 'movie': r = [i for i in r if clean_file_name(title).lower() in clean_file_name(i['title']).lower()][0]
+		if media_type == 'movie':
+				matches = [i for i in r if clean_file_name(title).lower() in clean_file_name(i['title']).lower()]
+				if not matches: return None
+				r = matches[0]
 		else:
-			r = [
+			matches = [
 				i for i in r
 				if clean_file_name(title).lower()
 				in (clean_file_name(i['title']).lower() if not ' (' in i['title'] else clean_file_name(i['title']).lower().split(' (')[0])
-			][0]
+			]
+			if not matches: return resume
+			r = matches[0]
 		if media_type == 'episode':
 			filters = [{"field": "season", "operator": "is", "value": str(season)}, {"field": "episode", "operator": "is", "value": str(episode)}]
 			params = {"filter": {"and": filters}, "properties": ["file"], "tvshowid": r['tvshowid']}
 			r = execJSONRPC(json.dumps({"jsonrpc": "2.0", "method": "VideoLibrary.GetEpisodes", "params": params, "id": 1}))
-			r = json.loads(r)['result']['episodes'][0]
+			episodes = json.loads(r).get('result', {}).get('episodes', [])
+			if not episodes: return resume
+			r = episodes[0]
 		if media_type == 'movie': method, id_name, library_id, results_key = 'VideoLibrary.GetMovieDetails', 'movieid', r['movieid'], 'moviedetails'
 		else: method, id_name, library_id, results_key = 'VideoLibrary.GetEpisodeDetails', 'episodeid', r['episodeid'], 'episodedetails'
 		query = {"jsonrpc": "2.0", "id": "getResumePoint", "method": method, "params": {id_name: library_id, "properties": ["title", "resume"]}}
@@ -610,18 +624,25 @@ def mark_as_watched_unwatched_kodi_library(media_type, action, title, year, seas
 		method = 'VideoLibrary.GetMovies' if media_type == 'movie' else 'VideoLibrary.GetTVShows'
 		r = execJSONRPC(json.dumps({"jsonrpc": "2.0", "method": method, "params": params, "id": 1}))
 		r = json.loads(r)['result']['movies'] if media_type == 'movie' else json.loads(r)['result']['tvshows']
-		if media_type == 'movie': r = [i for i in r if clean_file_name(title).lower() in clean_file_name(i['title']).lower()][0]
+		if media_type == 'movie':
+				matches = [i for i in r if clean_file_name(title).lower() in clean_file_name(i['title']).lower()]
+				if not matches: return None
+				r = matches[0]
 		else:
-			r = [
+			matches = [
 				i for i in r
 				if clean_file_name(title).lower()
 				in (clean_file_name(i['title']).lower() if not ' (' in i['title'] else clean_file_name(i['title']).lower().split(' (')[0])
-			][0]
+			]
+			if not matches: return
+			r = matches[0]
 		if media_type == 'episode':
 			filters = [{"field": "season", "operator": "is", "value": str(season)}, {"field": "episode", "operator": "is", "value": str(episode)}]
 			params = {"filter": {"and": filters}, "properties": ["file"], "tvshowid": r['tvshowid']}
 			r = execJSONRPC(json.dumps({"jsonrpc": "2.0", "method": "VideoLibrary.GetEpisodes", "params": params, "id": 1}))
-			r = json.loads(r)['result']['episodes'][0]
+			episodes = json.loads(r).get('result', {}).get('episodes', [])
+			if not episodes: return
+			r = episodes[0]
 		if media_type == 'movie': method, id_name, library_id = 'VideoLibrary.SetMovieDetails', 'movieid', r['movieid']
 		else: method, id_name, library_id = 'VideoLibrary.SetEpisodeDetails', 'episodeid', r['episodeid']
 		query = {"jsonrpc": "2.0", "method": method, "params": {id_name: library_id, "playcount": playcount}, "id": 1}
@@ -644,7 +665,9 @@ def batch_mark_episodes_as_watched_unwatched_kodi_library(action, show_info, epi
 				filters = [{"field": "season", "operator": "is", "value": str(season)}, {"field": "episode", "operator": "is", "value": str(episode)}]
 				params = {"filter": {"and": filters}, "properties": ["file", "playcount"], "tvshowid": tvshowid}
 				r = execJSONRPC(json.dumps({"jsonrpc": "2.0", "method": "VideoLibrary.GetEpisodes", "params": params, "id": 1}))
-				r = json.loads(r)['result']['episodes'][0]
+				episodes = json.loads(r).get('result', {}).get('episodes', [])
+				if not episodes: continue
+				r = episodes[0]
 				ep_ids_append((r['episodeid'], r['playcount']))
 			except: pass
 		for count, item in enumerate(ep_ids, 1):

@@ -15,7 +15,8 @@ def sources(specified_folders=None, ret_all=False):
 		sourceDict = []
 		append = sourceDict.append
 		sourceFolderLocation = os.path.join(os.path.dirname(__file__), sourceFolder)
-		sourceSubFolders = [x[1] for x in os.walk(sourceFolderLocation)][0]
+		walk_results = list(os.walk(sourceFolderLocation))
+		sourceSubFolders = walk_results[0][1] if walk_results else []
 		if specified_folders: sourceSubFolders = specified_folders
 		for i in sourceSubFolders:
 			for loader, module_name, is_pkg in walk_packages([os.path.join(sourceFolderLocation, i)]):

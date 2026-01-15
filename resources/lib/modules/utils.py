@@ -280,7 +280,7 @@ def paginate_list(item_list, page, letter, limit=20):
 			try:
 				beginswith_tuple = ('s', 'the s', 'a s', 'an s')
 				indexes = [i for i, v in enumerate(title_list) if v.startswith(beginswith_tuple)]
-				start_index = indexes[-1:][0] + 1
+				start_index = indexes[-1] + 1 if indexes else None
 			except: start_index = None
 		else:
 			beginswith_tuple = (letter, 'the %s' % letter, 'a %s' % letter, 'an %s' % letter)

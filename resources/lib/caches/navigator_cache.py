@@ -27,7 +27,9 @@ class NavigatorCache(BaseCache):
 
 	def get_list(self, list_name, list_type):
 		contents = None
-		try: contents = literal_eval(self.dbcur.execute(GET_LIST, (list_name, list_type)).fetchone()[0])
+		try:
+			result = self.dbcur.execute(GET_LIST, (list_name, list_type)).fetchone()
+			if result: contents = literal_eval(result[0])
 		except: pass
 		return contents
 
@@ -59,7 +61,9 @@ class NavigatorCache(BaseCache):
 
 	def get_shortcut_folder_contents(self, list_name):
 		contents = []
-		try: contents = literal_eval(self.dbcur.execute(GET_FOLDER_CONTENTS, (list_name, 'shortcut_folder')).fetchone()[0])
+		try:
+			result = self.dbcur.execute(GET_FOLDER_CONTENTS, (list_name, 'shortcut_folder')).fetchone()
+			if result: contents = literal_eval(result[0])
 		except: pass
 		return contents
 

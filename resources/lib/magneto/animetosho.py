@@ -104,8 +104,12 @@ class source:
 
 				url = 'magnet:?xt=urn:btih:%s&dn=%s' % (hash, name)
 				try:
-					seeders = client.parseDOM(links, 'span', ret='title')[0]
-					seeders = int(seeders.split()[1])
+					seeders_raw = client.parseDOM(links, 'span', ret='title')
+					if seeders_raw:
+						parts = seeders_raw[0].split()
+						seeders = int(parts[1]) if len(parts) > 1 else 0
+					else:
+						seeders = 0
 					if self.min_seeders > seeders: continue
 				except: seeders = 0
 
@@ -208,8 +212,12 @@ class source:
 
 				url = 'magnet:?xt=urn:btih:%s&dn=%s' % (hash, name)
 				try:
-					seeders = client.parseDOM(links, 'span', ret='title')[0]
-					seeders = int(seeders.split()[1])
+					seeders_raw = client.parseDOM(links, 'span', ret='title')
+					if seeders_raw:
+						parts = seeders_raw[0].split()
+						seeders = int(parts[1]) if len(parts) > 1 else 0
+					else:
+						seeders = 0
 					if self.min_seeders > seeders: continue
 				except: seeders = 0
 

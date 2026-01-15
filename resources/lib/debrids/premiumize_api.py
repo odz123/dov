@@ -116,8 +116,10 @@ class PremiumizeAPI:
 #			transfer_id = result['id']
 			transfer_id = self.create_transfer(magnet_url)
 			if not transfer_id: return None
-			transfers = self.downloads()['transfers']
-			folder_id = [i['folder_id'] for i in transfers if i['id'] == transfer_id][0]
+			transfers = self.downloads().get('transfers', [])
+			matching_transfers = [i['folder_id'] for i in transfers if i['id'] == transfer_id]
+			if not matching_transfers: return None
+			folder_id = matching_transfers[0]
 			result = self.zip_folder(folder_id)
 			if result['status'] == 'success':
 				return result['location']
