@@ -78,8 +78,10 @@ class AllDebridAPI:
 		except: return None
 
 	def check_single_magnet(self, hash_string):
-		cache_info = self.check_cache(hash_string)['magnets'][0]
-		return cache_info['instant']
+		cache_result = self.check_cache(hash_string)
+		magnets = cache_result.get('magnets', []) if cache_result else []
+		if not magnets: return False
+		return magnets[0].get('instant', False)
 
 	def check_cache(self, hashes):
 		data = {'v4/magnets[]': hashes}
@@ -90,8 +92,9 @@ class AllDebridAPI:
 		url = 'v4/magnet/upload'
 		params = {'magnet': magnet}
 		result = self._get(url, params)
-		result = result['magnets'][0]
-		return result.get('id', '')
+		magnets = result.get('magnets', []) if result else []
+		if not magnets: return ''
+		return magnets[0].get('id', '')
 
 	def parse_magnet_pack(self, magnet_url, info_hash, errors=False):
 		from modules.source_utils import supported_video_extensions

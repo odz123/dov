@@ -75,7 +75,8 @@ class Episodes:
 			if season_poster: season_poster = tmdb_image_base % (self.meta_user_info['image_resolution']['poster'], season_poster)
 			else: season_poster = show_poster
 			if self.list_type.startswith('next_episode'):
-				if orig_episode >= curr_season_data['episode_count']: orig_season, orig_episode, new_season = orig_season + 1, 1, True
+				episode_count = curr_season_data.get('episode_count', 0)
+				if orig_episode >= episode_count: orig_season, orig_episode, new_season = orig_season + 1, 1, True
 				else: orig_episode, new_season = orig_episode + 1, False
 			episodes_data = season_meta_function(orig_season, meta, self.meta_user_info)
 			try: item = [i for i in episodes_data if i['episode'] == orig_episode][0]
@@ -102,7 +103,7 @@ class Episodes:
 			if self.list_type.startswith('next_episode'):
 				unwatched = ep_data_get('unwatched', False)
 				if episode_date: display_premiered = make_day_function(self.current_date, episode_date, self.date_format)
-				else: display_premiered == 'UNKNOWN'
+				else: display_premiered = 'UNKNOWN'
 				airdate = ''.join(['[[COLOR magenta]', display_premiered, '[/COLOR]] ']) if self.nextep_include_airdate else ''
 				highlight_color = self.nextep_unaired_color if unaired else self.nextep_unwatched_color if unwatched else ''
 				italics_open, italics_close = ('[I]', '[/I]') if highlight_color else ('', '')
@@ -111,7 +112,7 @@ class Episodes:
 				display = ''.join([airdate, title_string.upper(), episode_info])
 			elif self.list_type == 'trakt_calendar':
 				if episode_date: display_premiered = make_day_function(self.current_date, episode_date, self.date_format)
-				else: display_premiered == 'UNKNOWN'
+				else: display_premiered = 'UNKNOWN'
 				display = ''.join(['[', display_premiered, '] ', title_string.upper(), seas_ep, ep_name])
 				if unaired:
 					displays = display.split(']')
