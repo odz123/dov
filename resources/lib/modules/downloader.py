@@ -141,8 +141,10 @@ class Downloader:
 				elif 'easynews' in self.action:
 					from debrids.easynews import resolve_easynews
 					url = resolve_easynews(self.params)
-		try: headers = dict(parse_qsl(url.rsplit('|', 1)[1]))
-		except: headers = dict('')
+		try:
+			url_parts = url.rsplit('|', 1)
+			headers = dict(parse_qsl(url_parts[1])) if len(url_parts) > 1 else {}
+		except: headers = {}
 		self.headers = headers
 		try: url = url.split('|')[0]
 		except: pass

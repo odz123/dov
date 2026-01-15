@@ -153,12 +153,14 @@ def get_language():
 	return get_setting('meta_language', 'en')
 
 def get_resolution():
-	return (
+	resolutions = (
 		{'poster': 'w185', 'fanart': 'w300', 'still': 'w185', 'profile': 'w185'},
 		{'poster': 'w342', 'fanart': 'w780', 'still': 'w300', 'profile': 'w342'},
 		{'poster': 'w780', 'fanart': 'w1280', 'still': 'original', 'profile': 'h632'},
 		{'poster': 'original', 'fanart': 'original', 'still': 'original', 'profile': 'original'}
-	)[int(get_setting('image_resolutions', '2'))]
+	)
+	idx = min(max(int(get_setting('image_resolutions', '2')), 0), len(resolutions) - 1)
+	return resolutions[idx]
 
 def get_rpdb_data():
 	return get_setting('get_rpdb_movies') == 'true', get_setting('get_rpdb_series') == 'true'

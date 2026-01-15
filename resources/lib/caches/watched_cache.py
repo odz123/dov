@@ -61,7 +61,10 @@ def detect_bookmark(bookmarks, tmdb_id, season='', episode=''):
 		if key in bookmarks:
 			return bookmarks[key]
 		raise IndexError('Bookmark not found')
-	return [(i[1], i[2], i[5]) for i in bookmarks if i[0] == str(tmdb_id) and i[3] == season and i[4] == episode][0]
+	matches = [(i[1], i[2], i[5]) for i in bookmarks if i[0] == str(tmdb_id) and i[3] == season and i[4] == episode]
+	if not matches:
+		raise IndexError('Bookmark not found')
+	return matches[0]
 
 def get_bookmarks_dict(watched_indicators, media_type):
 	"""Return bookmarks as a dict for O(1) lookups: {(media_id, season, episode): (resume_point, curr_time, resume_id)}"""

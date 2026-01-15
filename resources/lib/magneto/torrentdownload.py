@@ -69,7 +69,10 @@ class source:
 				if any(value in row for value in ('<th', 'nofollow')): continue
 				columns = re.findall(r'<td.*?>(.+?)</td>', row, re.DOTALL)
 
-				link = re.search(r'href\s*=\s*["\']/(.+?)["\']>', columns[0], re.I).group(1).split('/')
+				link_match = re.search(r'href\s*=\s*["\']/(.+?)["\']>', columns[0], re.I)
+				if not link_match: continue
+				link = link_match.group(1).split('/')
+				if len(link) < 2: continue
 				hash = link[0]
 				name = source_utils.clean_name(unquote_plus(link[1]).replace('&amp;', '&'))
 
@@ -155,7 +158,10 @@ class source:
 				if any(value in row for value in ('<th', 'nofollow')): continue
 				columns = re.findall(r'<td.*?>(.+?)</td>', row, re.DOTALL)
 
-				link = re.search(r'href\s*=\s*["\']/(.+?)["\']>', columns[0], re.I).group(1).split('/')
+				link_match = re.search(r'href\s*=\s*["\']/(.+?)["\']>', columns[0], re.I)
+				if not link_match: continue
+				link = link_match.group(1).split('/')
+				if len(link) < 2: continue
 				hash = link[0]
 				name = source_utils.clean_name(unquote_plus(link[1]).replace('&amp;', '&'))
 

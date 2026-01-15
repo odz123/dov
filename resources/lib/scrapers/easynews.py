@@ -20,7 +20,8 @@ class source(Debrid):
 			self.search_title = clean_file_name(title).replace('&', 'and')
 			if self.media_type == 'movie': query = '%s %d' % (self.search_title, self.year)
 			else: query = '%s S%02dE%02d' % (self.search_title, self.season, self.episode)
-			self.scrape_results = self.search(query, info.get('expiry_times')[0])
+			expiry_times = info.get('expiry_times') or [None]
+			self.scrape_results = self.search(query, expiry_times[0] if expiry_times else None)
 			if not self.scrape_results: return internal_results(self.scrape_provider, self.sources)
 			self.aliases = source_utils.get_aliases_titles(info.get('aliases', []))
 			for item in self.scrape_results:
