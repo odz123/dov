@@ -656,7 +656,7 @@ class Manager:
 					else: line3 = string1 % ', '.join(alive_threads).upper()
 					if self.progress_dialog: self.progress_dialog.update(format_line % (line1, line2, line3), progress)
 					else: progressDialogBG.update(progress, line3)
-					finish_early = debrid_check is False and self.finish_early and len(self.sources) > len_threads // 0.1
+					finish_early = debrid_check is False and self.finish_early and len(self.sources) > len_threads * 10
 					if finish_early: break
 				except: pass
 			sleep(self.sleep_time)

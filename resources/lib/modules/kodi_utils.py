@@ -275,7 +275,9 @@ def set_view_mode(view_type, content='files'):
 			dbcon = database_connect(views_db, isolation_level=None)
 			dbcur = dbcon.cursor()
 			dbcur.execute("""SELECT view_id FROM views WHERE view_type = ?""", (str(view_type),))
-			view_id = dbcur.fetchone()[0]
+			row = dbcur.fetchone()
+			if not row: return
+			view_id = row[0]
 		except: return
 	try:
 		sleep(100)
@@ -350,7 +352,8 @@ def fetch_kodi_imagecache(image):
 		dbcon = database_connect('special://profile/Database/Textures13.db')
 		dbcur = dbcon.cursor()
 		dbcur.execute("""SELECT cachedurl FROM texture WHERE url = ?""", (image,))
-		result = dbcur.fetchone()[0]
+		row = dbcur.fetchone()
+		if row: result = row[0]
 	except: pass
 	return result
 

@@ -149,12 +149,12 @@ def upload_LogFile():
 			from sys import platform as sys_platform
 			supported_platform = any(value in sys_platform for value in ('win32', 'linux2'))
 			highlight_color = 'gold'
-			list = [('[COLOR %s]url:[/COLOR]  %s' % (highlight_color, str(result)), str(result))]
-			if supported_platform: list += [('[COLOR %s]  -- Copy url To Clipboard[/COLOR]' % highlight_color, ' ')]
-			select = selectDialog([i[0] for i in list], lang(32059))
-			if 'Copy url To Clipboard' in list[select][0]:
+			url_list = [('[COLOR %s]url:[/COLOR]  %s' % (highlight_color, str(result)), str(result))]
+			if supported_platform: url_list += [('[COLOR %s]  -- Copy url To Clipboard[/COLOR]' % highlight_color, ' ')]
+			select = selectDialog([i[0] for i in url_list], lang(32059))
+			if select is not None and 'Copy url To Clipboard' in url_list[select][0]:
 				from fenom.source_utils import copy2clip
-				copy2clip(list[select - 1][1])
+				copy2clip(url_list[select - 1][1])
 		elif 'message' in response.json():
 			notification(message='FenomScrapers Log upload failed: %s' % str(response.json()['message']))
 			log('FenomScrapers Log upload failed: %s' % str(response.json()['message']), level=LOGERROR)

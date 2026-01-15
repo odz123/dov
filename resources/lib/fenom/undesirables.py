@@ -55,7 +55,8 @@ class Undesirables():
 		if not existsPath(dataPath): makeFile(dataPath)
 		self.make_database_objects()
 		try:
-			self.dbcur.execute('SELECT keyword FROM undesirables WHERE user_defined = ?', (False,)).fetchone()[0]
+			row = self.dbcur.execute('SELECT keyword FROM undesirables WHERE user_defined = ?', (False,)).fetchone()
+			if not row: raise ValueError('No default undesirables found')
 			self.dbcon.close()
 			return True
 		except:

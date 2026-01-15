@@ -59,7 +59,8 @@ class source:
 				package, episode_start = None, 0
 				hash = file['infoHash']
 				file_title = file['title'].split('\n')
-				file_info = [x for x in file_title if _INFO.match(x)][0]
+				file_info_matches = [x for x in file_title if _INFO.match(x)]
+				file_info = file_info_matches[0] if file_info_matches else ''
 				# try:
 					# index = file_title.index(file_info)
 					# if index == 1: combo = file_title[0].replace(' ', '.')
