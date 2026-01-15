@@ -19,10 +19,12 @@ class source:
 	hasEpisodes = True
 	def __init__(self):
 		self.language = ['en']
-		self.base_link = (
+		base_links = (
 			"https://zilean.stremio.ru",
 			"https://zileanfortheweebs.midnightignite.me"
-		)[int(getSetting('zilean.url', '0'))]
+		)
+		url_idx = min(int(getSetting('zilean.url', '0')), len(base_links) - 1)
+		self.base_link = base_links[max(0, url_idx)]
 		self.movieSearch_link = '/dmm/filtered?ImdbId=%s'
 		self.tvSearch_link = '/dmm/filtered?ImdbId=%s&Season=%s&Episode=%s'
 		self.min_seeders = 0

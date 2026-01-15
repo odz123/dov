@@ -64,9 +64,10 @@ def external_sources(ret_all=False):
 	append = source_list.append
 	enabled = [
 		k.split('.')[1] for k, v in kodi_utils.make_settings_dict().items()
-		if k.startswith('provider.') and v == 'true'
+		if k.startswith('provider.') and v == 'true' and len(k.split('.')) > 1
 	]
-	files = kodi_utils.list_dirs('special://home/addons/plugin.video.pov/resources/lib/magneto')[1]
+	dir_result = kodi_utils.list_dirs('special://home/addons/plugin.video.pov/resources/lib/magneto')
+	files = dir_result[1] if len(dir_result) > 1 else []
 	for item in files:
 		try:
 			module_name = item.split('.')[0]
@@ -79,7 +80,8 @@ def external_sources(ret_all=False):
 
 def internal_sources(active_sources, media_type, prescrape=False):
 	def import_info():
-		files = kodi_utils.list_dirs('special://home/addons/plugin.video.pov/resources/lib/scrapers')[1]
+		dir_result = kodi_utils.list_dirs('special://home/addons/plugin.video.pov/resources/lib/scrapers')
+		files = dir_result[1] if len(dir_result) > 1 else []
 		for item in files:
 			try:
 				module_name = item.split('.')[0]
@@ -249,9 +251,14 @@ def seas_ep_filter(season, episode, release_title, split=False, return_match=Fal
 	string_list_append(string7.replace('<<E>>', episode_fill))
 	final_string = '|'.join(string_list)
 	reg_pattern = re.compile(final_string)
-	if split: return release_title.split(re.search(reg_pattern, release_title).group(), 1)[1]
-	elif return_match: return re.search(reg_pattern, release_title).group()
-	else: return bool(re.search(reg_pattern, release_title))
+	match = re.search(reg_pattern, release_title)
+	if split:
+		if not match: return release_title
+		parts = release_title.split(match.group(), 1)
+		return parts[1] if len(parts) > 1 else release_title
+	elif return_match:
+		return match.group() if match else ''
+	else: return bool(match)
 
 def extras_filter():
 	return ('sample', 'extra', 'extras', 'deleted', 'unused', 'footage', 'inside', 'blooper', 'bloopers', 'making.of', 'feature',
@@ -346,7 +353,9 @@ def get_release_quality(release_info):
 def url_strip(url):
 	try:
 		url = unquote_plus(url)
-		if 'magnet:' in url: url = url.split('&dn=')[1]
+		if 'magnet:' in url and '&dn=' in url:
+			parts = url.split('&dn=')
+			url = parts[1] if len(parts) > 1 else url
 		url = url.lower().replace("'", "").lstrip('.').rstrip('.')
 		fmt = re.sub(r'[^a-z0-9]+', ' ', url)
 		if 'http' in fmt: return None

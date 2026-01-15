@@ -70,8 +70,12 @@ class source:
 					for link in links:
 						url = unquote_plus(link[0]).replace('&amp;', '&').split('&tr')[0].replace(' ', '.')
 						url = source_utils.strip_non_ascii_and_unprintable(url)
-						hash = re.search(r'btih:(.*?)&', url, re.I).group(1)
-						name = source_utils.clean_name(url.split('&dn=')[1])
+						hash_match = re.search(r'btih:(.*?)&', url, re.I)
+						if not hash_match: continue
+						hash = hash_match.group(1)
+						dn_parts = url.split('&dn=')
+						if len(dn_parts) < 2: continue
+						name = source_utils.clean_name(dn_parts[1])
 
 						if hdlr not in name and hdlr2 not in name: continue
 						if source_utils.remove_lang(name, check_foreign_audio): continue

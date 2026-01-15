@@ -137,8 +137,9 @@ class MenuEditor:
 		list_type = 'edited' if edited else 'default'
 		current_list = edited or default
 		menu_name = self.params_get('menu_name')
-		try: new_item = [i for i in default if str(i['name']) == str(menu_name)][0]
-		except: return kodi_utils.notification(32760, 1500)
+		matching = [i for i in default if str(i['name']) == str(menu_name)]
+		if not matching: return kodi_utils.notification(32760, 1500)
+		new_item = matching[0]
 		list_items = [i for i in current_list if str(i['name']) != str(menu_name)]
 		list_items.insert(self.params_get('position', 0), new_item)
 		self._db_execute('set', active_list, list_items, list_type)

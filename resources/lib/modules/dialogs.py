@@ -432,7 +432,9 @@ def scraper_color_choice(setting):
 		('ed', 'provider.ed_colour'),
 		('free', 'provider.free_colour')
 	]
-	setting = [i[1] for i in choices if i[0] == setting][0]
+	matching = [i[1] for i in choices if i[0] == setting]
+	if not matching: return
+	setting = matching[0]
 	chosen_color = color_choice()
 	if chosen_color: set_setting(setting, chosen_color)
 
