@@ -7,6 +7,9 @@ import requests
 from fenom import source_utils
 from fenom.control import setting as getSetting
 
+# Module-level session for connection pooling (HTTP keep-alive)
+session = requests.Session()
+
 
 class source:
 	timeout = 5
@@ -46,7 +49,7 @@ class source:
 				url = '%s%s' % (self.base_link, self.movieSearch_link % imdb)
 			# log_utils.log('url = %s' % url)
 			if 'timeout' in data: self.timeout = int(data['timeout'])
-			results = requests.get(url, timeout=self.timeout)
+			results = session.get(url, timeout=self.timeout)
 			files = results.json()
 			undesirables = source_utils.get_undesirables()
 			check_foreign_audio = source_utils.check_foreign_audio()

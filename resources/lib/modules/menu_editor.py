@@ -186,13 +186,14 @@ class MenuEditor:
 		menu_name, icon_path = menu_name.replace('[B]', '').replace('[/B]', ''), media_path()
 		list_items = list(_builder())
 		if position_list: list_items.insert(0, {'line1': top_str, 'line2': top_pos_str % menu_name, 'icon': media_path('top.png')})
-		index_list = [list_items.index(i) for i in list_items]
+		index_list = list(range(len(list_items)))  # O(n) instead of O(n²)
 		kwargs = {'items': json.dumps(list_items), 'heading': heading, 'enumerate': 'false', 'multi_choice': 'false', 'multi_line': multi_line}
 		return kodi_utils.select_dialog(index_list, **kwargs)
 
 	def _get_removed_items(self, active_list):
 		default_list_items, list_items = navigator_cache.get_main_lists(active_list)
-		return [i for i in default_list_items if not i in list_items]
+		list_items_set = {i.get('name', i.get('mode')) for i in (list_items or [])}  # O(1) lookup
+		return [i for i in default_list_items if i.get('name', i.get('mode')) not in list_items_set]
 
 	def _get_external_name_input(self, current_name):
 		new_name = kodi_utils.dialog.input('POV', defaultt=current_name)

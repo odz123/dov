@@ -67,7 +67,7 @@ class source(Debrid):
 		try:
 			results_append = self.scrape_results.append
 			for i in (threads := (
-				Thread(target=self._scrape_folders, args=(self.user_cloud, 'torent')),
+				Thread(target=self._scrape_folders, args=(self.user_cloud, 'torrent')),
 				Thread(target=self._scrape_folders, args=(self.user_cloud_usenet, 'usenet')),
 				Thread(target=self._scrape_folders, args=(self.user_cloud_webdl, 'webdl'))
 			)): i.start()

@@ -77,12 +77,15 @@ def undesirablesSelect():
 	from fenom.source_utils import UNDESIRABLES
 	undesirables_cache = Undesirables()
 	chosen = undesirables_cache.get_enabled()
-	try: preselect = [UNDESIRABLES.index(i) for i in chosen]
-	except: preselect = [UNDESIRABLES.index(i) for i in UNDESIRABLES]
+	# Build index map for O(1) lookup instead of O(n²) .index() calls
+	idx_map = {item: idx for idx, item in enumerate(UNDESIRABLES)}
+	try: preselect = [idx_map[i] for i in chosen if i in idx_map]
+	except: preselect = list(range(len(UNDESIRABLES)))  # O(n) instead of O(n²)
 	choices = multiselectDialog(UNDESIRABLES, preselect=preselect, heading=lang(32085))
 	if not choices: return
 	enabled = [UNDESIRABLES[i] for i in choices]
-	disabled = [i for i in UNDESIRABLES if not i in enabled]
+	enabled_set = set(enabled)  # O(1) lookup
+	disabled = [i for i in UNDESIRABLES if i not in enabled_set]
 	new_settings = [(i, False, i in enabled) for i in UNDESIRABLES]
 	undesirables_cache.set_many(new_settings)
 

@@ -135,7 +135,8 @@ def enable_disable(folder):
 		icon = 'special://home/addons/plugin.video.pov/resources/lib/fenom/fenom_icon.png'
 		enabled, disabled = scrapers_status(folder)
 		all_sources = sorted(enabled + disabled)
-		preselect = [all_sources.index(i) for i in enabled]
+		sources_idx = {item: idx for idx, item in enumerate(all_sources)}  # O(1) lookup
+		preselect = [sources_idx[i] for i in enabled if i in sources_idx]
 		list_items = [{'line1': i.upper(), 'icon': icon} for i in all_sources]
 		kwargs = {'items': json.dumps(list_items), 'heading': 'POV', 'multi_choice': 'true', 'preselect': preselect}
 		chosen = kodi_utils.select_dialog(all_sources, **kwargs)

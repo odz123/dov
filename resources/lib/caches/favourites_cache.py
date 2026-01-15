@@ -33,7 +33,7 @@ class Favourites(BaseCache):
 	def clear_favourites(self, media_type):
 		try:
 			self.dbcur.execute(CLEAR_FAV, (media_type,))
-			self.dbcur.execute("""VACUUM""")
+			# VACUUM removed - should be run during maintenance only
 			return True
 		except: return False
 

@@ -537,7 +537,9 @@ def trakt_progress_tv(progress_info):
 	progress_items = [i for i in progress_info if i['type'] == 'episode' and i['progress'] > 1]
 	if not progress_items: return
 	all_shows = [i['show'] for i in progress_items]
-	all_shows = [i for n, i in enumerate(all_shows) if i not in all_shows[n + 1:]] # remove duplicates
+	# Use dict for O(1) dedup based on show ids (O(n) instead of O(n³))
+	seen_ids = {}
+	all_shows = [seen_ids.setdefault(i['ids']['trakt'], i) for i in all_shows if i['ids']['trakt'] not in seen_ids]
 	threads = list(make_thread_list(_process_tmdb_ids, all_shows, Thread))
 	for i in threads: i.join()
 	insert_list = list(_process())
@@ -567,7 +569,9 @@ def trakt_get_my_calendar(recently_aired, current_date):
 			for i in data
 			if i['episode']['season'] > 0 and not 'anime' in i['show']['genres']
 		]
-		data = [i for n, i in enumerate(data) if i not in data[n + 1:]] # remove duplicates
+		# Use dict for O(1) dedup based on sort_title (O(n) instead of O(n³))
+		seen = {}
+		data = [seen.setdefault(i['sort_title'], i) for i in data if i['sort_title'] not in seen]
 		return data
 	start, finish = trakt_calendar_days(recently_aired, current_date)
 	string = 'trakt_get_my_calendar_%s_%s' % (start, finish)
@@ -583,7 +587,9 @@ def trakt_my_anime_calendar(current_date):
 			for i in data
 			if i['episode']['season'] > 0
 		]
-		data = [i for n, i in enumerate(data) if i not in data[n + 1:]] # remove duplicates
+		# Use dict for O(1) dedup based on sort_title (O(n) instead of O(n³))
+		seen = {}
+		data = [seen.setdefault(i['sort_title'], i) for i in data if i['sort_title'] not in seen]
 		return data
 	start, finish = trakt_calendar_days(False, current_date)
 	string = 'trakt_my_anime_calendar_%s_%s' % (start, finish)
@@ -599,7 +605,9 @@ def trakt_anime_calendar(current_date):
 			for i in data
 			if i['episode']['season'] > 0
 		]
-		data = [i for n, i in enumerate(data) if i not in data[n + 1:]] # remove duplicates
+		# Use dict for O(1) dedup based on sort_title (O(n) instead of O(n³))
+		seen = {}
+		data = [seen.setdefault(i['sort_title'], i) for i in data if i['sort_title'] not in seen]
 		return data
 	start, finish = trakt_calendar_days(False, current_date)
 	string = 'trakt_anime_calendar_%s_%s' % (start, finish)
