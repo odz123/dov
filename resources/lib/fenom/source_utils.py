@@ -232,7 +232,7 @@ def check_title(title, aliases, release_title, hdlr, year, years=None): # non pa
 	except:
 		from fenom import log_utils
 		log_utils.error()
-		return False
+		return False  # Return False on error - failing safely rejects potentially bad titles
 
 def remove_lang(release_info, check_foreign_audio):
 	if not release_info: return False

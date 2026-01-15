@@ -36,7 +36,9 @@ def thumb_cleaner():
 		if progress_dialog.iscanceled(): break
 		_id = item[0]
 		dbcur.execute("SELECT cachedurl FROM texture WHERE id = ?", (_id, ))
-		url = dbcur.fetchall()[0][0]
+		url_result = dbcur.fetchall()
+		if not url_result: continue
+		url = url_result[0][0]
 		path = thumbs_folder.joinpath(url)
 		path.unlink(missing_ok=True)
 		item_list.append((_id,))

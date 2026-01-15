@@ -121,6 +121,7 @@ def erase_bookmark(media_type, tmdb_id, season='', episode='', refresh='false'):
 
 def batch_erase_bookmark(watched_indicators, insert_list, action):
 	try:
+		if not insert_list: return
 		if action == 'mark_as_watched': modified_list = [(i[0], i[1], i[2], i[3]) for i in insert_list]
 		else: modified_list = insert_list
 		if watched_indicators == 1:

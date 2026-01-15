@@ -261,7 +261,7 @@ class MenuEditor:
 
 	def shortcut_folder_add_item(self):
 		shortcut_folders = navigator_cache.get_shortcut_folders()
-		if len(shortcut_folders) == 1: choice_name, choice_list = shortcut_folders[0]
+		if shortcut_folders and len(shortcut_folders) == 1: choice_name, choice_list = shortcut_folders[0]
 		elif shortcut_folders:
 			choice = self._menu_select([{'name': i[0], 'iconImage': 'folder.png'} for i in shortcut_folders], '')
 			if choice is None: return kodi_utils.notification(32736, 1500)
@@ -270,8 +270,9 @@ class MenuEditor:
 		else:
 			if not kodi_utils.confirm_dialog(text=32702, top_space=True, default_control=10): return kodi_utils.notification(32736, 1500)
 			self.shortcut_folder_make()
-			try: choice_name, choice_list = navigator_cache.get_shortcut_folders()[0]
-			except: return kodi_utils.notification(32736, 1500)
+			new_folders = navigator_cache.get_shortcut_folders()
+			if not new_folders: return kodi_utils.notification(32736, 1500)
+			choice_name, choice_list = new_folders[0]
 		list_items = literal_eval(choice_list)
 		name = self.params_get('name') or self.params_get('menu_name_translated')
 		menu_name = self._get_external_name_input(name) or name
@@ -283,7 +284,7 @@ class MenuEditor:
 
 	def shortcut_folder_add_to_main_menu(self):
 		shortcut_folders = navigator_cache.get_shortcut_folders()
-		if len(shortcut_folders) == 1: name = shortcut_folders[0][0]
+		if shortcut_folders and len(shortcut_folders) == 1: name = shortcut_folders[0][0]
 		elif shortcut_folders:
 			choice = self._menu_select([{'name': i[0], 'iconImage': 'folder.png'} for i in shortcut_folders], '')
 			if choice is None: return kodi_utils.notification(32736, 1500)
@@ -292,8 +293,9 @@ class MenuEditor:
 		else:
 			if not kodi_utils.confirm_dialog(text=32702, top_space=True, default_control=10): return kodi_utils.notification(32736, 1500)
 			self.shortcut_folder_make()
-			try: name = navigator_cache.get_shortcut_folders()[0][0]
-			except: return kodi_utils.notification(32736, 1500)
+			new_folders = navigator_cache.get_shortcut_folders()
+			if not new_folders: return kodi_utils.notification(32736, 1500)
+			name = new_folders[0][0]
 		chosen_folder = {'mode': 'navigator.build_shortcut_folder_list', 'name': name, 'iconImage': 'folder.png', 'shortcut_folder': 'True', 'external_list_item': 'True'}
 		active_list = self.params_get('active_list')
 		list_items = navigator_cache.currently_used_list(active_list)

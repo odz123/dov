@@ -231,7 +231,8 @@ class Discover:
 		region_codes = [i['code'] for i in regions]
 		region = self._selection_dialog(region_names, region_codes, heading_base % ls(32659))
 		if region != None:
-			region_name = [i['name'] for i in regions if i['code'] == region][0]
+			matching_regions = [i['name'] for i in regions if i['code'] == region]
+			region_name = matching_regions[0] if matching_regions else region
 			values = ('&region=%s' % region, region_name)
 			self._process(key, values)
 
@@ -287,7 +288,7 @@ class Discover:
 			choice = kodi_utils.select_dialog(actors, **kwargs)
 			if choice is None: return self._set_property()
 			actor_id, actor_name = choice['id'], choice['name']
-		else: actor_id, actor_name = [item['id'] for item in actors][0], [item['name'] for item in actors][0]
+		else: actor_id, actor_name = actors[0]['id'], actors[0]['name']
 		if actor_id:
 			values = ('&with_cast=%s' % str(actor_id), safe_string(remove_accents(actor_name)))
 			self._process(key, values)
@@ -346,7 +347,8 @@ class Discover:
 			sort_by_list = self._tvshows_sort()
 		sort_by_value = self._selection_dialog([i[0] for i in sort_by_list], [i[1] for i in sort_by_list], heading_base % ls(32067))
 		if sort_by_value != None:
-			sort_by_name = [i[0] for i in sort_by_list if i[1] == sort_by_value][0]
+			matching_sorts = [i[0] for i in sort_by_list if i[1] == sort_by_value]
+			sort_by_name = matching_sorts[0] if matching_sorts else sort_by_value
 			values = (sort_by_value, sort_by_name)
 			self._process(key, values)
 
