@@ -42,8 +42,8 @@ def log(msg, caller=None, level=LOGINFO):
 		if debug_location == '1':
 			log_file = joinPath(LOGPATH, 'fenomscrapers.log')
 			if not existsPath(log_file):
-				f = open(log_file, 'w')
-				f.close()
+				with open(log_file, 'w') as f:
+					pass
 			reverse_log = getSetting('debug.reversed') == 'true'
 			if not reverse_log:
 				with open(log_file, 'a', encoding='utf-8') as f: # "with" auto cleans up and closes
@@ -98,11 +98,11 @@ def clear_logFile():
 		if not yesnoDialog(lang(32060), '', ''): return 'canceled'
 		log_file = joinPath(LOGPATH, 'fenomscrapers.log')
 		if not existsPath(log_file):
-			f = open(log_file, 'w')
-			return f.close()
-		f = open(log_file, 'r+')
-		f.truncate(0) # need '0' when using r
-		f.close()
+			with open(log_file, 'w') as f:
+				pass
+			return None
+		with open(log_file, 'r+') as f:
+			f.truncate(0)  # need '0' when using r
 		cleared = True
 	except Exception as e:
 		import xbmc
@@ -118,14 +118,13 @@ def view_LogFile(name):
 		if not existsPath(log_file):
 			from fenom.control import notification
 			return notification(message='Log File not found, likely logging is not enabled.')
-		f = open(log_file, 'r', encoding='utf-8', errors='ignore')
-		text = f.read()
-		f.close()
+		with open(log_file, 'r', encoding='utf-8', errors='ignore') as f:
+			text = f.read()
 		heading = '[B]%s -  LogFile[/B]' % name
 		windows = TextViewerXML('textviewer.xml', addonPath(), heading=heading, text=text)
 		windows.run()
 		del windows
-	except:
+	except Exception:
 		error()
 
 def upload_LogFile():
@@ -137,9 +136,8 @@ def upload_LogFile():
 	try:
 		import requests
 		from fenom.control import addonVersion, selectDialog
-		f = open(log_file, 'r', encoding='utf-8', errors='ignore')
-		text = f.read()
-		f.close()
+		with open(log_file, 'r', encoding='utf-8', errors='ignore') as f:
+			text = f.read()
 		UserAgent = 'FenomScrpaers %s' % addonVersion()
 		response = requests.post(url + 'documents', data=text.encode('utf-8', errors='ignore'), headers={'User-Agent': UserAgent})
 		# log('log_response: ' + str(response))
