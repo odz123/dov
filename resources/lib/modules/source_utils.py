@@ -78,9 +78,33 @@ def external_sources(ret_all=False):
 		except: pass
 	return source_list
 
+def stremio_is_configured():
+	"""Check if Stremio is enabled with at least one addon configured.
+	Returns True if Stremio can potentially provide streams."""
+	try:
+		import ast
+		# Check if stremio provider is enabled
+		if kodi_utils.get_setting('provider.stremio') != 'true':
+			return False
+		# Get configured Stremio addons
+		addons_str = kodi_utils.get_setting('stremio.addons', '')
+		if not addons_str:
+			return False
+		addons = ast.literal_eval(addons_str)
+		if not isinstance(addons, list) or not addons:
+			return False
+		# Stremio is enabled and has at least one addon configured
+		return True
+	except Exception:
+		return False
+
+
 def stremio_has_debrid_addons():
 	"""Check if the Stremio scraper has any addons configured with debrid credentials.
-	Returns True if Stremio is enabled and has debrid-configured addons."""
+	Returns True if Stremio is enabled and has debrid-configured addons.
+	Note: This only detects debrid patterns in URLs - some addons may have server-side
+	debrid configuration that cannot be detected. Use stremio_is_configured() for a
+	simpler check."""
 	try:
 		import ast
 		# Check if stremio provider is enabled
