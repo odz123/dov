@@ -148,14 +148,33 @@ class source:
 
 				name = source_utils.clean_name(file_title[0])
 
-				if not source_utils.check_title(title, aliases, name, hdlr, year):
-					if total_seasons is None: continue
-					valid, last_season = source_utils.filter_show_pack(title, aliases, imdb, year, season, name, total_seasons)
-					if not valid:
-						valid, episode_start, episode_end = source_utils.filter_season_pack(title, aliases, year, season, name)
-						if not valid: continue
-						else: package = 'season'
-					else: package = 'show'
+				# Title validation - AIOStreams filters by IMDB ID so content is correct
+				# We use lenient validation since many results have simplified names
+				title_check = source_utils.check_title(title, aliases, name, hdlr, year)
+				if not title_check:
+					if total_seasons is not None:
+						# TV show - try pack detection first
+						valid, last_season = source_utils.filter_show_pack(title, aliases, imdb, year, season, name, total_seasons)
+						if valid:
+							package = 'show'
+						else:
+							valid, episode_start, episode_end = source_utils.filter_season_pack(title, aliases, year, season, name)
+							if valid:
+								package = 'season'
+							else:
+								# Lenient fallback - allow short names or names with quality info
+								name_len = len(name.replace('.', '').replace('-', '').replace(' ', ''))
+								has_quality_info = any(q in name.lower() for q in ('1080', '720', '2160', '4k', 'hdr', 'web', 'bluray'))
+								if name_len > 30 and not has_quality_info:
+									continue
+					else:
+						# Movie - lenient validation
+						name_len = len(name.replace('.', '').replace('-', '').replace(' ', ''))
+						has_quality_info = any(q in name.lower() for q in ('1080', '720', '2160', '4k', 'hdr', 'web', 'bluray'))
+						if name_len > 30 and not has_quality_info:
+							# Check if year is somewhere in the name
+							if year not in name and str(int(year)-1) not in name and str(int(year)+1) not in name:
+								continue
 				name_info = source_utils.info_from_name(name, title, year, hdlr, episode_title)
 				if source_utils.remove_lang(name_info, check_foreign_audio): continue
 				if undesirables and source_utils.remove_undesirables(name_info, undesirables): continue
