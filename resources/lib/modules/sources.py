@@ -297,7 +297,7 @@ class SourceSelect:
 				line3 = remaining_format % ', '.join(alive_threads).upper()
 				percent = int((current_progress/float(timeout))*100) if timeout > 0 else 0
 				self.progress_dialog.update(format_line % (line1, line2, line3), percent)
-			except: pass
+			except Exception: pass
 			sleep(self.sleep_time)
 
 	def _get_active_scraper_names(self, scraper_list):
@@ -325,7 +325,7 @@ class SourceSelect:
 			win_property = get_property('%s.internal_results' % i)
 			if win_property in ('checked', '', None): continue
 			try: sources = json.loads(win_property)
-			except: continue
+			except (ValueError, TypeError): continue
 			set_property('%s.internal_results' % i, 'checked')
 			for k in self.internal_resolutions: self.internal_resolutions[k] += sources.get(k, 0)
 
@@ -345,9 +345,9 @@ class SourceSelect:
 
 	def _kill_progress_dialog(self):
 		try: self.progress_dialog.close()
-		except: close_all_dialog()
+		except Exception: close_all_dialog()
 		try: del self.progress_dialog
-		except: pass
+		except Exception: pass
 		self.progress_dialog = None
 
 	def display_results(self, results):
@@ -392,7 +392,7 @@ class SourceSelect:
 						line2 = ' | '.join(i for i in (item.get('size_label', ''), item.get('extraInfo', '')) if i)
 						if self.progress_dialog: self.progress_dialog.update(format_line % (line1, line2, name), percent)
 						else: progressDialogBG.update(percent, name)
-					except: pass
+					except Exception: pass
 				if 'unrestricted_link' in item:
 					link = item['unrestricted_link']
 					sleep(500)
@@ -422,7 +422,7 @@ class SourceSelect:
 			if not self.full_screen: progressDialogBG.close()
 			if not url: self._kill_progress_dialog()
 			return POVPlayer().run(url, self.meta, progress_media)
-		except: pass
+		except Exception: pass
 
 	def filter_results(self, results):
 		# Stremio sources are ready to play - bypass all filtering
@@ -468,7 +468,7 @@ class SourceSelect:
 			sort_first_ids = set(id(i) for i in sort_first)  # O(1) lookup using object id
 			sort_last = [i for i in results if id(i) not in sort_first_ids]
 			results = sort_first + sort_last
-		except: pass
+		except Exception: pass
 		return results
 
 	def _sort_uncached_torrents(self, results):
@@ -518,7 +518,7 @@ class SourceSelect:
 			sort_first_ids = set(id(i) for i in sort_first)  # O(1) lookup using object id
 			sort_last = [i for i in results if id(i) not in sort_first_ids]
 			results = sort_first + sort_last
-		except: pass
+		except Exception: pass
 		return results
 
 	def _sort_folder_to_top(self, provider):
@@ -533,7 +533,7 @@ class SourceSelect:
 			cls.nextep_callback(params)
 			while cls.nextep_params:
 				try: cls().playback_prep(cls.nextep_params.pop())
-				except: pass
+				except Exception: pass
 		else: cls().playback_prep(params)
 
 	@classmethod
@@ -630,7 +630,7 @@ class Manager:
 					v_set = set(v)  # O(1) lookup
 					valid_hosters = {i for i in result_hosters if i in v_set}
 					self.final_sources.extend([{**i, 'debrid': k} for i in hoster_sources if i['source'].lower() in valid_hosters])
-		except: notification(32574)
+		except Exception: notification(32574)
 		finally: tpe.shutdown(False)
 		return self.final_sources
 
@@ -666,7 +666,7 @@ class Manager:
 					else: progressDialogBG.update(progress, line3)
 					finish_early = debrid_check is False and self.finish_early and len(self.sources) > len_threads * 10
 					if finish_early: break
-				except: pass
+				except Exception: pass
 			sleep(self.sleep_time)
 
 	def process_duplicates(self, sources):
@@ -682,7 +682,7 @@ class Manager:
 					uniqueHashes.add(_hash)
 					yield provider
 				else: yield provider
-			except: yield provider
+			except Exception: yield provider
 
 	def process_internal_results(self):
 		def _process_quality_count(sources):
@@ -694,7 +694,7 @@ class Manager:
 			win_property = get_property('%s.internal_results' % i)
 			if win_property in ('checked', '', None): continue
 			try: internal_sources = json.loads(win_property)
-			except: continue
+			except (ValueError, TypeError): continue
 			set_property('%s.internal_results' % i, 'checked')
 			self.processed_internal_scrapers_append(i)
 			_process_quality_count(internal_sources)
@@ -715,8 +715,8 @@ class Manager:
 
 	def _kill_progress_dialog(self):
 		try: self.progress_dialog.close()
-		except: pass
+		except Exception: pass
 		try: del self.progress_dialog
-		except: pass
+		except Exception: pass
 		self.progress_dialog = None
 

@@ -13,7 +13,7 @@ def get(title):
 		title = title.replace('&quot;', '\"').replace('&amp;', '&').replace('&nbsp;', '')
 		title = re.sub(r'([<\[({].*?[})\]>])|([^\w0-9])', '', title)
 		return title
-	except:
+	except Exception:
 		from fenom import log_utils
 		log_utils.error()
 		return title
@@ -28,7 +28,7 @@ def get_simple(title):
 		title = re.sub(r'\n|[()[\]{}]|[:;–\-",\'!_.?~$@]|\s', '', title) # stop trying to remove alpha characters "vs" or "v", they're part of a title
 		title = re.sub(r'<.*?>', '', title) # removes tags
 		return title
-	except:
+	except Exception:
 		from fenom import log_utils
 		log_utils.error()
 		return title
@@ -38,13 +38,13 @@ def geturl(title):
 	try:
 		title = title.lower().rstrip()
 		try: title = title.translate(None, ':*?"\'\\.<>|&!,')
-		except:
+		except (TypeError, AttributeError):
 			try: title = title.translate(title.maketrans('', '', ':*?"\'\\.<>|&!,'))
-			except:
+			except (TypeError, AttributeError):
 				for c in ':*?"\'\\.<>|&!,': title = title.replace(c, '')
 		title = title.replace('/', '-').replace(' ', '-').replace('--', '-').replace('–', '-').replace('!', '')
 		return title
-	except:
+	except Exception:
 		from fenom import log_utils
 		log_utils.error()
 		return title
@@ -54,7 +54,7 @@ def normalize(title):
 		import unicodedata
 		title = ''.join(c for c in unicodedata.normalize('NFKD', title) if unicodedata.category(c) != 'Mn')
 		return str(title)
-	except:
+	except Exception:
 		from fenom import log_utils
 		log_utils.error()
 		return title

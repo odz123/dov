@@ -56,7 +56,7 @@ class RealDebridAPI:
 #			except: expires = datetime.datetime(*(time.strptime(account_info['expiration'], FormatDateTime)[0:6]))
 #			days = (expires - datetime.datetime.today()).days
 			days = int(account_info['premium']/86400)
-		except: days = None
+		except Exception: days = None
 		return days
 
 	def account_info(self):
@@ -82,7 +82,7 @@ class RealDebridAPI:
 		post_data = {'link': link}
 		response = self._post(url, post_data)
 		try: return response['download']
-		except: return None
+		except (KeyError, TypeError): return None
 
 	def check_single_magnet(self, hash_string):
 		cache_info = self.check_hash(hash_string)
@@ -123,7 +123,7 @@ class RealDebridAPI:
 #			self.add_torrent_select(torrent_id, torrent_keys)
 			self.add_torrent_select(torrent_id, 'all')
 			return torrent_id
-		except:
+		except Exception:
 			self.delete_torrent(torrent_id)
 			return ''
 
@@ -184,28 +184,28 @@ class RealDebridAPI:
 					for i in user_cloud_cache: clear_property(i)
 					dbcon.commit()
 				user_cloud_success = True
-			except: user_cloud_success = False
+			except Exception: user_cloud_success = False
 			# DOWNLOAD LINKS
 			try:
 				dbcur.execute("""DELETE FROM maincache WHERE id = ?""", ('pov_rd_downloads',))
 				clear_property('pov_rd_downloads')
 				dbcon.commit()
 				download_links_success = True
-			except: download_links_success = False
+			except Exception: download_links_success = False
 			# HOSTERS
 			try:
 				dbcur.execute("""DELETE FROM maincache WHERE id = ?""", ('pov_rd_valid_hosts',))
 				clear_property('pov_rd_valid_hosts')
 				dbcon.commit()
 				hoster_links_success = True
-			except: hoster_links_success = False
+			except Exception: hoster_links_success = False
 			dbcon.close()
 			# HASH CACHED STATUS
 			try:
 				DebridCache().clear_debrid_results('rd')
 				hash_cache_status_success = True
-			except: hash_cache_status_success = False
-		except: return False
+			except Exception: hash_cache_status_success = False
+		except Exception: return False
 		if False in (user_cloud_success, download_links_success, hoster_links_success, hash_cache_status_success): return False
 		return True
 

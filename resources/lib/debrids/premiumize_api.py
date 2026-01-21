@@ -44,7 +44,7 @@ class PremiumizeAPI:
 			account_info = self.account_info()
 			expires = datetime.datetime.fromtimestamp(account_info['premium_until'])
 			days = (expires - datetime.datetime.today()).days
-		except: days = None
+		except Exception: days = None
 		return days
 
 	def account_info(self):
@@ -64,7 +64,7 @@ class PremiumizeAPI:
 		url = 'transfer/directdl'
 		response = self._post(url, data)
 		try: return self.add_headers_to_url(response['content'][0]['link'])
-		except: return None
+		except (KeyError, TypeError, IndexError): return None
 
 	def check_single_magnet(self, hash_string):
 		cache_info = self.check_cache([hash_string])
@@ -101,7 +101,7 @@ class PremiumizeAPI:
 				if item['path'].lower().endswith(tuple(extensions))
 			]
 			return torrent_files
-		except: pass
+		except Exception: pass
 
 	def zip_folder(self, folder_id):
 		url = 'zip/generate'
@@ -124,7 +124,7 @@ class PremiumizeAPI:
 			if result['status'] == 'success':
 				return result['location']
 			else: return None
-		except:
+		except Exception:
 			pass
 
 	def rename_cache_item(self, file_type, file_id, new_name):
@@ -177,28 +177,28 @@ class PremiumizeAPI:
 					for i in user_cloud_cache: clear_property(i)
 					dbcon.commit()
 				user_cloud_success = True
-			except: user_cloud_success = False
+			except Exception: user_cloud_success = False
 			# DOWNLOAD LINKS
 			try:
 				dbcur.execute("""DELETE FROM maincache WHERE id = ?""", ('pov_pm_downloads',))
 				clear_property('pov_pm_downloads')
 				dbcon.commit()
 				download_links_success = True
-			except: download_links_success = False
+			except Exception: download_links_success = False
 			# HOSTERS
 			try:
 				dbcur.execute("""DELETE FROM maincache WHERE id = ?""", ('pov_pm_valid_hosts',))
 				clear_property('pov_pm_valid_hosts')
 				dbcon.commit()
 				hoster_links_success = True
-			except: hoster_links_success = False
+			except Exception: hoster_links_success = False
 			dbcon.close()
 			# HASH CACHED STATUS
 			try:
 				DebridCache().clear_debrid_results('pm')
 				hash_cache_status_success = True
-			except: hash_cache_status_success = False
-		except: return False
+			except Exception: hash_cache_status_success = False
+		except Exception: return False
 		if False in (user_cloud_success, download_links_success, hoster_links_success, hash_cache_status_success): return False
 		return True
 

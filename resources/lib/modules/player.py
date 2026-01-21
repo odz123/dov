@@ -47,7 +47,7 @@ class POVPlayer(kodi_utils.xbmc_player):
 				if self.media_type == 'episode': trakt_ids['tvdb'] = self.tvdb_id
 				kodi_utils.clear_property('script.trakt.ids')
 				kodi_utils.set_property('script.trakt.ids', json.dumps(trakt_ids))
-			except: pass
+			except Exception: pass
 			self.playback_event = False
 			self.play(url, listitem)
 
@@ -85,11 +85,11 @@ class POVPlayer(kodi_utils.xbmc_player):
 						self.remaining_time = round(self.total_time - self.curr_time)
 						if self.remaining_time <= self.autoscrape_next_window_time:
 							if not self.nextep_started and self.autoscrape_nextep: self.run_scrape_next_ep()
-				except: pass
+				except Exception: pass
 				if not self.subs_searched: self.run_subtitles()
 			if not self.media_marked: self.media_watched_marker()
 			ws.clear_local_bookmarks()
-		except: pass
+		except Exception: pass
 
 	def _make_listitem(self):
 		listitem = kodi_utils.make_listitem()
@@ -129,14 +129,14 @@ class POVPlayer(kodi_utils.xbmc_player):
 			else: banner, clearart, landscape = '', '', ''
 			listitem.setArt({'poster': poster, 'fanart': fanart, 'icon': poster, 'banner': banner, 'clearart': clearart, 'clearlogo': clearlogo, 'landscape': landscape,
 							'tvshow.clearart': clearart, 'tvshow.clearlogo': clearlogo, 'tvshow.landscape': landscape, 'tvshow.banner': banner})
-		except: pass
+		except Exception: pass
 		return listitem
 
 	def bookmarkPOV(self):
 		bookmark = 0
 		watched_indicators = settings.watched_indicators()
 		try: resume_point, curr_time, resume_id = ws.detect_bookmark(ws.get_bookmarks(watched_indicators, self.media_type), self.tmdb_id, self.season, self.episode)
-		except: resume_point, curr_time = 0, 0
+		except (IndexError, TypeError, KeyError): resume_point, curr_time = 0, 0
 		resume_check = float(resume_point)
 		if resume_check > 0:
 			percent = str(resume_point)
@@ -189,32 +189,32 @@ class POVPlayer(kodi_utils.xbmc_player):
 				kodi_utils.clear_property('pov_total_autoplays')
 				if not self.current_point >= self.set_resume: return
 				ws.set_bookmark(self.media_type, self.tmdb_id, self.curr_time, self.total_time, self.title, self.season, self.episode)
-		except: pass
+		except Exception: pass
 
 	def run_media_watched(self, function, params):
 		try: function(params)
-		except: pass
+		except Exception: pass
 
 	def run_scrape_next_ep(self):
 		self.nextep_started = True
 		try:
 			from modules.episode_tools import execute_scrape_nextep
 			execute_scrape_nextep(self.meta)
-		except: pass
+		except Exception: pass
 
 	def run_next_ep(self):
 		self.nextep_started = True
 		try:
 			from modules.episode_tools import execute_nextep
 			Thread(target=execute_nextep, args=(self.meta, self.nextep_settings)).start()
-		except: pass
+		except Exception: pass
 
 	def run_random_continual(self):
 		self.nextep_started = True
 		try:
 			from modules.episode_tools import execute_nextep
 			Thread(target=execute_nextep, args=(self.meta, self.nextep_settings)).start()
-		except: pass
+		except Exception: pass
 
 	def run_subtitles(self):
 		self.subs_searched = True
@@ -223,7 +223,7 @@ class POVPlayer(kodi_utils.xbmc_player):
 			season = self.season if self.media_type == 'episode' else None
 			episode = self.episode if self.media_type == 'episode' else None
 			Thread(target=Subtitles().get, args=(self.title, self.imdb_id, season, episode, poster)).start()
-		except: pass
+		except Exception: pass
 
 	def run_stingers(self):
 		self.stingers_checked = True
@@ -231,7 +231,7 @@ class POVPlayer(kodi_utils.xbmc_player):
 			poster = self.meta.get('poster') or poster_empty
 			tmdb_id = self.tmdb_id if self.media_type == 'movie' and self.stinger_enabled else None
 			Thread(target=self.getStingers, args=(tmdb_id, poster)).start()
-		except: pass
+		except Exception: pass
 
 	def info_next_ep(self):
 		self.nextep_info_gathered = True
@@ -250,14 +250,14 @@ class POVPlayer(kodi_utils.xbmc_player):
 			self.start_prep = self.nextep_settings['scraper_time'] + threshold_check
 			self.nextep_settings.update({'threshold_check': threshold_check, 'start_prep': self.start_prep})
 			self.autoscrape_next_window_time = self.nextep_settings['autoscrape_next_window_time']
-		except: pass
+		except Exception: pass
 
 	def onAVStarted(self):
 		self.playback_event = True
 
 	def onPlayBackStarted(self):
 		try: kodi_utils.hide_busy_dialog()
-		except: pass
+		except Exception: pass
 
 	def onPlayBackStopped(self):
 		self.playback_event = 'stop'
@@ -272,7 +272,7 @@ class Subtitles(kodi_utils.xbmc_player):
 	def get(self, query, imdb_id, season, episode, poster):
 		def _video_file_subs():
 			try: available_sub_language = self.getSubtitles()
-			except: available_sub_language = ''
+			except Exception: available_sub_language = ''
 			if not available_sub_language == self.language1: return False
 			if self.auto_enable == 'true': self.showSubtitles(True)
 			kodi_utils.notification(32852, icon=poster)
@@ -292,7 +292,7 @@ class Subtitles(kodi_utils.xbmc_player):
 			result.sort(key=lambda k: k['language'] == search_language, reverse=True)
 			if self.subs_action == 'select' and len(result) > 1:
 				try: video_path = self.getPlayingFile()
-				except: video_path = ''
+				except Exception: video_path = ''
 				if '|' in video_path: video_path = video_path.split('|')[0]
 				video_path = os.path.basename(video_path)
 				heading = '%s - %s' % (ls(32246).upper(), video_path)
@@ -310,7 +310,7 @@ class Subtitles(kodi_utils.xbmc_player):
 			if chosen_sub < 0: return kodi_utils.notification(32736, icon=poster)
 			chosen_sub = result[chosen_sub]
 			try: lang = kodi_utils.convert_language(chosen_sub['language'])
-			except: lang = chosen_sub['language']
+			except Exception: lang = chosen_sub['language']
 			final_filename = sub_filename + '_%s.%s' % (lang, chosen_sub['format'])
 			final_path = '%s%s' % (subtitle_path, final_filename)
 			response = subtitles.download(chosen_sub['url'])
@@ -320,7 +320,7 @@ class Subtitles(kodi_utils.xbmc_player):
 					import codecs
 					content = codecs.decode(response.content, encoding='utf-8')
 				else: content = response.text
-			except: content = response.content
+			except (UnicodeDecodeError, AttributeError): content = response.content
 			with kodi_utils.open_file(final_path, 'w') as file: file.write(content)
 			kodi_utils.sleep(1000)
 			return final_path
@@ -363,6 +363,6 @@ def infoTagger(listitem, meta=None):
 			elif key in {'episode', 'season', 'year'}: arg = int(arg)
 			func = getattr(infotag, val)
 			func(arg)
-		except: pass
+		except Exception: pass
 	return infotag
 
