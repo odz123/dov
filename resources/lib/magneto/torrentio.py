@@ -3,9 +3,8 @@
 	Fenomscrapers Project
 """
 
-from json import loads as jsloads
 import re
-from fenom import client
+import requests
 from fenom import source_utils
 
 
@@ -45,13 +44,24 @@ class source:
 				url = '%s%s' % (self.base_link, self.movieSearch_link % imdb)
 			# log_utils.log('url = %s' % url)
 			if 'timeout' in data: self.timeout = int(data['timeout'])
-			results = client.request(url, timeout=self.timeout)
-			files = jsloads(results)['streams']
+			response = requests.get(url, timeout=self.timeout, headers={'User-Agent': 'POV-Kodi/1.0'})
+			if response.status_code != 200:
+				source_utils.scraper_error('TORRENTIO: HTTP %s' % response.status_code)
+				return sources
+			files = response.json().get('streams', [])
+			if not files:
+				return sources
 			_INFO = re.compile(r'👤.*')
 			undesirables = source_utils.get_undesirables()
 			check_foreign_audio = source_utils.check_foreign_audio()
-		except:
-			source_utils.scraper_error('TORRENTIO')
+		except requests.exceptions.Timeout:
+			source_utils.scraper_error('TORRENTIO: Timeout connecting to %s' % self.base_link)
+			return sources
+		except requests.exceptions.ConnectionError:
+			source_utils.scraper_error('TORRENTIO: Connection error to %s' % self.base_link)
+			return sources
+		except Exception as e:
+			source_utils.scraper_error('TORRENTIO: %s' % str(e))
 			return sources
 
 		for file in files:

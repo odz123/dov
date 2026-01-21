@@ -123,6 +123,9 @@ class source:
 			# log_utils.log('url = %s' % url)
 			if 'timeout' in data: self.timeout = int(data['timeout'])
 			results = requests.get(url, params=params, headers=self._headers(), timeout=self.timeout)
+			if results.status_code != 200:
+				source_utils.scraper_error('AIOSTREAMS: HTTP %s from %s' % (results.status_code, self.base_link))
+				return sources
 			response = results.json()
 			# Handle API response format: {"success": bool, "data": {"results": [...], "errors": [...]}}
 			if not response.get('success', True):
@@ -130,10 +133,18 @@ class source:
 				source_utils.scraper_error('AIOSTREAMS: %s' % error.get('message', 'Unknown error'))
 				return sources
 			files = response.get('data', {}).get('results', [])
+			if not files:
+				return sources
 			undesirables = source_utils.get_undesirables()
 			check_foreign_audio = source_utils.check_foreign_audio()
-		except:
-			source_utils.scraper_error('AIOSTREAMS')
+		except requests.exceptions.Timeout:
+			source_utils.scraper_error('AIOSTREAMS: Timeout connecting to %s' % self.base_link)
+			return sources
+		except requests.exceptions.ConnectionError:
+			source_utils.scraper_error('AIOSTREAMS: Connection error to %s' % self.base_link)
+			return sources
+		except Exception as e:
+			source_utils.scraper_error('AIOSTREAMS: %s' % str(e))
 			return sources
 
 		for file in files:
