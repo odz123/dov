@@ -39,7 +39,7 @@ class RealDebridAPI:
 			client_id, secret, refresh = get_setting('rd.client_id'), get_setting('rd.secret'), get_setting('rd.refresh')
 			data = {'client_id': client_id, 'client_secret': secret, 'code': refresh, 'grant_type': 'http://oauth.net/grant_type/device/1.0'}
 			url = auth_url + 'token'
-			response = requests.post(url, data=data).json()
+			response = requests.post(url, data=data, timeout=timeout).json()
 			self.token, refresh = response['access_token'], response['refresh_token']
 			set_setting('rd.token', self.token)
 			set_setting('rd.refresh', refresh)

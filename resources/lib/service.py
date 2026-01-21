@@ -2,6 +2,9 @@ import time
 from threading import Thread
 from modules import kodi_utils, settings
 
+# Constants
+DATABASE_MAINTENANCE_INTERVAL = 259200  # 3 days in seconds
+
 logger, ls, path_exists, translate_path = kodi_utils.logger, kodi_utils.local_string, kodi_utils.path_exists, kodi_utils.translate_path
 monitor, is_playing, get_visibility = kodi_utils.monitor, kodi_utils.player.isPlaying, kodi_utils.get_visibility
 get_property, set_property, clear_property = kodi_utils.get_property, kodi_utils.set_property, kodi_utils.clear_property
@@ -30,7 +33,7 @@ def checkSettingsFile():
 def databaseMaintenance():
 	from modules.cache import clean_databases
 	current_time = int(time.time())
-	next_clean = current_time + 259200 # 3 days
+	next_clean = current_time + DATABASE_MAINTENANCE_INTERVAL
 	due_clean = int(get_setting('database.maintenance.due', '0'))
 	if current_time < due_clean: return
 	logger('POV', 'Database Maintenance Service Starting')
@@ -96,7 +99,9 @@ def traktMonitor():
 		value, interval = settings.trakt_sync_interval()
 		next_update_string = update_string % value
 		try: status = trakt_sync_activities()
-		except: status = 'failed'
+		except Exception as e:
+			logger('POV', 'TraktMonitor trakt_sync_activities error: %s' % str(e))
+			status = 'failed'
 		if status == 'success':
 			logger('POV', trakt_service_string % ('POV TraktMonitor - Success', 'Trakt Update Performed'))
 			if settings.trakt_sync_refresh_widgets():
@@ -110,7 +115,9 @@ def traktMonitor():
 		else:# 'not needed'
 			logger('POV', trakt_service_string % ('POV TraktMonitor - Success. No Changes Needed', next_update_string))
 		try: status = mdbl_sync_activities()
-		except: status = 'failed'
+		except Exception as e:
+			logger('POV', 'TraktMonitor mdbl_sync_activities error: %s' % str(e))
+			status = 'failed'
 		if status == 'success':
 			logger('POV', trakt_service_string % ('POV MDBListMonitor - Success', 'MDBList Update Performed'))
 			if settings.trakt_sync_refresh_widgets():
@@ -127,7 +134,8 @@ def traktMonitor():
 			if get_setting('tmdb.token') and get_setting('tmdblist.watchlist_sync') == 'true':
 				status = tmdb_clean_watchlist(silent=True)
 				if status: logger('POV', 'TMDB Lists Service Update - Success. %s' % status)
-		except: pass
+		except Exception as e:
+			logger('POV', 'TraktMonitor tmdb_clean_watchlist error: %s' % str(e))
 		monitor.waitForAbort(interval)
 	return logger('POV', 'TraktMonitor Service Finished')
 
@@ -149,7 +157,8 @@ def premAccntNotification():
 				days_remaining = cls().days_remaining()
 				if days_remaining is not None and days_remaining <= limit:
 					kodi_utils.notification('%s expires in %s days' % (cls.__name__, days_remaining))
-		except: pass
+		except Exception as e:
+			logger('POV', 'premAccntNotification error for %s: %s' % (user, str(e)))
 	return logger('POV', 'Debrid Account Expiry Notification Service Finished')
 
 def checkUndesirablesDatabase():
@@ -169,22 +178,22 @@ class POVMonitor(kodi_utils.xbmc_monitor):
 
 	def startUpServices(self):
 		try: initializeDatabases()
-		except: pass
+		except Exception as e: logger('POV', 'initializeDatabases error: %s' % str(e))
 		try: checkSettingsFile()
-		except: pass
+		except Exception as e: logger('POV', 'checkSettingsFile error: %s' % str(e))
 		try: databaseMaintenance()
-		except: pass
+		except Exception as e: logger('POV', 'databaseMaintenance error: %s' % str(e))
 		try: viewsSetWindowProperties()
-		except: pass
+		except Exception as e: logger('POV', 'viewsSetWindowProperties error: %s' % str(e))
 		try: reuseLanguageInvokerCheck()
-		except: pass
+		except Exception as e: logger('POV', 'reuseLanguageInvokerCheck error: %s' % str(e))
 		for i in self.threads: i.start()
 		try: autoRun()
-		except: pass
+		except Exception as e: logger('POV', 'autoRun error: %s' % str(e))
 		try: clearSubs()
-		except: pass
+		except Exception as e: logger('POV', 'clearSubs error: %s' % str(e))
 		try: checkUndesirablesDatabase()
-		except: pass
+		except Exception as e: logger('POV', 'checkUndesirablesDatabase error: %s' % str(e))
 
 	def onScreensaverActivated(self):
 		set_property('pov_pause_services', 'true')

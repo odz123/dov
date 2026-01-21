@@ -1,6 +1,12 @@
 from modules import kodi_utils
 # logger = kodi_utils.logger
 
+# Constants
+BYTES_PER_MB = 1048576
+METADATA_ROW_LIMIT = 4000
+FUNCTION_CACHE_ROW_LIMIT = 100
+SEASON_METADATA_ROW_LIMIT = 100
+
 ls = kodi_utils.local_string
 navigator_db = kodi_utils.navigator_db
 watched_db = kodi_utils.watched_db
@@ -109,6 +115,7 @@ def clean_databases(current_time=None, database_check=True, silent=False):
 		(metacache_db, command_base % ('function_cache', 'expires')),
 		(metacache_db, command_base % ('season_metadata', 'expires'))
 	):
+		dbcon = None
 		try:
 			dbcon = database_connect(db)
 			dbcur = dbcon.cursor()
@@ -117,23 +124,34 @@ def clean_databases(current_time=None, database_check=True, silent=False):
 			dbcur.execute(sql, (current_time,))
 			dbcon.commit()
 			dbcur.execute("""VACUUM""")
-		except: pass
+		except Exception:
+			pass
+		finally:
+			if dbcon:
+				try: dbcon.close()
+				except Exception: pass
 	limit_metacache_database()
 	if not silent: kodi_utils.notification(32576, 1500)
 
 def limit_metacache_database(max_size=50):
 	with kodi_utils.open_file(metacache_db) as f: fsize = f.size()
-	size = round(float(fsize)/1048576, 1)
+	size = round(float(fsize)/BYTES_PER_MB, 1)
 	if size < max_size: return
-	dbcon = database_connect(metacache_db)
-	dbcur = dbcon.cursor()
-	dbcur.execute("""PRAGMA synchronous = OFF""")
-	dbcur.execute("""PRAGMA journal_mode = OFF""")
-	dbcur.execute("""DELETE FROM metadata WHERE ROWID IN (SELECT ROWID FROM metadata ORDER BY ROWID DESC LIMIT -1 OFFSET 4000)""")
-	dbcur.execute("""DELETE FROM function_cache WHERE ROWID IN (SELECT ROWID FROM function_cache ORDER BY ROWID DESC LIMIT -1 OFFSET 100)""")
-	dbcur.execute("""DELETE FROM season_metadata WHERE ROWID IN (SELECT ROWID FROM season_metadata ORDER BY ROWID DESC LIMIT -1 OFFSET 100)""")
-	dbcon.commit()
-	dbcur.execute("""VACUUM""")
+	dbcon = None
+	try:
+		dbcon = database_connect(metacache_db)
+		dbcur = dbcon.cursor()
+		dbcur.execute("""PRAGMA synchronous = OFF""")
+		dbcur.execute("""PRAGMA journal_mode = OFF""")
+		dbcur.execute("""DELETE FROM metadata WHERE ROWID IN (SELECT ROWID FROM metadata ORDER BY ROWID DESC LIMIT -1 OFFSET %d)""" % METADATA_ROW_LIMIT)
+		dbcur.execute("""DELETE FROM function_cache WHERE ROWID IN (SELECT ROWID FROM function_cache ORDER BY ROWID DESC LIMIT -1 OFFSET %d)""" % FUNCTION_CACHE_ROW_LIMIT)
+		dbcur.execute("""DELETE FROM season_metadata WHERE ROWID IN (SELECT ROWID FROM season_metadata ORDER BY ROWID DESC LIMIT -1 OFFSET %d)""" % SEASON_METADATA_ROW_LIMIT)
+		dbcon.commit()
+		dbcur.execute("""VACUUM""")
+	finally:
+		if dbcon:
+			try: dbcon.close()
+			except Exception: pass
 
 def get_current_time():
 	import time, datetime

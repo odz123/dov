@@ -501,7 +501,10 @@ class sucuri:
 			local_ns = {'cookie': ''}
 			exec(s, {'__builtins__': {'chr': chr, 'str': str, 'int': int}}, local_ns)
 			cookie = local_ns.get('cookie', '')
-			self.cookie = re.compile(r'([^=]+)=(.*)').findall(cookie)[0]
+			matches = re.compile(r'([^=]+)=(.*)').findall(cookie)
+			if not matches:
+				return None
+			self.cookie = matches[0]
 			self.cookie = '%s=%s' % (self.cookie[0], self.cookie[1])
 			return self.cookie
 		except:
