@@ -24,6 +24,22 @@ class BaseCache:
 		self.dbcur = self.dbcon.cursor()
 		self._set_PRAGMAS()
 
+	def __enter__(self):
+		return self
+
+	def __exit__(self, exc_type, exc_value, traceback):
+		self.close()
+
+	def close(self):
+		"""Close database connection to prevent resource leaks."""
+		try:
+			if self.dbcur:
+				self.dbcur.close()
+			if self.dbcon:
+				self.dbcon.close()
+		except Exception:
+			pass
+
 	def _set_PRAGMAS(self):
 		self.dbcur.execute("""PRAGMA synchronous = OFF""")
 		self.dbcur.execute("""PRAGMA journal_mode = OFF""")
