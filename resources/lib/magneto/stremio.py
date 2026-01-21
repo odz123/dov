@@ -304,20 +304,42 @@ class source:
 
 		name = source_utils.clean_name(stream_info['name']) if stream_info['name'] else ''
 
-		# Title validation
+		# Title validation - Stremio already filters by IMDB ID so content is correct
+		# We only need to check for packs and apply language/undesirable filters
 		if name:
-			if not source_utils.check_title(title, aliases, name, hdlr, year):
-				if total_seasons is None:
-					return None
+			# Check if this is a pack (season/show pack) by trying pack filters first
+			# This helps identify multi-episode releases for proper handling
+			is_pack = False
+			if total_seasons is not None:
 				valid, last_season = source_utils.filter_show_pack(title, aliases, '', year, season, name, total_seasons)
-				if not valid:
-					valid, episode_start, episode_end = source_utils.filter_season_pack(title, aliases, year, season, name)
-					if not valid:
-						return None
-					else:
-						package = 'season'
-				else:
+				if valid:
 					package = 'show'
+					is_pack = True
+				else:
+					valid, episode_start, episode_end = source_utils.filter_season_pack(title, aliases, year, season, name)
+					if valid:
+						package = 'season'
+						is_pack = True
+
+			# For standard title check, we're lenient since Stremio uses IMDB ID filtering
+			# Only validate if the name appears to be a proper release name (contains title-like info)
+			# Skip strict validation for debrid-resolved direct links which often have minimal names
+			if not is_pack and not stream_info['is_debrid_resolved']:
+				title_check = source_utils.check_title(title, aliases, name, hdlr, year)
+				# If title check fails but name is very short/minimal, allow it through
+				# (likely a debrid addon with simplified naming)
+				if not title_check:
+					# Allow through if name is short (<30 chars) or doesn't look like a release name
+					name_len = len(name.replace('.', '').replace('-', '').replace(' ', ''))
+					has_quality_info = any(q in name.lower() for q in ('1080', '720', '2160', '4k', 'hdr', 'web', 'bluray'))
+					if name_len > 30 and not has_quality_info:
+						# Looks like a full release name but doesn't match - might be wrong content
+						# Still allow through for movies with year in name, or TV with episode format
+						if total_seasons is None:
+							# Movie - check if year is somewhere in the name
+							if year not in name and str(int(year)-1) not in name and str(int(year)+1) not in name:
+								return None
+						# TV shows - be lenient as IMDB+season+episode already filters
 
 			name_info = source_utils.info_from_name(name, title, year, hdlr, episode_title)
 			if source_utils.remove_lang(name_info, check_foreign_audio):
