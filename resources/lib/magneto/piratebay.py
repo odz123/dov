@@ -48,7 +48,7 @@ class source:
 			files = jsloads(rjson)
 			undesirables = source_utils.get_undesirables()
 			check_foreign_audio = source_utils.check_foreign_audio()
-		except:
+		except Exception:
 			source_utils.scraper_error('PIRATEBAY')
 			return sources
 
@@ -72,18 +72,18 @@ class source:
 				try:
 					seeders= int(file['seeders'])
 					if self.min_seeders > seeders: continue
-				except: seeders = 0
+				except (ValueError, KeyError, TypeError): seeders = 0
 
 				quality, info = source_utils.get_release_quality(name_info, url)
 				try:
 					dsize, isize = source_utils.convert_size(float(file["size"]), to='GB')
 					info.insert(0, isize)
-				except: dsize = 0
+				except (ValueError, KeyError, TypeError): dsize = 0
 				info = ' | '.join(info)
 
 				sources_append({'provider': 'piratebay', 'source': 'torrent', 'seeders': seeders, 'hash': hash, 'name': name, 'name_info': name_info,
 							'quality': quality, 'language': 'en', 'url': url, 'info': info, 'direct': False, 'debridonly': True, 'size': dsize})
-			except:
+			except Exception:
 				source_utils.scraper_error('PIRATEBAY')
 		return sources
 
@@ -123,7 +123,7 @@ class source:
 			for i in threads: i.start()
 			for i in threads: i.join()
 			return self.sources
-		except:
+		except Exception:
 			source_utils.scraper_error('PIRATEBAY')
 			return self.sources
 
@@ -132,7 +132,7 @@ class source:
 			rjson = client.request(link, timeout=self.timeout)
 			if not rjson or any(value in rjson for value in SERVER_ERROR): return
 			files = jsloads(rjson)
-		except:
+		except Exception:
 			source_utils.scraper_error('PIRATEBAY')
 			return
 
@@ -163,13 +163,13 @@ class source:
 				try:
 					seeders= int(file['seeders'])
 					if self.min_seeders > seeders: continue
-				except: seeders = 0
+				except (ValueError, KeyError, TypeError): seeders = 0
 
 				quality, info = source_utils.get_release_quality(name_info, url)
 				try:
 					dsize, isize = source_utils.convert_size(float(file["size"]), to='GB')
 					info.insert(0, isize)
-				except: dsize = 0
+				except (ValueError, KeyError, TypeError): dsize = 0
 				info = ' | '.join(info)
 
 				item = {'provider': 'piratebay', 'source': 'torrent', 'seeders': seeders, 'hash': hash, 'name': name, 'name_info': name_info, 'quality': quality,
@@ -177,6 +177,6 @@ class source:
 				if self.search_series: item.update({'last_season': last_season})
 				elif episode_start: item.update({'episode_start': episode_start, 'episode_end': episode_end}) # for partial season packs
 				self.sources_append(item)
-			except:
+			except Exception:
 				source_utils.scraper_error('PIRATEBAY')
 
