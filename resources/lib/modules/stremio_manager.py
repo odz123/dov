@@ -6,22 +6,94 @@
 	- Addon configuration URLs (for addons like Torrentio)
 	- Popular addon presets
 	- Connection testing
+	- Cloudflare bypass via cloudscraper
 """
 
 import json
+import time
 import requests
 from modules.kodi_utils import (
 	notification, ok_dialog, confirm_dialog, select_dialog,
 	get_setting, set_setting, dialog, local_string
 )
 
+# Try to import cloudscraper for Cloudflare bypass
+try:
+	import cloudscraper
+	HAS_CLOUDSCRAPER = True
+except ImportError:
+	HAS_CLOUDSCRAPER = False
 
 # Browser-like headers to help bypass Cloudflare and other protections
 BROWSER_HEADERS = {
-	'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+	'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
 	'Accept': 'application/json, text/plain, */*',
 	'Accept-Language': 'en-US,en;q=0.9',
+	'Sec-Ch-Ua': '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"',
+	'Sec-Ch-Ua-Mobile': '?0',
+	'Sec-Ch-Ua-Platform': '"Windows"',
 }
+
+# Create a cloudscraper session if available
+_scraper_session = None
+def _get_scraper():
+	global _scraper_session
+	if HAS_CLOUDSCRAPER and _scraper_session is None:
+		_scraper_session = cloudscraper.create_scraper(
+			browser={'browser': 'chrome', 'platform': 'windows', 'desktop': True}
+		)
+	return _scraper_session
+
+
+def _fetch_url(url, timeout=10):
+	"""Fetch a URL with cloudscraper fallback and retry logic"""
+	scraper = _get_scraper()
+	methods = []
+	if scraper:
+		methods.append(('cloudscraper', scraper))
+	methods.append(('requests', requests))
+
+	last_response = None
+	for method_name, client in methods:
+		try:
+			for attempt in range(2):
+				try:
+					if method_name == 'cloudscraper':
+						response = client.get(url, timeout=timeout)
+					else:
+						response = client.get(url, timeout=timeout, headers=BROWSER_HEADERS)
+
+					if response.status_code == 200:
+						content_type = response.headers.get('content-type', '')
+						if 'text/html' not in content_type:
+							return response, None
+					last_response = response
+					if response.status_code in (403, 418, 503):
+						if attempt == 0:
+							time.sleep(0.5)
+							continue
+					break
+				except (requests.exceptions.Timeout, requests.exceptions.ConnectionError):
+					if attempt == 0:
+						time.sleep(0.5)
+						continue
+					raise
+		except Exception as e:
+			continue
+
+	# Return last response with error info
+	if last_response:
+		if last_response.status_code == 403:
+			return last_response, "Blocked by Cloudflare - addon needs configuration"
+		elif last_response.status_code == 418:
+			return last_response, "Bot protection - use configured addon URL"
+		elif last_response.status_code == 503:
+			return last_response, "Service unavailable - addon may be down"
+		elif 'text/html' in last_response.headers.get('content-type', ''):
+			return last_response, "Cloudflare challenge - use configured URL"
+		else:
+			return last_response, "HTTP %d" % last_response.status_code
+	return None, "Connection failed"
 
 
 # Debrid service definitions
@@ -121,14 +193,16 @@ def validate_stremio_addon(url):
 		else:
 			manifest_url = f"{base_url}/manifest.json"
 
-		response = requests.get(
-			manifest_url,
-			timeout=10,
-			headers=BROWSER_HEADERS
-		)
+		response, error = _fetch_url(manifest_url, timeout=10)
 
-		if response.status_code != 200:
-			return None, "Failed to fetch manifest (HTTP %d)" % response.status_code
+		if response is None or response.status_code != 200:
+			error_msg = error or ("HTTP %d" % response.status_code if response else "Connection failed")
+			return None, "Failed to fetch manifest: %s" % error_msg
+
+		# Check for HTML response (Cloudflare)
+		content_type = response.headers.get('content-type', '')
+		if 'text/html' in content_type:
+			return None, "Blocked by Cloudflare - addon needs debrid configuration"
 
 		manifest = response.json()
 

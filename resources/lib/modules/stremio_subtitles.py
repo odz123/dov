@@ -6,10 +6,12 @@
 	- Language filtering and selection
 	- Download and cache subtitles
 	- Integration with POV player
+	- Cloudflare bypass via cloudscraper
 """
 
 import os
 import re
+import time
 import requests
 from modules.kodi_utils import (
 	get_setting, set_property, get_property, clear_property,
@@ -17,13 +19,68 @@ from modules.kodi_utils import (
 )
 import json
 
+# Try to import cloudscraper for Cloudflare bypass
+try:
+	import cloudscraper
+	HAS_CLOUDSCRAPER = True
+except ImportError:
+	HAS_CLOUDSCRAPER = False
 
 # Browser-like headers to help bypass Cloudflare and other protections
 BROWSER_HEADERS = {
-	'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+	'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
 	'Accept': 'application/json, text/plain, */*',
 	'Accept-Language': 'en-US,en;q=0.9',
+	'Sec-Ch-Ua': '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"',
+	'Sec-Ch-Ua-Mobile': '?0',
+	'Sec-Ch-Ua-Platform': '"Windows"',
 }
+
+# Create a cloudscraper session if available
+_scraper_session = None
+def _get_scraper():
+	global _scraper_session
+	if HAS_CLOUDSCRAPER and _scraper_session is None:
+		_scraper_session = cloudscraper.create_scraper(
+			browser={'browser': 'chrome', 'platform': 'windows', 'desktop': True}
+		)
+	return _scraper_session
+
+
+def _fetch_url(url, timeout=8):
+	"""Fetch a URL with cloudscraper fallback"""
+	scraper = _get_scraper()
+	methods = []
+	if scraper:
+		methods.append(('cloudscraper', scraper))
+	methods.append(('requests', requests))
+
+	for method_name, client in methods:
+		try:
+			for attempt in range(2):
+				try:
+					if method_name == 'cloudscraper':
+						response = client.get(url, timeout=timeout)
+					else:
+						response = client.get(url, timeout=timeout, headers=BROWSER_HEADERS)
+
+					if response.status_code == 200:
+						content_type = response.headers.get('content-type', '')
+						if 'text/html' not in content_type:
+							return response
+					if response.status_code in (403, 418, 503):
+						if attempt == 0:
+							time.sleep(0.3)
+							continue
+					break
+				except:
+					if attempt == 0:
+						time.sleep(0.3)
+						continue
+					raise
+		except:
+			continue
+	return None
 
 
 # Language code mapping (ISO 639-1 to full name)
@@ -113,13 +170,9 @@ def fetch_subtitles_from_addon(addon_url, media_type, media_id, video_hash=None,
 		else:
 			endpoint = f"{base_url}/subtitles/{media_type}/{media_id}.json"
 
-		response = requests.get(
-			endpoint,
-			timeout=8,
-			headers=BROWSER_HEADERS
-		)
+		response = _fetch_url(endpoint, timeout=8)
 
-		if response.status_code == 200:
+		if response and response.status_code == 200:
 			data = response.json()
 			subtitles = data.get('subtitles', [])
 	except:
