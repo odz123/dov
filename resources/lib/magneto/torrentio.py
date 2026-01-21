@@ -4,22 +4,42 @@
 """
 
 import re
+import time
 import requests
 from fenom import source_utils
 from fenom.control import setting as getSetting
 
+# Try to import cloudscraper for Cloudflare bypass
+try:
+	import cloudscraper
+	HAS_CLOUDSCRAPER = True
+except ImportError:
+	HAS_CLOUDSCRAPER = False
 
 # Browser-like headers to help bypass Cloudflare protection
 BROWSER_HEADERS = {
-	'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+	'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
 	'Accept': 'application/json, text/plain, */*',
 	'Accept-Language': 'en-US,en;q=0.9',
 	'Accept-Encoding': 'gzip, deflate, br',
 	'Connection': 'keep-alive',
+	'Sec-Ch-Ua': '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"',
+	'Sec-Ch-Ua-Mobile': '?0',
+	'Sec-Ch-Ua-Platform': '"Windows"',
 	'Sec-Fetch-Dest': 'empty',
 	'Sec-Fetch-Mode': 'cors',
 	'Sec-Fetch-Site': 'cross-site',
 }
+
+# Create a cloudscraper session if available
+_scraper_session = None
+def _get_scraper():
+	global _scraper_session
+	if HAS_CLOUDSCRAPER and _scraper_session is None:
+		_scraper_session = cloudscraper.create_scraper(
+			browser={'browser': 'chrome', 'platform': 'windows', 'desktop': True}
+		)
+	return _scraper_session
 
 
 class source:
@@ -74,21 +94,62 @@ class source:
 				url = '%s%s' % (self.base_link, self.movieSearch_link % imdb)
 			# log_utils.log('url = %s' % url)
 			if 'timeout' in data: self.timeout = int(data['timeout'])
-			response = requests.get(url, timeout=self.timeout, headers=BROWSER_HEADERS)
-			if response.status_code == 403:
-				# Cloudflare block - check if user has configured a custom URL
-				if not getSetting('torrentio.url', '').strip():
-					source_utils.scraper_error('TORRENTIO: Blocked by Cloudflare. Configure your Torrentio URL in settings (get it from torrentio.strem.fun/configure)')
-				else:
-					source_utils.scraper_error('TORRENTIO: HTTP 403 Forbidden from %s' % self.base_link)
+
+			# Try with cloudscraper first if available, then fall back to requests
+			response = None
+			scraper = _get_scraper()
+			methods = []
+			if scraper:
+				methods.append(('cloudscraper', scraper))
+			methods.append(('requests', requests))
+
+			for method_name, client in methods:
+				try:
+					for attempt in range(2):
+						try:
+							if method_name == 'cloudscraper':
+								response = client.get(url, timeout=self.timeout)
+							else:
+								response = client.get(url, timeout=self.timeout, headers=BROWSER_HEADERS)
+
+							if response.status_code == 200:
+								content_type = response.headers.get('content-type', '')
+								if 'text/html' not in content_type:
+									break
+							if response.status_code in (403, 418, 503):
+								if attempt == 0:
+									time.sleep(0.5)
+									continue
+							break
+						except (requests.exceptions.Timeout, requests.exceptions.ConnectionError):
+							if attempt == 0:
+								time.sleep(0.5)
+								continue
+							raise
+					if response and response.status_code == 200 and 'text/html' not in response.headers.get('content-type', ''):
+						break
+				except:
+					continue
+
+			if response is None or response.status_code != 200:
+				if response is not None:
+					if response.status_code == 403:
+						if not getSetting('torrentio.url', '').strip():
+							source_utils.scraper_error('TORRENTIO: Cloudflare blocked. Get your configured URL from torrentio.strem.fun/configure')
+						else:
+							source_utils.scraper_error('TORRENTIO: HTTP 403 from %s - try reconfiguring URL' % self.base_link)
+					elif response.status_code == 418:
+						source_utils.scraper_error('TORRENTIO: Bot protection active. Configure URL from torrentio.strem.fun/configure')
+					elif response.status_code == 503:
+						source_utils.scraper_error('TORRENTIO: Service unavailable at %s' % self.base_link)
+					else:
+						source_utils.scraper_error('TORRENTIO: HTTP %s from %s' % (response.status_code, self.base_link))
 				return sources
-			if response.status_code != 200:
-				source_utils.scraper_error('TORRENTIO: HTTP %s from %s' % (response.status_code, self.base_link))
-				return sources
+
 			# Check if response is HTML (Cloudflare challenge page)
 			content_type = response.headers.get('content-type', '')
 			if 'text/html' in content_type:
-				source_utils.scraper_error('TORRENTIO: Cloudflare challenge detected. Configure your Torrentio URL in settings.')
+				source_utils.scraper_error('TORRENTIO: Cloudflare challenge. Configure URL from torrentio.strem.fun/configure')
 				return sources
 			files = response.json().get('streams', [])
 			if not files:

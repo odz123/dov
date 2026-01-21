@@ -15,10 +15,17 @@
 	3. Provide their own user data configuration from the AIOStreams configure page
 """
 
+import time
 import requests
 from fenom import source_utils
 from fenom.control import setting as getSetting
 
+# Try to import cloudscraper for Cloudflare bypass
+try:
+	import cloudscraper
+	HAS_CLOUDSCRAPER = True
+except ImportError:
+	HAS_CLOUDSCRAPER = False
 
 # Pre-configured public instances
 # Note: Public instances may have rate limits or require configuration
@@ -30,10 +37,23 @@ PUBLIC_INSTANCES = (
 
 # Browser-like headers to help bypass blocks
 BROWSER_HEADERS = {
-	'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+	'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
 	'Accept': 'application/json, text/plain, */*',
 	'Accept-Language': 'en-US,en;q=0.9',
+	'Sec-Ch-Ua': '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"',
+	'Sec-Ch-Ua-Mobile': '?0',
+	'Sec-Ch-Ua-Platform': '"Windows"',
 }
+
+# Create a cloudscraper session if available
+_scraper_session = None
+def _get_scraper():
+	global _scraper_session
+	if HAS_CLOUDSCRAPER and _scraper_session is None:
+		_scraper_session = cloudscraper.create_scraper(
+			browser={'browser': 'chrome', 'platform': 'windows', 'desktop': True}
+		)
+	return _scraper_session
 
 # Default user data configuration (Comet + MediaFusion enabled)
 DEFAULT_USER_DATA = (
@@ -130,10 +150,62 @@ class source:
 				params = {'type': 'movie', 'id': '%s' % imdb}
 			# log_utils.log('url = %s' % url)
 			if 'timeout' in data: self.timeout = int(data['timeout'])
-			results = requests.get(url, params=params, headers=self._headers(), timeout=self.timeout)
-			if results.status_code != 200:
-				source_utils.scraper_error('AIOSTREAMS: HTTP %s from %s' % (results.status_code, self.base_link))
+
+			# Try with cloudscraper first if available, then fall back to requests
+			results = None
+			scraper = _get_scraper()
+			methods = []
+			if scraper:
+				methods.append(('cloudscraper', scraper))
+			methods.append(('requests', requests))
+
+			for method_name, client in methods:
+				try:
+					for attempt in range(2):
+						try:
+							headers = self._headers()
+							if method_name == 'cloudscraper':
+								results = client.get(url, params=params, headers=headers, timeout=self.timeout)
+							else:
+								results = client.get(url, params=params, headers=headers, timeout=self.timeout)
+
+							if results.status_code == 200:
+								content_type = results.headers.get('content-type', '')
+								if 'text/html' not in content_type:
+									break
+							if results.status_code in (403, 418, 503):
+								if attempt == 0:
+									time.sleep(0.5)
+									continue
+							break
+						except (requests.exceptions.Timeout, requests.exceptions.ConnectionError):
+							if attempt == 0:
+								time.sleep(0.5)
+								continue
+							raise
+					if results and results.status_code == 200 and 'text/html' not in results.headers.get('content-type', ''):
+						break
+				except:
+					continue
+
+			if results is None or results.status_code != 200:
+				if results is not None:
+					if results.status_code == 403:
+						source_utils.scraper_error('AIOSTREAMS: Cloudflare blocked %s - try custom instance' % self.base_link)
+					elif results.status_code == 418:
+						source_utils.scraper_error('AIOSTREAMS: Bot protection at %s - configure user data' % self.base_link)
+					elif results.status_code == 503:
+						source_utils.scraper_error('AIOSTREAMS: Service unavailable at %s' % self.base_link)
+					else:
+						source_utils.scraper_error('AIOSTREAMS: HTTP %s from %s' % (results.status_code, self.base_link))
 				return sources
+
+			# Check for HTML response (Cloudflare challenge)
+			content_type = results.headers.get('content-type', '')
+			if 'text/html' in content_type:
+				source_utils.scraper_error('AIOSTREAMS: Cloudflare challenge at %s' % self.base_link)
+				return sources
+
 			response = results.json()
 			# Handle API response format: {"success": bool, "data": {"results": [...], "errors": [...]}}
 			if not response.get('success', True):

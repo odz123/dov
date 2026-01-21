@@ -8,26 +8,47 @@
 	- Multiple stream types (torrent, direct, YouTube)
 	- Subtitle integration
 	- bingeGroup for autoplay optimization
+	- Cloudflare bypass via cloudscraper (if available)
 """
 
 import re
+import time
 import requests
 from json import loads as jsloads
 from fenom import source_utils
 from fenom.control import setting as getSetting
 
+# Try to import cloudscraper for Cloudflare bypass
+try:
+	import cloudscraper
+	HAS_CLOUDSCRAPER = True
+except ImportError:
+	HAS_CLOUDSCRAPER = False
 
 # Browser-like headers to help bypass Cloudflare and other protections
 BROWSER_HEADERS = {
-	'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+	'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
 	'Accept': 'application/json, text/plain, */*',
 	'Accept-Language': 'en-US,en;q=0.9',
 	'Accept-Encoding': 'gzip, deflate, br',
 	'Connection': 'keep-alive',
+	'Sec-Ch-Ua': '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"',
+	'Sec-Ch-Ua-Mobile': '?0',
+	'Sec-Ch-Ua-Platform': '"Windows"',
 	'Sec-Fetch-Dest': 'empty',
 	'Sec-Fetch-Mode': 'cors',
 	'Sec-Fetch-Site': 'cross-site',
 }
+
+# Create a cloudscraper session if available
+_scraper_session = None
+def _get_scraper():
+	global _scraper_session
+	if HAS_CLOUDSCRAPER and _scraper_session is None:
+		_scraper_session = cloudscraper.create_scraper(
+			browser={'browser': 'chrome', 'platform': 'windows', 'desktop': True}
+		)
+	return _scraper_session
 
 # Pre-compiled regex patterns for parsing stream metadata
 RE_SEEDERS = re.compile(r'(?:👤|seeders?[:\s]*|peers?[:\s]*)(\d+)', re.I)
@@ -203,7 +224,7 @@ class source:
 		return info
 
 	def _fetch_streams(self, addon_url, media_type, media_id, addon_info=None):
-		"""Fetch streams from a Stremio addon with enhanced error handling"""
+		"""Fetch streams from a Stremio addon with enhanced error handling and Cloudflare bypass"""
 		streams = []
 		try:
 			# Clean up addon URL
@@ -214,34 +235,81 @@ class source:
 			# Build stream endpoint
 			endpoint = f"{base_url}/stream/{media_type}/{media_id}.json"
 
-			response = requests.get(
-				endpoint,
-				timeout=self.timeout,
-				headers=BROWSER_HEADERS
-			)
+			# Try with cloudscraper first if available, then fall back to requests
+			response = None
+			last_error = None
+			methods = []
 
-			# Check for Cloudflare block or other errors
-			if response.status_code == 403:
-				content_type = response.headers.get('content-type', '')
-				if 'text/html' in content_type:
-					source_utils.scraper_error('STREMIO: Addon blocked by Cloudflare: %s' % base_url)
+			# Add cloudscraper method if available
+			scraper = _get_scraper()
+			if scraper:
+				methods.append(('cloudscraper', scraper))
+			# Always add regular requests as fallback
+			methods.append(('requests', requests))
+
+			for method_name, client in methods:
+				try:
+					# Retry with exponential backoff (2 attempts per method)
+					for attempt in range(2):
+						try:
+							if method_name == 'cloudscraper':
+								response = client.get(endpoint, timeout=self.timeout)
+							else:
+								response = client.get(endpoint, timeout=self.timeout, headers=BROWSER_HEADERS)
+
+							# Check for success
+							if response.status_code == 200:
+								content_type = response.headers.get('content-type', '')
+								if 'text/html' not in content_type:
+									data = response.json()
+									streams = data.get('streams', [])
+									return streams
+								# HTML response - Cloudflare challenge, try next method
+								break
+
+							# Handle specific error codes
+							if response.status_code in (403, 418, 503):
+								# These indicate blocking, try next attempt/method
+								if attempt == 0:
+									time.sleep(0.5)  # Brief delay before retry
+									continue
+								break
+
+							# Other errors, move to next method
+							break
+
+						except (requests.exceptions.Timeout, requests.exceptions.ConnectionError):
+							if attempt == 0:
+								time.sleep(0.5)
+								continue
+							raise
+				except Exception as e:
+					last_error = e
+					continue
+
+			# All methods failed - log appropriate error
+			if response is not None:
+				if response.status_code == 403:
+					content_type = response.headers.get('content-type', '')
+					if 'text/html' in content_type or 'cloudflare' in response.text.lower():
+						source_utils.scraper_error('STREMIO: Cloudflare blocked %s - configure addon with debrid credentials' % base_url)
+					else:
+						source_utils.scraper_error('STREMIO: HTTP 403 from %s' % base_url)
+				elif response.status_code == 418:
+					source_utils.scraper_error('STREMIO: Bot protection blocking %s - use configured addon URL' % base_url)
+				elif response.status_code == 503:
+					source_utils.scraper_error('STREMIO: Service unavailable %s - addon may be down' % base_url)
+				elif response.status_code == 200 and 'text/html' in response.headers.get('content-type', ''):
+					source_utils.scraper_error('STREMIO: Cloudflare challenge from %s - need configured URL' % base_url)
 				else:
-					source_utils.scraper_error('STREMIO: HTTP 403 from %s' % base_url)
-				return streams
-			if response.status_code == 200:
-				# Check if response is HTML (Cloudflare challenge page)
-				content_type = response.headers.get('content-type', '')
-				if 'text/html' in content_type:
-					source_utils.scraper_error('STREMIO: Cloudflare challenge from %s' % base_url)
-					return streams
-				data = response.json()
-				streams = data.get('streams', [])
+					source_utils.scraper_error('STREMIO: HTTP %d from %s' % (response.status_code, base_url))
+
 		except requests.exceptions.Timeout:
-			source_utils.scraper_error('STREMIO_TIMEOUT')
+			source_utils.scraper_error('STREMIO_TIMEOUT: %s' % base_url)
 		except requests.exceptions.ConnectionError:
-			source_utils.scraper_error('STREMIO_CONNECTION')
+			source_utils.scraper_error('STREMIO_CONNECTION: %s' % base_url)
 		except Exception as e:
-			source_utils.scraper_error('STREMIO')
+			source_utils.scraper_error('STREMIO: %s' % str(e)[:100])
 		return streams
 
 	def _fetch_subtitles(self, addon_url, media_type, media_id):
