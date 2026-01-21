@@ -168,6 +168,10 @@ class SourceSelect:
 
 	def _apply_special_filters(self, results):
 		"""Apply all special filters in optimized passes - combines exclusions into single pass."""
+		# Stremio sources are ready to play - bypass all filtering
+		stremio_sources = [i for i in results if i.get('provider', '').startswith('stremio_')]
+		results = [i for i in results if not i.get('provider', '').startswith('stremio_')]
+
 		# Build list of keys to exclude (setting == 1)
 		exclude_keys = []
 		if self.filter_hevc == 1: exclude_keys.append(hevc_filter_key)
@@ -209,7 +213,7 @@ class SourceSelect:
 			elif setting == 3:
 				results.sort(key=lambda k: key in k['extraInfo'] and not 'Uncached' in k.get('cache_provider', ''), reverse=True)
 
-		return results
+		return stremio_sources + results
 
 	def prepare_internal_scrapers(self):
 		if self.active_external and len(self.active_internal_scrapers) == 1: return
@@ -421,9 +425,12 @@ class SourceSelect:
 		except: pass
 
 	def filter_results(self, results):
+		# Stremio sources are ready to play - bypass all filtering
+		stremio_sources = [i for i in results if i.get('provider', '').startswith('stremio_')]
+		results = [i for i in results if not i.get('provider', '').startswith('stremio_')]
 		results = [i for i in results if i['quality'] in self.quality_filter]
 		if not self.include_3D_results: results = [i for i in results if not '3D' in i['extraInfo']]
-		if not self.size_filter: return results
+		if not self.size_filter: return stremio_sources + results
 		if self.size_filter == 1:
 			duration = self.meta['duration'] or (3600 if self.media_type == 'episode' else 5400)
 			max_size = ((0.125 * (0.90 * string_to_float(get_setting('results.size.speed', '20'), '20'))) * duration)/1000
@@ -431,7 +438,7 @@ class SourceSelect:
 			max_size = string_to_float(get_setting('results.size.file', '10000'), '10000') / 1000
 		if self.include_unknown_size: results = [i for i in results if i['scrape_provider'].startswith('folder') or i['size'] <= max_size]
 		else: results = [i for i in results if i['scrape_provider'].startswith('folder') or 0.01 < i['size'] <= max_size]
-		return results
+		return stremio_sources + results
 
 	def sort_results(self, results):
 		for item in results:
