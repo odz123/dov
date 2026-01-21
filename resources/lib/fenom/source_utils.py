@@ -152,7 +152,7 @@ home_getProperty = homeWindow.getProperty
 def get_undesirables():
 	if not getSetting('filter.undesirables') == 'true' or home_getProperty('fs_filterless_search') == 'true' : return []
 	try: undesirables = Undesirables().get_enabled()
-	except: undesirables = UNDESIRABLES
+	except Exception: undesirables = UNDESIRABLES
 	return undesirables
 
 def check_foreign_audio():
@@ -178,7 +178,7 @@ def get_release_quality(release_info, release_link=None):
 				if not quality: quality = 'SD'
 			else: quality = 'SD'
 		return quality, info
-	except:
+	except Exception:
 		from fenom import log_utils
 		log_utils.error()
 		return 'SD', []
@@ -189,7 +189,7 @@ def aliases_to_array(aliases, filter=None):
 		if not filter: filter = []
 		if isinstance(filter, str): filter = [filter]
 		return [x.get('title') for x in aliases if not filter or x.get('country') in filter]
-	except:
+	except Exception:
 		from fenom import log_utils
 		log_utils.error()
 		return []
@@ -210,7 +210,7 @@ def check_title(title, aliases, release_title, hdlr, year, years=None): # non pa
 					for i in years: alias = alias.replace(i, '')
 				if alias in title_list: continue
 				title_list_append(alias)
-			except:
+			except (AttributeError, TypeError):
 				from fenom import log_utils
 				log_utils.error()
 	try:
@@ -229,7 +229,7 @@ def check_title(title, aliases, release_title, hdlr, year, years=None): # non pa
 			for pattern in RE_RANGE_PATTERNS:
 				if pattern.search(release_title): return False
 		return True
-	except:
+	except Exception:
 		from fenom import log_utils
 		log_utils.error()
 		return False  # Return False on error - failing safely rejects potentially bad titles
@@ -244,7 +244,7 @@ def remove_lang(release_info, check_foreign_audio):
 			if any(value in release_info for value in ABV_LANG) and not any(value in release_info for value in ENG_CHECK): return True
 		if release_info.endswith('.srt.') and not any(value in release_info for value in SRT_CHECK): return True
 		return False
-	except:
+	except (AttributeError, TypeError):
 		from fenom import log_utils
 		log_utils.error()
 		return False
@@ -262,7 +262,7 @@ def filter_season_pack(show_title, aliases, year, season, release_title):
 				alias = item.replace('!', '').replace('(', '').replace(')', '').replace('&', 'and').replace(year, '')
 				if alias in title_list: continue
 				title_list_append(alias)
-			except:
+			except (AttributeError, TypeError):
 				from fenom import log_utils
 				log_utils.error()
 	try:
@@ -316,7 +316,7 @@ def filter_season_pack(show_title, aliases, year, season, release_title):
 				if bool(re.search(item, release_title)): return False, 0, 0
 			return True, 0, 0
 		return False, 0, 0
-	except:
+	except Exception:
 		from fenom import log_utils
 		log_utils.error()
 		return True
@@ -331,7 +331,7 @@ def filter_show_pack(show_title, aliases, imdb, year, season, release_title, tot
 				alias = item.replace('!', '').replace('(', '').replace(')', '').replace('&', 'and').replace(year, '')
 				if alias in title_list: continue
 				title_list_append(alias)
-			except:
+			except (AttributeError, TypeError):
 				from fenom import log_utils
 				log_utils.error()
 	try:
@@ -529,7 +529,7 @@ def filter_show_pack(show_title, aliases, imdb, year, season, release_title, tot
 			return True, last_season
 
 		return True, total_seasons
-	except:
+	except Exception:
 		from fenom import log_utils
 		log_utils.error()
 		return True, total_seasons
@@ -557,7 +557,7 @@ def info_from_name(release_title, title, year, hdlr=None, episode_title=None, se
 		name_info = name_info.lstrip('.').rstrip('.')
 		name_info = '.%s.' % name_info
 		return name_info
-	except:
+	except (AttributeError, TypeError):
 		from fenom import log_utils
 		log_utils.error()
 		return release_title
@@ -567,7 +567,7 @@ def release_title_format(release_title):
 		release_title = release_title.lower().replace("'", "").lstrip('.').rstrip('.')
 		fmt = '.%s.' % re.sub(r'[^a-z0-9-~]+', '.', release_title).replace('.-.', '-').replace('-.', '-').replace('.-', '-').replace('--', '-')
 		return fmt
-	except:
+	except (AttributeError, TypeError):
 		from fenom import log_utils
 		log_utils.error()
 		return release_title
@@ -585,7 +585,7 @@ def clean_name(release_title):
 		release_title = re.sub(r'^\[.*?]', '', release_title, 1, re.I)
 		release_title = release_title.lstrip('.-[](){}:/')
 		return release_title
-	except:
+	except (AttributeError, TypeError):
 		from fenom import log_utils
 		log_utils.error()
 		return release_title
@@ -594,7 +594,7 @@ def strip_non_ascii_and_unprintable(text):
 	try:
 		result = ''.join(char for char in text if char in printable)
 		return result.encode('ascii', errors='ignore').decode('ascii', errors='ignore')
-	except:
+	except (UnicodeDecodeError, UnicodeEncodeError, TypeError):
 		from fenom import log_utils
 		log_utils.error()
 		return text
@@ -610,7 +610,7 @@ def _size(siz):
 		float_size = round(float(re.sub(r'[^0-9|/.|/,]', '', siz.replace(',', ''))) / div, 2) #comma issue where 2,750 MB or 2,75 GB (sometimes replace with "." and sometimes not)
 		str_size = '%.2f GB' % float_size
 		return float_size, str_size
-	except:
+	except (ValueError, AttributeError, TypeError):
 		from fenom import log_utils
 		log_utils.error('failed on siz=%s' % siz)
 		return 0, ''
@@ -626,7 +626,7 @@ def convert_size(size_bytes, to='GB'):
 		# if to == 'B' or to  == 'KB': return 0, ''
 		str_size = "%s %s" % (float_size, to)
 		return float_size, str_size
-	except:
+	except (ValueError, KeyError, TypeError):
 		from fenom import log_utils
 		log_utils.error()
 		return 0, ''
@@ -654,7 +654,7 @@ def is_host_valid(url, domains):
 		if hosts and any([h for h in ('google', 'picasa', 'blogspot') if h in host]): host = 'gvideo'
 		if hosts and any([h for h in ('akamaized', 'ocloud') if h in host]): host = 'CDN'
 		return any(hosts), host
-	except:
+	except (AttributeError, TypeError):
 		from fenom import log_utils
 		log_utils.error()
 		return False, ''
@@ -670,7 +670,7 @@ def __top_domain(url):
 		if res: domain = res.group(1)
 		domain = domain.lower()
 		return domain
-	except:
+	except (AttributeError, TypeError, ValueError):
 		from fenom import log_utils
 		log_utils.error()
 
@@ -684,7 +684,7 @@ def copy2clip(txt):
 			p = Popen(['clip'], stdin=PIPE, shell=False)
 			p.communicate(input=txt.strip().encode('utf-8'))
 			return p.returncode
-		except:
+		except (OSError, IOError):
 			from fenom import log_utils
 			log_utils.error('Windows: Failure to copy to clipboard')
 	elif platform == "darwin":
@@ -694,7 +694,7 @@ def copy2clip(txt):
 			p = Popen(['pbcopy'], stdin=PIPE, shell=False)
 			p.communicate(input=txt.strip().encode('utf-8'))
 			return p.returncode
-		except:
+		except (OSError, IOError):
 			from fenom import log_utils
 			log_utils.error('Mac: Failure to copy to clipboard')
 	elif platform == "linux":
@@ -702,7 +702,7 @@ def copy2clip(txt):
 			from subprocess import Popen, PIPE
 			p = Popen(["xsel", "-pi"], stdin=PIPE)
 			p.communicate(input=txt.encode('utf-8') if isinstance(txt, str) else txt)
-		except:
+		except (OSError, IOError):
 			from fenom import log_utils
 			log_utils.error('Linux: Failure to copy to clipboard')
 

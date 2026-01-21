@@ -53,7 +53,7 @@ class MetaCache(BaseCache):
 						self.delete(media_type, id_type, media_id, meta=meta, dbcon=None)
 						meta = None
 					else: self.set_memory_cache(media_type, id_type, meta, expiry, media_id)
-		except: pass
+		except (ValueError, SyntaxError, TypeError, KeyError): pass
 		return fanarttv_data or meta
 
 	def set(self, media_type, id_type, meta, expiration=30, tmdb_id=None):
@@ -65,7 +65,7 @@ class MetaCache(BaseCache):
 			else:
 				media_id = string(tmdb_id)
 				self.dbcur.execute(SET_SEASON, (media_id, repr(meta), int(expires)))
-		except: return None
+		except (KeyError, TypeError, ValueError): return None
 		self.set_memory_cache(media_type, id_type, meta, expires, media_id)
 
 	def delete(self, media_type, id_type, media_id, meta=None, dbcon=None):
@@ -80,7 +80,7 @@ class MetaCache(BaseCache):
 			else:
 				self.dbcur.execute(DELETE_SEASON, (media_id,))
 				self.delete_memory_cache(media_type, id_type, media_id)
-		except: return
+		except (KeyError, TypeError): return
 
 	def get_memory_cache(self, media_type, id_type, media_id, current_time):
 		result = None
@@ -91,7 +91,7 @@ class MetaCache(BaseCache):
 			if cachedata:
 				cachedata = safe_eval(cachedata)
 				if cachedata[0] > current_time: result = cachedata[1]
-		except: pass
+		except (ValueError, SyntaxError, TypeError, IndexError): pass
 		return result
 
 	def set_memory_cache(self, media_type, id_type, meta, expires, media_id):
@@ -100,13 +100,13 @@ class MetaCache(BaseCache):
 			if media_type in movie_show: cachedata, prop_string = (expires, meta), 'pov_%s_%s_%s' % (media_type, id_type, string(media_id))
 			else: cachedata, prop_string = (expires, meta), 'pov_meta_season_%s' % string(media_id)
 			set_property(prop_string, repr(cachedata))
-		except: pass
+		except (TypeError, ValueError): pass
 
 	def delete_memory_cache(self, media_type, id_type, media_id):
 		try:
 			if media_type in movie_show: clear_property('pov_%s_%s_%s' % (media_type, id_type, media_id))
 			else: clear_property('pov_meta_season_%s' % media_id)
-		except: pass
+		except (TypeError, ValueError): pass
 
 	def get_function(self, prop_string):
 		result = None
@@ -116,14 +116,14 @@ class MetaCache(BaseCache):
 			cache_data = self.dbcur.fetchone()
 			if cache_data and cache_data[2] > current_time: result = safe_eval(cache_data[1])
 			else: self.dbcur.execute(DELETE_FUNCTION, (prop_string,))
-		except: pass
+		except (ValueError, SyntaxError, TypeError): pass
 		return result
 
 	def set_function(self, prop_string, result, expiration=timedelta(days=1)):
 		try:
 			expires = self._get_timestamp(datetime.now() + expiration)
 			self.dbcur.execute(SET_FUNCTION, (prop_string, repr(result), expires))
-		except: return
+		except (TypeError, ValueError): return
 
 	def delete_all_seasons_memory_cache(self, media_id):
 		for item in range(1, 51): clear_property('pov_meta_season_%s_%s' % (string(media_id), string(item)))
@@ -142,8 +142,8 @@ class MetaCache(BaseCache):
 					tmdb_id = string(i[1])
 					self.delete_memory_cache(str(i[0]), 'tmdb_id', tmdb_id)
 					self.delete_all_seasons_memory_cache(tmdb_id)
-				except: pass
-		except: return
+				except (IndexError, TypeError): pass
+		except Exception: return
 
 	def make_fanart_dict(self, meta):
 		if meta.get('fanart_added', False):
