@@ -21,11 +21,19 @@ from fenom.control import setting as getSetting
 
 
 # Pre-configured public instances
+# Note: Public instances may have rate limits or require configuration
 PUBLIC_INSTANCES = (
-	"https://aiostreams.stremio.ru",
-	"https://aiostreamsfortheweebs.midnightignite.me",
-	"https://aiostreams.elfhosted.com"
+	"https://aiostreams.kuu-lection.com",      # Kuu-lection instance
+	"https://aiostreamsfortheweebs.midnightignite.me",  # Midnightignite instance
+	"https://aiostreams.elfhosted.com"         # ElfHosted instance (requires subscription)
 )
+
+# Browser-like headers to help bypass blocks
+BROWSER_HEADERS = {
+	'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+	'Accept': 'application/json, text/plain, */*',
+	'Accept-Language': 'en-US,en;q=0.9',
+}
 
 # Default user data configuration (Comet + MediaFusion enabled)
 DEFAULT_USER_DATA = (
@@ -251,5 +259,7 @@ class source:
 		return sources
 
 	def _headers(self):
-		return {'x-aiostreams-user-data': self._get_user_data()}
+		headers = BROWSER_HEADERS.copy()
+		headers['x-aiostreams-user-data'] = self._get_user_data()
+		return headers
 

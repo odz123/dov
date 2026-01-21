@@ -6,20 +6,50 @@
 import re
 import requests
 from fenom import source_utils
+from fenom.control import setting as getSetting
+
+
+# Browser-like headers to help bypass Cloudflare protection
+BROWSER_HEADERS = {
+	'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+	'Accept': 'application/json, text/plain, */*',
+	'Accept-Language': 'en-US,en;q=0.9',
+	'Accept-Encoding': 'gzip, deflate, br',
+	'Connection': 'keep-alive',
+	'Sec-Fetch-Dest': 'empty',
+	'Sec-Fetch-Mode': 'cors',
+	'Sec-Fetch-Site': 'cross-site',
+}
 
 
 class source:
-	timeout = 5
+	timeout = 8
 	priority = 1
 	pack_capable = False # packs parsed in sources function
 	hasMovies = True
 	hasEpisodes = True
 	def __init__(self):
 		self.language = ['en']
-		self.base_link = "https://torrentio.strem.fun"
+		self.base_link = self._get_base_url()
 		self.movieSearch_link = '/stream/movie/%s.json'
 		self.tvSearch_link = '/stream/series/%s:%s:%s.json'
 		self.min_seeders = 0
+
+	def _get_base_url(self):
+		"""
+		Get the Torrentio instance URL based on user settings.
+		Users can configure their own Torrentio URL from torrentio.strem.fun/configure
+		which includes debrid service configuration.
+		"""
+		custom_url = getSetting('torrentio.url', '').strip()
+		if custom_url:
+			# Clean up URL - remove trailing slash and manifest.json if present
+			url = custom_url.rstrip('/')
+			if url.endswith('/manifest.json'):
+				url = url[:-14]
+			return url
+		# Fallback to default (may be blocked by Cloudflare)
+		return "https://torrentio.strem.fun"
 # Currently supports YTS(+), EZTV(+), RARBG(+), 1337x(+), ThePirateBay(+), KickassTorrents(+), TorrentGalaxy(+), HorribleSubs(+), NyaaSi(+), NyaaPantsu(+), Rutor(+), Comando(+), ComoEuBaixo(+), Lapumia(+), OndeBaixa(+), Torrent9(+).
 
 	def sources(self, data, hostDict):
@@ -44,9 +74,21 @@ class source:
 				url = '%s%s' % (self.base_link, self.movieSearch_link % imdb)
 			# log_utils.log('url = %s' % url)
 			if 'timeout' in data: self.timeout = int(data['timeout'])
-			response = requests.get(url, timeout=self.timeout, headers={'User-Agent': 'POV-Kodi/1.0'})
+			response = requests.get(url, timeout=self.timeout, headers=BROWSER_HEADERS)
+			if response.status_code == 403:
+				# Cloudflare block - check if user has configured a custom URL
+				if not getSetting('torrentio.url', '').strip():
+					source_utils.scraper_error('TORRENTIO: Blocked by Cloudflare. Configure your Torrentio URL in settings (get it from torrentio.strem.fun/configure)')
+				else:
+					source_utils.scraper_error('TORRENTIO: HTTP 403 Forbidden from %s' % self.base_link)
+				return sources
 			if response.status_code != 200:
-				source_utils.scraper_error('TORRENTIO: HTTP %s' % response.status_code)
+				source_utils.scraper_error('TORRENTIO: HTTP %s from %s' % (response.status_code, self.base_link))
+				return sources
+			# Check if response is HTML (Cloudflare challenge page)
+			content_type = response.headers.get('content-type', '')
+			if 'text/html' in content_type:
+				source_utils.scraper_error('TORRENTIO: Cloudflare challenge detected. Configure your Torrentio URL in settings.')
 				return sources
 			files = response.json().get('streams', [])
 			if not files:
