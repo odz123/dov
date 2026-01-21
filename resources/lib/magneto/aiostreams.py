@@ -140,7 +140,16 @@ class source:
 			try:
 				package, episode_start = None, 0
 				hash = file.get('infoHash')
-				if not hash: continue  # Skip results without infoHash
+				direct_url = file.get('url')
+
+				# Skip results without either infoHash or url
+				if not hash and not direct_url:
+					continue
+
+				# Check if this is a debrid-resolved direct link
+				is_debrid_direct = False
+				if direct_url and not hash:
+					is_debrid_direct = True
 
 				# Get filename from various possible fields
 				file_title = file.get('folderName') or file.get('filename') or file.get('name', '')
@@ -150,8 +159,13 @@ class source:
 
 				# Title validation - AIOStreams filters by IMDB ID so content is correct
 				# We use lenient validation since many results have simplified names
+				# For debrid-resolved direct links, be extra lenient as they often have minimal names
+				if is_debrid_direct and not name:
+					# Use a placeholder name for direct links without names
+					name = 'Direct.Link'
+
 				title_check = source_utils.check_title(title, aliases, name, hdlr, year)
-				if not title_check:
+				if not title_check and not is_debrid_direct:
 					if total_seasons is not None:
 						# TV show - try pack detection first
 						valid, last_season = source_utils.filter_show_pack(title, aliases, imdb, year, season, name, total_seasons)
@@ -179,12 +193,17 @@ class source:
 				if source_utils.remove_lang(name_info, check_foreign_audio): continue
 				if undesirables and source_utils.remove_undesirables(name_info, undesirables): continue
 
-				url = 'magnet:?xt=urn:btih:%s&dn=%s' % (hash, name)
+				# Build URL based on stream type
+				if hash:
+					url = 'magnet:?xt=urn:btih:%s&dn=%s' % (hash, name)
+				else:
+					url = direct_url
 
 				try:
 					seeders = file.get('seeders', 0)
 					if seeders is None: seeders = 0
-					if self.min_seeders > seeders: continue
+					# Only apply seeder filter to torrents, not direct links
+					if hash and self.min_seeders > seeders: continue
 				except: seeders = 0
 
 				quality, info = source_utils.get_release_quality(name_info, url)
@@ -199,11 +218,19 @@ class source:
 				except: dsize = 0
 				info = ' | '.join(info)
 
-				item = {
-					'source': 'torrent', 'language': 'en', 'direct': False, 'debridonly': True,
-					'provider': 'aiostreams', 'hash': hash, 'url': url, 'name': name, 'name_info': name_info,
-					'quality': quality, 'info': info, 'size': dsize, 'seeders': seeders
-				}
+				# Build item based on stream type
+				if is_debrid_direct:
+					item = {
+						'source': 'direct', 'language': 'en', 'direct': True, 'debridonly': False,
+						'provider': 'aiostreams', 'url': url, 'name': name, 'name_info': name_info,
+						'quality': quality, 'info': info, 'size': dsize, 'seeders': seeders
+					}
+				else:
+					item = {
+						'source': 'torrent', 'language': 'en', 'direct': False, 'debridonly': True,
+						'provider': 'aiostreams', 'hash': hash, 'url': url, 'name': name, 'name_info': name_info,
+						'quality': quality, 'info': info, 'size': dsize, 'seeders': seeders
+					}
 				if package: item['package'] = package
 				if package == 'show': item.update({'last_season': last_season})
 				if episode_start: item.update({'episode_start': episode_start, 'episode_end': episode_end}) # for partial season packs
