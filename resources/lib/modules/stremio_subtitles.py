@@ -18,6 +18,14 @@ from modules.kodi_utils import (
 import json
 
 
+# Browser-like headers to help bypass Cloudflare and other protections
+BROWSER_HEADERS = {
+	'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+	'Accept': 'application/json, text/plain, */*',
+	'Accept-Language': 'en-US,en;q=0.9',
+}
+
+
 # Language code mapping (ISO 639-1 to full name)
 LANGUAGE_CODES = {
 	'en': 'English', 'eng': 'English',
@@ -108,7 +116,7 @@ def fetch_subtitles_from_addon(addon_url, media_type, media_id, video_hash=None,
 		response = requests.get(
 			endpoint,
 			timeout=8,
-			headers={'User-Agent': 'POV-Kodi/1.0'}
+			headers=BROWSER_HEADERS
 		)
 
 		if response.status_code == 200:
@@ -240,7 +248,7 @@ def download_subtitle(subtitle_url, filename=None):
 		response = requests.get(
 			subtitle_url,
 			timeout=15,
-			headers={'User-Agent': 'POV-Kodi/1.0'}
+			headers=BROWSER_HEADERS
 		)
 
 		if response.status_code == 200:

@@ -17,6 +17,18 @@ from fenom import source_utils
 from fenom.control import setting as getSetting
 
 
+# Browser-like headers to help bypass Cloudflare and other protections
+BROWSER_HEADERS = {
+	'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+	'Accept': 'application/json, text/plain, */*',
+	'Accept-Language': 'en-US,en;q=0.9',
+	'Accept-Encoding': 'gzip, deflate, br',
+	'Connection': 'keep-alive',
+	'Sec-Fetch-Dest': 'empty',
+	'Sec-Fetch-Mode': 'cors',
+	'Sec-Fetch-Site': 'cross-site',
+}
+
 # Pre-compiled regex patterns for parsing stream metadata
 RE_SEEDERS = re.compile(r'(?:👤|seeders?[:\s]*|peers?[:\s]*)(\d+)', re.I)
 RE_SIZE = re.compile(r'((?:\d+[,.]?\d*)\s*(?:GB|GiB|MB|MiB|TB|TiB))', re.I)
@@ -205,10 +217,23 @@ class source:
 			response = requests.get(
 				endpoint,
 				timeout=self.timeout,
-				headers={'User-Agent': 'POV-Kodi/1.0'}
+				headers=BROWSER_HEADERS
 			)
 
+			# Check for Cloudflare block or other errors
+			if response.status_code == 403:
+				content_type = response.headers.get('content-type', '')
+				if 'text/html' in content_type:
+					source_utils.scraper_error('STREMIO: Addon blocked by Cloudflare: %s' % base_url)
+				else:
+					source_utils.scraper_error('STREMIO: HTTP 403 from %s' % base_url)
+				return streams
 			if response.status_code == 200:
+				# Check if response is HTML (Cloudflare challenge page)
+				content_type = response.headers.get('content-type', '')
+				if 'text/html' in content_type:
+					source_utils.scraper_error('STREMIO: Cloudflare challenge from %s' % base_url)
+					return streams
 				data = response.json()
 				streams = data.get('streams', [])
 		except requests.exceptions.Timeout:
@@ -234,7 +259,7 @@ class source:
 			response = requests.get(
 				endpoint,
 				timeout=5,
-				headers={'User-Agent': 'POV-Kodi/1.0'}
+				headers=BROWSER_HEADERS
 			)
 
 			if response.status_code == 200:
@@ -255,7 +280,7 @@ class source:
 			response = requests.get(
 				f"{base_url}/manifest.json",
 				timeout=3,
-				headers={'User-Agent': 'POV-Kodi/1.0'}
+				headers=BROWSER_HEADERS
 			)
 			if response.status_code == 200:
 				manifest = response.json()

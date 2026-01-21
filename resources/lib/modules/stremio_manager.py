@@ -16,6 +16,14 @@ from modules.kodi_utils import (
 )
 
 
+# Browser-like headers to help bypass Cloudflare and other protections
+BROWSER_HEADERS = {
+	'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+	'Accept': 'application/json, text/plain, */*',
+	'Accept-Language': 'en-US,en;q=0.9',
+}
+
+
 # Debrid service definitions
 DEBRID_SERVICES = {
 	'realdebrid': {
@@ -116,7 +124,7 @@ def validate_stremio_addon(url):
 		response = requests.get(
 			manifest_url,
 			timeout=10,
-			headers={'User-Agent': 'POV-Kodi/1.0'}
+			headers=BROWSER_HEADERS
 		)
 
 		if response.status_code != 200:
@@ -456,7 +464,7 @@ def enter_config_url(addon_idx):
 		response = requests.get(
 			manifest_url,
 			timeout=10,
-			headers={'User-Agent': 'POV-Kodi/1.0'}
+			headers=BROWSER_HEADERS
 		)
 
 		if response.status_code == 200:
