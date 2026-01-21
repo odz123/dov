@@ -78,6 +78,39 @@ def external_sources(ret_all=False):
 		except: pass
 	return source_list
 
+def stremio_has_debrid_addons():
+	"""Check if the Stremio scraper has any addons configured with debrid credentials.
+	Returns True if Stremio is enabled and has debrid-configured addons."""
+	try:
+		import ast
+		# Check if stremio provider is enabled
+		if kodi_utils.get_setting('provider.stremio') != 'true':
+			return False
+		# Get configured Stremio addons
+		addons_str = kodi_utils.get_setting('stremio.addons', '')
+		if not addons_str:
+			return False
+		addons = ast.literal_eval(addons_str)
+		if not isinstance(addons, list) or not addons:
+			return False
+		# Check if any addon has debrid configuration (config_url set)
+		debrid_patterns = (
+			'realdebrid=', 'rd=', 'debridkey=',
+			'premiumize=', 'pm=',
+			'alldebrid=', 'ad=',
+			'torbox=', 'tb=',
+			'offcloud=', 'oc=',
+			'debrid-link=', 'dl=',
+			'easydebrid=', 'ed='
+		)
+		for addon in addons:
+			config_url = addon.get('config_url', '') if isinstance(addon, dict) else ''
+			if config_url and any(pattern in config_url.lower() for pattern in debrid_patterns):
+				return True
+		return False
+	except Exception:
+		return False
+
 def internal_sources(active_sources, media_type, prescrape=False):
 	def import_info():
 		dir_result = kodi_utils.list_dirs('special://home/addons/plugin.video.pov/resources/lib/scrapers')

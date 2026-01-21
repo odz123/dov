@@ -9,7 +9,7 @@ from modules.debrid import debrid_enabled, debrid_type_enabled, debrid_valid_hos
 from modules import player, kodi_utils, settings
 from modules.source_objects import get_source_meta, ExternalSource
 from modules.source_utils import external_sources, internal_sources, internal_folders_import
-from modules.source_utils import pack_enable_check, sources_quality_count, scraper_names
+from modules.source_utils import pack_enable_check, sources_quality_count, scraper_names, stremio_has_debrid_addons
 from modules.utils import string_to_float
 #from modules.kodi_utils import logger
 
@@ -243,7 +243,9 @@ class SourceSelect:
 		self.debrid_enabled = debrid_enabled()
 		self.debrid_torrent_enabled = debrid_type_enabled('torrent', self.debrid_enabled)
 		self.debrid_hoster_enabled = debrid_valid_hosts(debrid_type_enabled('hoster', self.debrid_enabled))
-		if not self.debrid_torrent_enabled and not self.debrid_hoster_enabled:
+		# Check if Stremio has debrid-configured addons (can provide pre-resolved streams without local debrid)
+		self.stremio_debrid_available = stremio_has_debrid_addons()
+		if not self.debrid_torrent_enabled and not self.debrid_hoster_enabled and not self.stremio_debrid_available:
 			self._kill_progress_dialog()
 			if ''.join(self.active_internal_scrapers) == 'external': notification(32854)
 			self.active_external = False
