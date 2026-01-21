@@ -93,7 +93,7 @@ def stremio_has_debrid_addons():
 		addons = ast.literal_eval(addons_str)
 		if not isinstance(addons, list) or not addons:
 			return False
-		# Check if any addon has debrid configuration (config_url set)
+		# Check if any addon has debrid configuration in url or config_url
 		debrid_patterns = (
 			'realdebrid=', 'rd=', 'debridkey=',
 			'premiumize=', 'pm=',
@@ -104,8 +104,14 @@ def stremio_has_debrid_addons():
 			'easydebrid=', 'ed='
 		)
 		for addon in addons:
-			config_url = addon.get('config_url', '') if isinstance(addon, dict) else ''
-			if config_url and any(pattern in config_url.lower() for pattern in debrid_patterns):
+			if isinstance(addon, dict):
+				# Check both config_url and url fields for debrid patterns
+				config_url = addon.get('config_url', '')
+				addon_url = addon.get('url', '')
+				check_url = config_url or addon_url
+			else:
+				check_url = addon if isinstance(addon, str) else ''
+			if check_url and any(pattern in check_url.lower() for pattern in debrid_patterns):
 				return True
 		return False
 	except Exception:
