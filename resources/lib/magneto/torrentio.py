@@ -253,7 +253,7 @@ class source:
 			if 'text/html' in content_type:
 				source_utils.scraper_error('TORRENTIO: Cloudflare challenge. Configure URL from torrentio.strem.fun/configure')
 				return sources
-			files = response.json().get('streams', [])
+			files = response.json().get('streams') or []
 			if not files:
 				return sources
 			_INFO = re.compile(r'👤.*')
