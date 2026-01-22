@@ -52,6 +52,10 @@ class Source:
 	def resolve_sources(self):
 		try:
 			if self.scrape_provider in ('external',):
+				# Check if this is a direct playable URL (e.g., Stremio direct/debrid_direct/youtube)
+				# These sources have 'direct' = True and no 'hash', and don't need debrid resolution
+				if getattr(self, 'direct', False) and not hasattr(self, 'hash'):
+					return self.url
 				if self.meta['media_type'] == 'episode':
 					title = self.meta.get('ep_name') or self.meta.get('title')
 					season = self.meta.get('custom_season') or self.meta.get('season')
