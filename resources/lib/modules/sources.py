@@ -626,6 +626,10 @@ class Manager:
 				self.final_sources.extend({**i, 'cache_provider': status, 'debrid': name} for i in torrent_sources if i['hash'] not in hashes_set)
 			self.final_sources = [i for i in self.final_sources if not (i['source'] == 'usenet' and 'Unchecked' in i['cache_provider'])]
 			hoster_sources = [i for i in self.sources if not 'hash' in i]
+			# Stremio non-torrent sources bypass debrid hoster check - they're direct/debrid_direct/youtube streams
+			stremio_direct = [i for i in hoster_sources if i.get('provider', '').startswith('stremio_')]
+			self.final_sources.extend(stremio_direct)
+			hoster_sources = [i for i in hoster_sources if not i.get('provider', '').startswith('stremio_')]
 			result_hosters = {i['source'].lower() for i in hoster_sources}  # Keep as set for O(1) lookup
 			for item in self.debrid_hosters:
 				for k, v in item.items():
