@@ -457,7 +457,7 @@ class SourceSelect:
 		return results
 
 	def _get_provider_rank(self, account_type):
-		return self.provider_sort_ranks[account_type] or 11
+		return self.provider_sort_ranks.get(account_type) or 11
 
 	def _get_quality_rank(self, quality):
 		return quality_ranks[quality]
