@@ -166,16 +166,13 @@ class source:
 			info['stream_type'] = 'external'
 
 		# Get stream name/title for parsing
-		# IMPORTANT: In Stremio protocol:
-		# - 'name' = addon/source name (e.g., "Torrentio\n4K")
-		# - 'title' = actual torrent/release name (e.g., "Movie.2023.2160p.WEB-DL\n👤 50")
 		stream_name = stream.get('name', '') or ''
 		stream_title = stream.get('title', '') or ''
 		description = stream.get('description', '') or ''
 		full_text = f"{stream_name}\n{stream_title}\n{description}"
 
 		# Extract behavior hints
-		behavior_hints = stream.get('behaviorHints', {})
+		behavior_hints = stream.get('behaviorHints', {}) or {}
 
 		# Extract proxy headers for authenticated streams
 		if 'proxyHeaders' in behavior_hints:
@@ -187,20 +184,57 @@ class source:
 		if 'bingeGroup' in behavior_hints:
 			info['binge_group'] = behavior_hints['bingeGroup']
 
-		# Extract release name - priority order:
-		# 1. behaviorHints.filename (most accurate)
-		# 2. First line of 'title' field (contains actual torrent/release name)
-		# 3. First line of 'name' field (fallback)
+		# Extract release name - smart detection between 'name' and 'title' fields
+		# Different Stremio addons use these fields inconsistently:
+		# - Torrentio: name="Torrentio\n4K", title="Movie.2023.1080p.WEB\n👤 50"
+		# - Some addons: name="Movie.2023.1080p.WEB", title="HD Stream" or no title
+		# Strategy: Use behaviorHints.filename if available, else pick the field
+		# that looks most like a release name (contains quality/codec markers)
 		if behavior_hints.get('filename'):
 			info['name'] = behavior_hints['filename']
-		elif stream_title:
-			# Parse release name from first line of title (where Stremio addons put torrent names)
-			lines = stream_title.split('\n')
-			info['name'] = lines[0].strip() if lines else stream_title
-		elif stream_name:
-			# Fallback to name field
-			lines = stream_name.split('\n')
-			info['name'] = lines[0].strip() if lines else stream_name
+		else:
+			# Get first line from both fields
+			name_line = stream_name.split('\n')[0].strip() if stream_name else ''
+			title_line = stream_title.split('\n')[0].strip() if stream_title else ''
+
+			# Check which one looks more like a release name
+			def looks_like_release_name(text):
+				"""Score how much a string looks like a release name"""
+				if not text:
+					return 0
+				text_lower = text.lower()
+				score = 0
+				# Quality markers
+				if any(q in text_lower for q in ('2160p', '1080p', '720p', '480p', '4k', 'uhd')):
+					score += 3
+				# Source markers
+				if any(s in text_lower for s in ('web-dl', 'webrip', 'bluray', 'bdrip', 'hdtv', 'hdrip', 'dvdrip')):
+					score += 3
+				# Codec markers
+				if any(c in text_lower for c in ('x264', 'x265', 'hevc', 'h264', 'h265', 'avc', 'av1')):
+					score += 2
+				# Audio markers
+				if any(a in text_lower for a in ('aac', 'dts', 'atmos', 'truehd', 'dd5', 'ac3')):
+					score += 1
+				# Contains dots/dashes typical of release names
+				if text.count('.') >= 3 or text.count('-') >= 2:
+					score += 2
+				# Negative: looks like addon name (short, common addon names)
+				addon_names = ('torrentio', 'comet', 'mediafusion', 'annatar', 'stremio', 'debrid', 'cached', 'instant')
+				if any(a in text_lower for a in addon_names) and len(text) < 30:
+					score -= 3
+				return score
+
+			name_score = looks_like_release_name(name_line)
+			title_score = looks_like_release_name(title_line)
+
+			# Pick the one with higher score, prefer title on tie (Torrentio convention)
+			if name_score > title_score:
+				info['name'] = name_line
+			elif title_line:
+				info['name'] = title_line
+			elif name_line:
+				info['name'] = name_line
 
 		# Extract seeders
 		seeders_match = RE_SEEDERS.search(full_text)
@@ -312,9 +346,8 @@ class source:
 								content_type = response.headers.get('content-type', '')
 								if 'text/html' not in content_type:
 									data = response.json()
-									streams = data.get('streams', [])
-									if streams or data:  # Success even if empty
-										return streams
+									streams = data.get('streams') or []
+									return streams
 							if response.status_code in (403, 418, 503) or 'text/html' in response.headers.get('content-type', ''):
 								cloudflare_blocked = True
 								if attempt < 2:
@@ -342,10 +375,9 @@ class source:
 									if 'text/html' not in content_type:
 										try:
 											data = response.json()
-											streams = data.get('streams', [])
+											streams = data.get('streams') or []
 											_mark_scraper_success()
-											if streams or data:
-												return streams
+											return streams
 										except ValueError:
 											pass  # Invalid JSON, try next method
 								if response.status_code in (403, 418, 503) or 'text/html' in response.headers.get('content-type', ''):
@@ -380,9 +412,8 @@ class source:
 								if 'text/html' not in content_type:
 									try:
 										data = response.json()
-										streams = data.get('streams', [])
-										if streams or data:
-											return streams
+										streams = data.get('streams') or []
+										return streams
 									except ValueError:
 										pass
 							if response.status_code in (403, 418, 503):
