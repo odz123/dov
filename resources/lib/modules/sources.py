@@ -447,7 +447,7 @@ class SourceSelect:
 	def sort_results(self, results):
 		for item in results:
 			provider, quality = item['scrape_provider'], item.get('quality', 'SD')
-			account_type = item['debrid'].lower() if provider == 'external' else provider.lower()
+			account_type = item.get('debrid', provider).lower() if provider == 'external' else provider.lower()
 			item['provider_rank'] = self._get_provider_rank(account_type)
 			item['quality_rank'] = self._get_quality_rank(quality)
 		results.sort(key=self.sort_function)
