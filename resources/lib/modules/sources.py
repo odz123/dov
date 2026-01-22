@@ -169,8 +169,9 @@ class SourceSelect:
 	def _apply_special_filters(self, results):
 		"""Apply all special filters in optimized passes - combines exclusions into single pass."""
 		# Stremio sources are ready to play - bypass all filtering
-		stremio_sources = [i for i in results if i.get('provider', '').startswith('stremio_')]
-		results = [i for i in results if not i.get('provider', '').startswith('stremio_')]
+		# Note: provider is 'stremio' after process_sources, not 'stremio_{addon}'
+		stremio_sources = [i for i in results if i.get('provider', '').startswith('stremio')]
+		results = [i for i in results if not i.get('provider', '').startswith('stremio')]
 
 		# Build list of keys to exclude (setting == 1)
 		exclude_keys = []
@@ -428,8 +429,9 @@ class SourceSelect:
 
 	def filter_results(self, results):
 		# Stremio sources are ready to play - bypass all filtering
-		stremio_sources = [i for i in results if i.get('provider', '').startswith('stremio_')]
-		results = [i for i in results if not i.get('provider', '').startswith('stremio_')]
+		# Note: provider is 'stremio' after process_sources, not 'stremio_{addon}'
+		stremio_sources = [i for i in results if i.get('provider', '').startswith('stremio')]
+		results = [i for i in results if not i.get('provider', '').startswith('stremio')]
 		results = [i for i in results if i['quality'] in self.quality_filter]
 		if not self.include_3D_results: results = [i for i in results if not '3D' in i['extraInfo']]
 		if not self.size_filter: return stremio_sources + results
@@ -484,7 +486,8 @@ class SourceSelect:
 		def should_keep(item):
 			if 'Uncached' not in item.get('cache_provider', ''):
 				return True
-			is_stremio = item.get('provider', '').startswith('stremio_')
+			# Note: provider is 'stremio' after process_sources, not 'stremio_{addon}'
+			is_stremio = item.get('provider', '').startswith('stremio')
 			if is_stremio:
 				return self.display_uncached_stremio
 			return self.display_uncached_torrents
@@ -627,9 +630,10 @@ class Manager:
 			self.final_sources = [i for i in self.final_sources if not (i['source'] == 'usenet' and 'Unchecked' in i['cache_provider'])]
 			hoster_sources = [i for i in self.sources if not 'hash' in i]
 			# Stremio non-torrent sources bypass debrid hoster check - they're direct/debrid_direct/youtube streams
-			stremio_direct = [i for i in hoster_sources if i.get('provider', '').startswith('stremio_')]
+			# Note: provider is 'stremio' after process_sources, not 'stremio_{addon}'
+			stremio_direct = [i for i in hoster_sources if i.get('provider', '').startswith('stremio')]
 			self.final_sources.extend(stremio_direct)
-			hoster_sources = [i for i in hoster_sources if not i.get('provider', '').startswith('stremio_')]
+			hoster_sources = [i for i in hoster_sources if not i.get('provider', '').startswith('stremio')]
 			result_hosters = {i['source'].lower() for i in hoster_sources}  # Keep as set for O(1) lookup
 			for item in self.debrid_hosters:
 				for k, v in item.items():
