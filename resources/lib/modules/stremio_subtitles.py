@@ -26,60 +26,123 @@ try:
 except ImportError:
 	HAS_CLOUDSCRAPER = False
 
+# Try to import curl_cffi for TLS fingerprint bypass
+try:
+	from curl_cffi import requests as curl_requests
+	HAS_CURL_CFFI = True
+except ImportError:
+	HAS_CURL_CFFI = False
+
 # Browser-like headers to help bypass Cloudflare and other protections
 BROWSER_HEADERS = {
 	'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
 	'Accept': 'application/json, text/plain, */*',
 	'Accept-Language': 'en-US,en;q=0.9',
+	'Accept-Encoding': 'gzip, deflate, br',
+	'Connection': 'keep-alive',
 	'Sec-Ch-Ua': '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"',
 	'Sec-Ch-Ua-Mobile': '?0',
 	'Sec-Ch-Ua-Platform': '"Windows"',
 }
 
-# Create a cloudscraper session if available
+# Session management for cloudscraper
 _scraper_session = None
-def _get_scraper():
-	global _scraper_session
-	if HAS_CLOUDSCRAPER and _scraper_session is None:
-		_scraper_session = cloudscraper.create_scraper(
-			browser={'browser': 'chrome', 'platform': 'windows', 'desktop': True}
-		)
+_scraper_fail_count = 0
+
+def _get_scraper(force_new=False):
+	global _scraper_session, _scraper_fail_count
+	if not HAS_CLOUDSCRAPER:
+		return None
+	if force_new or _scraper_session is None or _scraper_fail_count >= 3:
+		try:
+			_scraper_session = cloudscraper.create_scraper(
+				browser={'browser': 'chrome', 'platform': 'windows', 'desktop': True}
+			)
+			_scraper_fail_count = 0
+		except:
+			_scraper_session = None
 	return _scraper_session
 
 
 def _fetch_url(url, timeout=8):
-	"""Fetch a URL with cloudscraper fallback"""
-	scraper = _get_scraper()
-	methods = []
-	if scraper:
-		methods.append(('cloudscraper', scraper))
-	methods.append(('requests', requests))
+	"""Fetch a URL with multi-method Cloudflare bypass"""
+	global _scraper_fail_count
 
-	for method_name, client in methods:
+	# Extract origin for Referer/Origin headers
+	try:
+		from urllib.parse import urlparse
+		parsed = urlparse(url)
+		origin = f"{parsed.scheme}://{parsed.netloc}"
+	except:
+		origin = url.rsplit('/', 1)[0]
+
+	headers = BROWSER_HEADERS.copy()
+	headers['Referer'] = f"{origin}/"
+	headers['Origin'] = origin
+
+	# Method 1: curl_cffi with Chrome impersonation
+	if HAS_CURL_CFFI:
 		try:
 			for attempt in range(2):
 				try:
-					if method_name == 'cloudscraper':
-						response = client.get(url, timeout=timeout)
-					else:
-						response = client.get(url, timeout=timeout, headers=BROWSER_HEADERS)
-
-					if response.status_code == 200:
-						content_type = response.headers.get('content-type', '')
-						if 'text/html' not in content_type:
-							return response
-					if response.status_code in (403, 418, 503):
-						if attempt == 0:
-							time.sleep(0.3)
-							continue
+					response = curl_requests.get(url, timeout=timeout, headers=headers, impersonate='chrome')
+					if response.status_code == 200 and 'text/html' not in response.headers.get('content-type', ''):
+						return response
+					if response.status_code in (403, 418, 503) and attempt == 0:
+						time.sleep(0.3)
+						continue
 					break
 				except:
 					if attempt == 0:
 						time.sleep(0.3)
 						continue
-					raise
+					break
 		except:
-			continue
+			pass
+
+	# Method 2: cloudscraper
+	scraper = _get_scraper()
+	if scraper:
+		try:
+			for attempt in range(2):
+				try:
+					response = scraper.get(url, timeout=timeout, headers=headers)
+					if response.status_code == 200 and 'text/html' not in response.headers.get('content-type', ''):
+						return response
+					if response.status_code in (403, 418, 503):
+						_scraper_fail_count += 1
+						if attempt == 0:
+							time.sleep(0.3)
+							continue
+					break
+				except:
+					_scraper_fail_count += 1
+					if attempt == 0:
+						time.sleep(0.3)
+						continue
+					break
+		except:
+			pass
+
+	# Method 3: Regular requests fallback
+	try:
+		for attempt in range(2):
+			try:
+				response = requests.get(url, timeout=timeout, headers=headers)
+				if response.status_code == 200 and 'text/html' not in response.headers.get('content-type', ''):
+					return response
+				if response.status_code in (403, 418, 503) and attempt == 0:
+					time.sleep(0.3)
+					continue
+				break
+			except:
+				if attempt == 0:
+					time.sleep(0.3)
+					continue
+				break
+	except:
+		pass
+
 	return None
 
 
@@ -297,14 +360,10 @@ def download_subtitle(subtitle_url, filename=None):
 		filename = re.sub(r'[<>:"/\\|?*]', '_', filename)
 		filepath = os.path.join(cache_dir, filename)
 
-		# Download subtitle
-		response = requests.get(
-			subtitle_url,
-			timeout=15,
-			headers=BROWSER_HEADERS
-		)
+		# Download subtitle using multi-method approach
+		response = _fetch_url(subtitle_url, timeout=15)
 
-		if response.status_code == 200:
+		if response and response.status_code == 200:
 			# Handle gzip encoding if present
 			content = response.content
 

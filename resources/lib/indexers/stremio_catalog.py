@@ -5,15 +5,97 @@
 	- List available catalogs from addons
 	- Browse catalog contents (movies, series)
 	- Integration with POV metadata system
+	- Cloudflare bypass support
 """
 
 import json
+import time
 import requests
 from threading import Thread
 from modules.kodi_utils import (
 	get_setting, notification, make_listitem, add_items,
 	set_content, end_directory, set_view_mode, build_url
 )
+
+# Try to import cloudscraper for Cloudflare bypass
+try:
+	import cloudscraper
+	HAS_CLOUDSCRAPER = True
+except ImportError:
+	HAS_CLOUDSCRAPER = False
+
+# Try to import curl_cffi for TLS fingerprint bypass
+try:
+	from curl_cffi import requests as curl_requests
+	HAS_CURL_CFFI = True
+except ImportError:
+	HAS_CURL_CFFI = False
+
+# Browser-like headers
+BROWSER_HEADERS = {
+	'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+	'Accept': 'application/json, text/plain, */*',
+	'Accept-Language': 'en-US,en;q=0.9',
+	'Accept-Encoding': 'gzip, deflate, br',
+	'Connection': 'keep-alive',
+	'Sec-Ch-Ua': '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"',
+	'Sec-Ch-Ua-Mobile': '?0',
+	'Sec-Ch-Ua-Platform': '"Windows"',
+}
+
+_scraper_session = None
+def _get_scraper():
+	global _scraper_session
+	if HAS_CLOUDSCRAPER and _scraper_session is None:
+		try:
+			_scraper_session = cloudscraper.create_scraper(
+				browser={'browser': 'chrome', 'platform': 'windows', 'desktop': True}
+			)
+		except:
+			pass
+	return _scraper_session
+
+def _fetch_json(url, timeout=10):
+	"""Fetch JSON from URL with Cloudflare bypass"""
+	try:
+		from urllib.parse import urlparse
+		parsed = urlparse(url)
+		origin = f"{parsed.scheme}://{parsed.netloc}"
+	except:
+		origin = url.rsplit('/', 1)[0]
+
+	headers = BROWSER_HEADERS.copy()
+	headers['Referer'] = f"{origin}/"
+	headers['Origin'] = origin
+
+	# Try curl_cffi first
+	if HAS_CURL_CFFI:
+		try:
+			response = curl_requests.get(url, timeout=timeout, headers=headers, impersonate='chrome')
+			if response.status_code == 200 and 'text/html' not in response.headers.get('content-type', ''):
+				return response.json()
+		except:
+			pass
+
+	# Try cloudscraper
+	scraper = _get_scraper()
+	if scraper:
+		try:
+			response = scraper.get(url, timeout=timeout, headers=headers)
+			if response.status_code == 200 and 'text/html' not in response.headers.get('content-type', ''):
+				return response.json()
+		except:
+			pass
+
+	# Fallback to regular requests
+	try:
+		response = requests.get(url, timeout=timeout, headers=headers)
+		if response.status_code == 200 and 'text/html' not in response.headers.get('content-type', ''):
+			return response.json()
+	except:
+		pass
+
+	return None
 
 
 class StremioIndexer:
@@ -50,7 +132,7 @@ class StremioIndexer:
 		return []
 
 	def fetch_manifest(self, addon_url):
-		"""Fetch addon manifest"""
+		"""Fetch addon manifest with Cloudflare bypass"""
 		try:
 			base_url = addon_url.rstrip('/')
 			if base_url.endswith('/manifest.json'):
@@ -58,14 +140,7 @@ class StremioIndexer:
 			else:
 				manifest_url = f"{base_url}/manifest.json"
 
-			response = requests.get(
-				manifest_url,
-				timeout=10,
-				headers={'User-Agent': 'POV-Kodi/1.0'}
-			)
-
-			if response.status_code == 200:
-				return response.json()
+			return _fetch_json(manifest_url, timeout=10)
 		except:
 			pass
 		return None
@@ -202,7 +277,7 @@ class StremioIndexer:
 		self._build_meta_list(metas, addon_url, catalog_type, catalog_id, skip)
 
 	def fetch_catalog(self, addon_url, catalog_type, catalog_id, skip=0):
-		"""Fetch catalog contents from addon"""
+		"""Fetch catalog contents from addon with Cloudflare bypass"""
 		try:
 			base_url = addon_url.rstrip('/')
 			if base_url.endswith('/manifest.json'):
@@ -214,14 +289,8 @@ class StremioIndexer:
 			else:
 				endpoint = f"{base_url}/catalog/{catalog_type}/{catalog_id}.json"
 
-			response = requests.get(
-				endpoint,
-				timeout=15,
-				headers={'User-Agent': 'POV-Kodi/1.0'}
-			)
-
-			if response.status_code == 200:
-				data = response.json()
+			data = _fetch_json(endpoint, timeout=15)
+			if data:
 				return data.get('metas', [])
 		except:
 			pass
@@ -361,7 +430,7 @@ class StremioIndexer:
 		self._show_meta_dialog(meta, meta_type)
 
 	def fetch_meta(self, addon_url, meta_type, meta_id):
-		"""Fetch detailed metadata for an item"""
+		"""Fetch detailed metadata for an item with Cloudflare bypass"""
 		try:
 			base_url = addon_url.rstrip('/')
 			if base_url.endswith('/manifest.json'):
@@ -369,14 +438,8 @@ class StremioIndexer:
 
 			endpoint = f"{base_url}/meta/{meta_type}/{meta_id}.json"
 
-			response = requests.get(
-				endpoint,
-				timeout=10,
-				headers={'User-Agent': 'POV-Kodi/1.0'}
-			)
-
-			if response.status_code == 200:
-				data = response.json()
+			data = _fetch_json(endpoint, timeout=10)
+			if data:
 				return data.get('meta', {})
 		except:
 			pass
