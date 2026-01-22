@@ -71,7 +71,7 @@ def _fetch_json(url, timeout=10):
 	# Try curl_cffi first
 	if HAS_CURL_CFFI:
 		try:
-			response = curl_requests.get(url, timeout=timeout, headers=headers, impersonate='chrome')
+			response = curl_requests.get(url, timeout=timeout, headers=headers, impersonate='chrome120')
 			if response.status_code == 200 and 'text/html' not in response.headers.get('content-type', ''):
 				return response.json()
 		except:

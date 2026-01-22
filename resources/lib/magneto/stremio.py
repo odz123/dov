@@ -295,7 +295,7 @@ class source:
 								endpoint,
 								timeout=self.timeout,
 								headers=headers,
-								impersonate='chrome'
+								impersonate='chrome120'
 							)
 							if response.status_code == 200:
 								content_type = response.headers.get('content-type', '')
@@ -444,7 +444,7 @@ class source:
 			response = None
 			if HAS_CURL_CFFI:
 				try:
-					response = curl_requests.get(endpoint, timeout=5, headers=headers, impersonate='chrome')
+					response = curl_requests.get(endpoint, timeout=5, headers=headers, impersonate='chrome120')
 				except:
 					pass
 
@@ -493,7 +493,7 @@ class source:
 			response = None
 			if HAS_CURL_CFFI:
 				try:
-					response = curl_requests.get(manifest_url, timeout=3, headers=headers, impersonate='chrome')
+					response = curl_requests.get(manifest_url, timeout=3, headers=headers, impersonate='chrome120')
 				except:
 					pass
 
