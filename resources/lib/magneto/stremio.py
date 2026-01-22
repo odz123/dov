@@ -166,9 +166,13 @@ class source:
 			info['stream_type'] = 'external'
 
 		# Get stream name/title for parsing
-		name = stream.get('name', '') or stream.get('title', '') or ''
-		description = stream.get('description', '') or stream.get('title', '') or ''
-		full_text = f"{name}\n{description}"
+		# IMPORTANT: In Stremio protocol:
+		# - 'name' = addon/source name (e.g., "Torrentio\n4K")
+		# - 'title' = actual torrent/release name (e.g., "Movie.2023.2160p.WEB-DL\n👤 50")
+		stream_name = stream.get('name', '') or ''
+		stream_title = stream.get('title', '') or ''
+		description = stream.get('description', '') or ''
+		full_text = f"{stream_name}\n{stream_title}\n{description}"
 
 		# Extract behavior hints
 		behavior_hints = stream.get('behaviorHints', {})
@@ -183,13 +187,20 @@ class source:
 		if 'bingeGroup' in behavior_hints:
 			info['binge_group'] = behavior_hints['bingeGroup']
 
-		# Extract release name - prefer behaviorHints.filename if available
+		# Extract release name - priority order:
+		# 1. behaviorHints.filename (most accurate)
+		# 2. First line of 'title' field (contains actual torrent/release name)
+		# 3. First line of 'name' field (fallback)
 		if behavior_hints.get('filename'):
 			info['name'] = behavior_hints['filename']
-		elif name:
-			# Parse name from first line (common Stremio format)
-			lines = name.split('\n')
-			info['name'] = lines[0].strip() if lines else name
+		elif stream_title:
+			# Parse release name from first line of title (where Stremio addons put torrent names)
+			lines = stream_title.split('\n')
+			info['name'] = lines[0].strip() if lines else stream_title
+		elif stream_name:
+			# Fallback to name field
+			lines = stream_name.split('\n')
+			info['name'] = lines[0].strip() if lines else stream_name
 
 		# Extract seeders
 		seeders_match = RE_SEEDERS.search(full_text)
