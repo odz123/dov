@@ -85,7 +85,7 @@ def _fetch_url(url, timeout=8):
 		try:
 			for attempt in range(2):
 				try:
-					response = curl_requests.get(url, timeout=timeout, headers=headers, impersonate='chrome')
+					response = curl_requests.get(url, timeout=timeout, headers=headers, impersonate='chrome120')
 					if response.status_code == 200 and 'text/html' not in response.headers.get('content-type', ''):
 						return response
 					if response.status_code in (403, 418, 503) and attempt == 0:

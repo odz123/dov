@@ -9,6 +9,13 @@ import requests
 from fenom import source_utils
 from fenom.control import setting as getSetting
 
+# Try to import curl_cffi for TLS fingerprint bypass (strongest method)
+try:
+	from curl_cffi import requests as curl_requests
+	HAS_CURL_CFFI = True
+except ImportError:
+	HAS_CURL_CFFI = False
+
 # Try to import cloudscraper for Cloudflare bypass
 try:
 	import cloudscraper
@@ -31,15 +38,38 @@ BROWSER_HEADERS = {
 	'Sec-Fetch-Site': 'cross-site',
 }
 
-# Create a cloudscraper session if available
+# Cloudscraper session management - refresh stale sessions
 _scraper_session = None
-def _get_scraper():
-	global _scraper_session
-	if HAS_CLOUDSCRAPER and _scraper_session is None:
-		_scraper_session = cloudscraper.create_scraper(
-			browser={'browser': 'chrome', 'platform': 'windows', 'desktop': True}
-		)
+_scraper_request_count = 0
+_scraper_fail_count = 0
+_SCRAPER_MAX_REQUESTS = 50  # Refresh session after this many requests
+_SCRAPER_MAX_FAILS = 3  # Refresh session after consecutive failures
+
+def _get_scraper(force_new=False):
+	global _scraper_session, _scraper_request_count, _scraper_fail_count
+	if not HAS_CLOUDSCRAPER:
+		return None
+	# Create new session if needed
+	if force_new or _scraper_session is None or _scraper_request_count >= _SCRAPER_MAX_REQUESTS or _scraper_fail_count >= _SCRAPER_MAX_FAILS:
+		try:
+			_scraper_session = cloudscraper.create_scraper(
+				browser={'browser': 'chrome', 'platform': 'windows', 'desktop': True},
+				delay=1
+			)
+			_scraper_request_count = 0
+			_scraper_fail_count = 0
+		except Exception:
+			_scraper_session = None
 	return _scraper_session
+
+def _mark_scraper_success():
+	global _scraper_request_count, _scraper_fail_count
+	_scraper_request_count += 1
+	_scraper_fail_count = 0
+
+def _mark_scraper_fail():
+	global _scraper_fail_count
+	_scraper_fail_count += 1
 
 
 class source:
@@ -95,28 +125,102 @@ class source:
 			# log_utils.log('url = %s' % url)
 			if 'timeout' in data: self.timeout = int(data['timeout'])
 
-			# Try with cloudscraper first if available, then fall back to requests
-			response = None
-			scraper = _get_scraper()
-			methods = []
-			if scraper:
-				methods.append(('cloudscraper', scraper))
-			methods.append(('requests', requests))
+			# Extract origin for Referer/Origin headers
+			try:
+				from urllib.parse import urlparse
+				parsed = urlparse(self.base_link)
+				origin = f"{parsed.scheme}://{parsed.netloc}"
+			except:
+				origin = self.base_link
 
-			for method_name, client in methods:
+			headers = BROWSER_HEADERS.copy()
+			headers['Referer'] = f"{origin}/"
+			headers['Origin'] = origin
+
+			# Try multiple methods in order of effectiveness:
+			# 1. curl_cffi (best TLS fingerprint bypass)
+			# 2. cloudscraper (good JS challenge bypass)
+			# 3. requests with browser headers (basic)
+			response = None
+			cloudflare_blocked = False
+
+			# Method 1: curl_cffi with Chrome impersonation
+			if HAS_CURL_CFFI:
+				try:
+					for attempt in range(3):
+						try:
+							response = curl_requests.get(url, timeout=self.timeout, headers=headers, impersonate='chrome120')
+							if response.status_code == 200:
+								content_type = response.headers.get('content-type', '')
+								if 'text/html' not in content_type:
+									break
+							if response.status_code in (403, 418, 503) or 'text/html' in response.headers.get('content-type', ''):
+								cloudflare_blocked = True
+								if attempt < 2:
+									time.sleep(0.5 * (attempt + 1))
+									continue
+							break
+						except Exception:
+							if attempt < 2:
+								time.sleep(0.5 * (attempt + 1))
+								continue
+							raise
+					if response and response.status_code == 200 and 'text/html' not in response.headers.get('content-type', ''):
+						pass  # Success, continue to parsing
+					else:
+						response = None  # Reset to try next method
+				except Exception:
+					response = None
+
+			# Method 2: cloudscraper (JS challenge solver)
+			if response is None:
+				scraper = _get_scraper()
+				if scraper:
+					try:
+						for attempt in range(3):
+							try:
+								response = scraper.get(url, timeout=self.timeout, headers=headers)
+								if response.status_code == 200:
+									content_type = response.headers.get('content-type', '')
+									if 'text/html' not in content_type:
+										_mark_scraper_success()
+										break
+								if response.status_code in (403, 418, 503) or 'text/html' in response.headers.get('content-type', ''):
+									cloudflare_blocked = True
+									_mark_scraper_fail()
+									if attempt < 2:
+										time.sleep(0.5 * (attempt + 1))
+										if attempt == 1:
+											scraper = _get_scraper(force_new=True)
+											if not scraper:
+												break
+										continue
+								break
+							except Exception:
+								_mark_scraper_fail()
+								if attempt < 2:
+									time.sleep(0.5 * (attempt + 1))
+									continue
+								raise
+						if response and response.status_code == 200 and 'text/html' not in response.headers.get('content-type', ''):
+							pass  # Success
+						else:
+							response = None
+					except Exception:
+						response = None
+
+			# Method 3: Regular requests (fallback)
+			if response is None:
 				try:
 					for attempt in range(2):
 						try:
-							if method_name == 'cloudscraper':
-								response = client.get(url, timeout=self.timeout)
-							else:
-								response = client.get(url, timeout=self.timeout, headers=BROWSER_HEADERS)
-
+							response = requests.get(url, timeout=self.timeout, headers=headers)
 							if response.status_code == 200:
 								content_type = response.headers.get('content-type', '')
 								if 'text/html' not in content_type:
 									break
 							if response.status_code in (403, 418, 503):
+								cloudflare_blocked = True
 								if attempt == 0:
 									time.sleep(0.5)
 									continue
@@ -126,10 +230,8 @@ class source:
 								time.sleep(0.5)
 								continue
 							raise
-					if response and response.status_code == 200 and 'text/html' not in response.headers.get('content-type', ''):
-						break
-				except:
-					continue
+				except Exception:
+					pass
 
 			if response is None or response.status_code != 200:
 				if response is not None:
