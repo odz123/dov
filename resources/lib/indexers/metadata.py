@@ -12,13 +12,23 @@ alt_titles_test, trailers_test, finished_show_check, empty_value_check = ('US', 
 tmdb_image_base, youtube_url, date_format = tmdb.tmdb_image_base, 'plugin://plugin.video.youtube/play/?video_id=%s', '%Y-%m-%d'
 EXPIRES_2_DAYS, EXPIRES_4_DAYS, EXPIRES_7_DAYS, EXPIRES_14_DAYS, EXPIRES_182_DAYS = 2, 4, 7, 14, 182
 
+# Module-level cached MetaCache instance - connection pooling handles efficient reuse
+_metacache_instance = None
+
+def get_metacache():
+	"""Get a cached MetaCache instance for efficient reuse."""
+	global _metacache_instance
+	if _metacache_instance is None:
+		_metacache_instance = MetaCache()
+	return _metacache_instance
+
 def movie_meta(id_type, media_id, user_info, current_date):
 	if id_type == 'trakt_dict':
 		if media_id.get('tmdb'): id_type, media_id = 'tmdb_id', media_id['tmdb']
 		elif media_id.get('imdb'): id_type, media_id = 'imdb_id', media_id['imdb']
 		else: id_type, media_id = None, None
 	if media_id is None: return {}
-	metacache = MetaCache()
+	metacache = get_metacache()
 	metacache_get, metacache_set = metacache.get, metacache.set
 	fanarttv_data, language, extra_fanart_enabled, fanart_client_key = None, user_info['language'], user_info['extra_fanart_enabled'], user_info['fanart_client_key']
 	meta = metacache_get('movie', id_type, media_id)
@@ -72,7 +82,7 @@ def tvshow_meta(id_type, media_id, user_info, current_date):
 		elif media_id.get('tvdb'): id_type, media_id = 'tvdb_id', media_id['tvdb']
 		else: id_type, media_id = None, None
 	if media_id is None: return {}
-	metacache = MetaCache()
+	metacache = get_metacache()
 	metacache_get, metacache_set = metacache.get, metacache.set
 	fanarttv_data, language, extra_fanart_enabled, fanart_client_key = None, user_info['language'], user_info['extra_fanart_enabled'], user_info['fanart_client_key']
 	meta = metacache_get('tvshow', id_type, media_id)
@@ -153,7 +163,7 @@ def season_episodes_meta(season, meta, user_info):
 				'director': director, 'writer': writer, 'rating': rating, 'votes': votes, 'mediatype': 'episode',
 				'episode_type': ep_type, 'season': season, 'episode': episode, 'duration': duration
 			}
-	metacache = MetaCache()
+	metacache = get_metacache()
 	metacache_get, metacache_set = metacache.get, metacache.set
 	media_id, data = meta['tmdb_id'], None
 	string = '%s_%s' % (media_id, season)

@@ -491,13 +491,20 @@ class SourceSelect:
 	def _get_quality_rank(self, quality):
 		return quality_ranks[quality]
 
+	# Class-level cache for compiled language patterns
+	_language_pattern_cache = {}
+
 	def _sort_language_to_top(self, results):
 		from xbmc import convertLanguage as cl, ISO_639_1, ISO_639_2
 		try:
-			language = self.priority_language, cl(self.priority_language, ISO_639_2), cl(self.priority_language, ISO_639_1)
-			if self.priority_language == 'Spanish': language += 'latino', 'lat', 'esp'
-			pattern = r'\b(%s)\b' % '|'.join(i for i in language if i)
-			sort_first = [i for i in results if re.search(pattern, i.get('name_info', ''), re.I)]
+			# Cache compiled regex pattern per language
+			if self.priority_language not in self._language_pattern_cache:
+				language = self.priority_language, cl(self.priority_language, ISO_639_2), cl(self.priority_language, ISO_639_1)
+				if self.priority_language == 'Spanish': language += 'latino', 'lat', 'esp'
+				pattern = r'\b(%s)\b' % '|'.join(i for i in language if i)
+				self._language_pattern_cache[self.priority_language] = re.compile(pattern, re.I)
+			compiled_pattern = self._language_pattern_cache[self.priority_language]
+			sort_first = [i for i in results if compiled_pattern.search(i.get('name_info', ''))]
 			sort_first_ids = set(id(i) for i in sort_first)  # O(1) lookup using object id
 			sort_last = [i for i in results if id(i) not in sort_first_ids]
 			results = sort_first + sort_last
@@ -534,21 +541,6 @@ class SourceSelect:
 			'Unchecked' in k.get('cache_provider', '')
 		))
 		return filtered
-
-	def _special_filter(self, results, key, enable_setting):
-		if enable_setting == 1:
-			if key == dolby_vision_filter_key and self.hybrid_allowed:
-				results = [i for i in results if all(x in i['extraInfo'] for x in (key, hdr_filter_key)) or not key in i['extraInfo']]
-			else: results = [i for i in results if not key in i['extraInfo']]
-		elif enable_setting == 2 and self.autoplay:
-			priority_list = [i for i in results if key in i['extraInfo']]
-			priority_set = set(id(i) for i in priority_list)  # O(1) lookup using object id
-			remainder_list = [i for i in results if id(i) not in priority_set]
-			results = priority_list + remainder_list
-		elif enable_setting == 3:
-			priority_list = lambda k: key in k['extraInfo'] and not 'Uncached' in k.get('cache_provider', '')
-			results.sort(key=priority_list, reverse=True)
-		return results
 
 	def _sort_first(self, results):
 		try:
