@@ -24,19 +24,38 @@ class People(BaseDialog):
 		BaseDialog.__init__(self, args)
 		self.control_id = None
 		self.kwargs = kwargs
+		self._threads = []  # Track threads for proper cleanup
 		self.set_starting_constants()
 		self.make_person_data()
 		self.set_properties()
 
+	def _safe_thread_target(self, target, *args):
+		"""Wrapper to catch exceptions in threads and prevent crashes."""
+		try:
+			target(*args)
+		except Exception:
+			pass  # Silently handle thread exceptions to prevent UI crashes
+
 	def onInit(self):
-		Thread(target=self.make_imdb_videos).start()
-		Thread(target=self.make_more_from, args=('movie',)).start()
-		Thread(target=self.make_more_from, args=('tvshow',)).start()
-		Thread(target=self.make_more_from, args=('director',)).start()
+		# Create and track threads with exception handling and daemon flag
+		thread_targets = [
+			(self.make_imdb_videos,),
+			(self.make_more_from, 'movie'),
+			(self.make_more_from, 'tvshow'),
+			(self.make_more_from, 'director')
+		]
+		for target_info in thread_targets:
+			target = target_info[0]
+			args = target_info[1:] if len(target_info) > 1 else ()
+			t = Thread(target=self._safe_thread_target, args=(target,) + args, daemon=True)
+			self._threads.append(t)
+			t.start()
 
 	def run(self):
 		self.doModal()
 		self.clearProperties()
+		# Clear thread references to allow garbage collection
+		self._threads.clear()
 
 	def onClick(self, controlID):
 		self.control_id = None
