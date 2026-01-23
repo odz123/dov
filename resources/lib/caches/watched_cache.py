@@ -127,7 +127,8 @@ def erase_bookmark(media_type, tmdb_id, season='', episode='', refresh='false'):
 	dbcon = None
 	try:
 		watched_indicators = settings.watched_indicators()
-		bookmarks = get_bookmarks(watched_indicators, media_type)
+		# Use dict for O(1) lookups
+		bookmarks = get_bookmarks_dict(watched_indicators, media_type)
 		if media_type == 'episode': season, episode = int(season), int(episode)
 		try: resume_id = detect_bookmark(bookmarks, tmdb_id, season, episode)[2]
 		except (IndexError, TypeError): return
@@ -152,31 +153,21 @@ def batch_erase_bookmark(watched_indicators, insert_list, action):
 		if not insert_list: return
 		if action == 'mark_as_watched': modified_list = [(i[0], i[1], i[2], i[3]) for i in insert_list]
 		else: modified_list = insert_list
-		if watched_indicators == 1:
+		if watched_indicators in (1, 2):
 			def _process(arg):
-				try: trakt_progress(*arg)
+				try:
+					if watched_indicators == 1: trakt_progress(*arg)
+					else: mdbl_progress(*arg)
 				except Exception: pass
 			process_list = []
 			process_list_append = process_list.append
 			media_type = insert_list[0][0]
 			tmdb_id = insert_list[0][1]
-			bookmarks = get_bookmarks(watched_indicators, media_type)
+			# Use dict for O(1) lookups instead of O(n) list scans
+			bookmarks = get_bookmarks_dict(watched_indicators, media_type)
 			for i in insert_list:
-				try: resume_point, curr_time, resume_id = detect_bookmark(bookmarks, tmdb_id, i[2], i[3])
-				except (IndexError, TypeError): continue
-				process_list_append(('clear_progress', i[0], i[1], 0, i[2], i[3], resume_id))
-			if process_list: threads = list(make_thread_list(_process, process_list, Thread))
-		elif watched_indicators == 2:
-			def _process(arg):
-				try: mdbl_progress(*arg)
-				except Exception: pass
-			process_list = []
-			process_list_append = process_list.append
-			media_type = insert_list[0][0]
-			tmdb_id = insert_list[0][1]
-			bookmarks = get_bookmarks(watched_indicators, media_type)
-			for i in insert_list:
-				try: resume_point, curr_time, resume_id = detect_bookmark(bookmarks, tmdb_id, i[2], i[3])
+				try:
+					resume_point, curr_time, resume_id = detect_bookmark(bookmarks, tmdb_id, i[2], i[3])
 				except (IndexError, TypeError): continue
 				process_list_append(('clear_progress', i[0], i[1], 0, i[2], i[3], resume_id))
 			if process_list: threads = list(make_thread_list(_process, process_list, Thread))

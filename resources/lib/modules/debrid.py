@@ -2,7 +2,6 @@ import re
 import json
 import random
 from threading import Thread
-from debrids import alldebrid_api, premiumize_api, real_debrid_api, torbox_api, offcloud_api, easydebrid_api
 from caches.debrid_cache import DebridCache
 from indexers import metadata
 from modules.utils import clean_file_name
@@ -16,24 +15,74 @@ default_internal_scrapers, enabled_debrids_check = settings.default_internal_scr
 default_hosters_providers = ('real-debrid', 'premiumize.me', 'alldebrid')
 plswait_str, checking_debrid_str, remaining_debrid_str = ls(32577), ls(32578), ls(32579)
 
-debrid_list = (
-	('real-debrid', 'rd', real_debrid_api.RealDebridAPI),
-	('premiumize.me', 'pm', premiumize_api.PremiumizeAPI),
-	('alldebrid', 'ad', alldebrid_api.AllDebridAPI),
-	('torbox', 'tb', torbox_api.TorBoxAPI),
-	('offcloud', 'oc', offcloud_api.OffcloudAPI),
-	('easydebrid', 'ed', easydebrid_api.EasyDebridAPI)
+# Lazy-loaded debrid API classes to reduce startup time
+_debrid_api_cache = {}
+
+def _get_debrid_api_class(debrid_name):
+	"""Lazy-load debrid API classes on first use."""
+	if debrid_name in _debrid_api_cache:
+		return _debrid_api_cache[debrid_name]
+
+	cls = None
+	if debrid_name == 'real-debrid':
+		from debrids import real_debrid_api
+		cls = real_debrid_api.RealDebridAPI
+	elif debrid_name == 'premiumize.me':
+		from debrids import premiumize_api
+		cls = premiumize_api.PremiumizeAPI
+	elif debrid_name == 'alldebrid':
+		from debrids import alldebrid_api
+		cls = alldebrid_api.AllDebridAPI
+	elif debrid_name == 'torbox':
+		from debrids import torbox_api
+		cls = torbox_api.TorBoxAPI
+	elif debrid_name == 'offcloud':
+		from debrids import offcloud_api
+		cls = offcloud_api.OffcloudAPI
+	elif debrid_name == 'easydebrid':
+		from debrids import easydebrid_api
+		cls = easydebrid_api.EasyDebridAPI
+
+	if cls:
+		_debrid_api_cache[debrid_name] = cls
+	return cls
+
+# Debrid provider info - API classes loaded lazily
+debrid_info = (
+	('real-debrid', 'rd'),
+	('premiumize.me', 'pm'),
+	('alldebrid', 'ad'),
+	('torbox', 'tb'),
+	('offcloud', 'oc'),
+	('easydebrid', 'ed')
 )
 
+# Legacy debrid_list for compatibility - classes loaded on access
+class _LazyDebridList:
+	"""Lazy-loading wrapper for debrid_list to maintain compatibility."""
+	def __iter__(self):
+		for name, short in debrid_info:
+			cls = _get_debrid_api_class(name)
+			if cls:
+				yield (name, short, cls)
+
+	def __len__(self):
+		return len(debrid_info)
+
+debrid_list = _LazyDebridList()
+
 def import_debrid(debrid_provider):
-	cls = next((i[2] for i in debrid_list if i[0] == debrid_provider), None)
-	return cls() if cls else cls
+	"""Import and instantiate a debrid API class by provider name."""
+	cls = _get_debrid_api_class(debrid_provider)
+	return cls() if cls else None
 
 def debrid_enabled():
-	return [i[0] for i in debrid_list if enabled_debrids_check(i[1])]
+	"""Return list of enabled debrid providers (doesn't load API classes)."""
+	return [name for name, short in debrid_info if enabled_debrids_check(short)]
 
 def debrid_type_enabled(debrid_type, enabled_debrids):
-	return [i[0] for i in debrid_list if i[0] in enabled_debrids and get_setting('%s.%s.enabled' % (i[1], debrid_type)) == 'true']
+	"""Return list of providers with specific debrid type enabled (doesn't load API classes)."""
+	return [name for name, short in debrid_info if name in enabled_debrids and get_setting('%s.%s.enabled' % (short, debrid_type)) == 'true']
 
 def debrid_valid_hosts(enabled_debrids):
 	return []
@@ -223,9 +272,24 @@ class Source:
 		else: notification(32575)
 
 class DebridCheck:
+	# Lazy-loaded debrid dict to avoid loading all API classes at class definition
+	_debrid_dict_cache = None
+
+	@classmethod
+	def _get_debrid_dict(cls):
+		"""Lazy-load debrid dict on first use."""
+		if cls._debrid_dict_cache is None:
+			cls._debrid_dict_cache = {}
+			for name, short in debrid_info:
+				api_cls = _get_debrid_api_class(name)
+				if api_cls:
+					cls._debrid_dict_cache[name] = (name, short, api_cls)
+		return cls._debrid_dict_cache
+
 	def __init__(self, meta, name):
 		self.cached_list = []
-		self.name, self.debrid, self.function = self._debrid_dict[name]
+		debrid_dict = self._get_debrid_dict()
+		self.name, self.debrid, self.function = debrid_dict[name]
 		self.imdb, self.season, self.episode = meta.get('imdb_id'), meta.get('season'), meta.get('episode')
 
 	def cache_check(self):
@@ -275,7 +339,6 @@ class DebridCheck:
 		cls.hash_list = hash_list
 		cls.cached_hashes = DebridCache().get_many(hash_list) or []
 
-	_debrid_dict = {i[0]: i for i in debrid_list}
 	hash_list, cached_hashes = [], []
 
 import requests

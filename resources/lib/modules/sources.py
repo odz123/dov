@@ -505,25 +505,35 @@ class SourceSelect:
 		return results
 
 	def _sort_uncached_torrents(self, results):
-		results.sort(key=lambda k: 'Unchecked' in k.get('cache_provider', ''), reverse=False)
 		filterless_search = get_property('fs_filterless_search') == 'true'
 		if filterless_search:
-			# Filterless search - show all, just sort uncached to bottom
-			results.sort(key=lambda k: 'Uncached' in k.get('cache_provider', ''), reverse=False)
+			# Filterless search - show all, just sort unchecked and uncached to bottom
+			# Combined sort: primary by Uncached, secondary by Unchecked
+			results.sort(key=lambda k: (
+				'Uncached' in k.get('cache_provider', ''),
+				'Unchecked' in k.get('cache_provider', '')
+			))
 			return results
 		# Filter uncached based on source type (Stremio vs other)
-		def should_keep(item):
-			if 'Uncached' not in item.get('cache_provider', ''):
-				return True
-			# Note: provider is 'stremio' after process_sources, not 'stremio_{addon}'
-			is_stremio = item.get('provider', '').startswith('stremio')
-			if is_stremio:
-				return self.display_uncached_stremio
-			return self.display_uncached_torrents
-		results = [i for i in results if should_keep(i)]
-		# Sort any remaining uncached to the bottom
-		results.sort(key=lambda k: 'Uncached' in k.get('cache_provider', ''), reverse=False)
-		return results
+		# Pre-compute display flags for efficiency
+		display_stremio = self.display_uncached_stremio
+		display_torrents = self.display_uncached_torrents
+		filtered = []
+		for item in results:
+			cache_provider = item.get('cache_provider', '')
+			if 'Uncached' not in cache_provider:
+				filtered.append(item)
+			else:
+				# Note: provider is 'stremio' after process_sources, not 'stremio_{addon}'
+				is_stremio = item.get('provider', '').startswith('stremio')
+				if (is_stremio and display_stremio) or (not is_stremio and display_torrents):
+					filtered.append(item)
+		# Sort remaining: unchecked and uncached to bottom in single pass
+		filtered.sort(key=lambda k: (
+			'Uncached' in k.get('cache_provider', ''),
+			'Unchecked' in k.get('cache_provider', '')
+		))
+		return filtered
 
 	def _special_filter(self, results, key, enable_setting):
 		if enable_setting == 1:
