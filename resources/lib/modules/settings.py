@@ -1,5 +1,4 @@
 from modules import kodi_utils
-# from modules.kodi_utils import logger
 
 ls, translate_path, get_setting = kodi_utils.local_string, kodi_utils.translate_path, kodi_utils.get_setting
 
@@ -130,7 +129,6 @@ def extras_open_action(media_type):
 	return int(get_setting('extras.open_action', '0')) in {'movie': (1, 3), 'tvshow': (2, 3)}[media_type]
 
 def fanarttv_client_key():
-#	return get_setting('fanart_client_key', 'fe073550acf157bdb8a4217f215c0882')
 	return get_setting('fanart_client_key')
 
 def filter_by_name(scraper):
@@ -203,7 +201,6 @@ def movies_directory():
 	return translate_path(get_setting('movies_directory'))
 
 def nav_jump_use_alphabet():
-#	return get_setting('nav_jump') == '1'
 	return int(get_setting('nav_jump', '0'))
 
 def nextep_content_settings():
@@ -287,7 +284,6 @@ def thumb_fanart():
 	return get_setting('thumb_fanart') == 'true'
 
 def tmdb_api_key():
-#	return get_setting('tmdb_api', 'd848316a33e79095beb945a2bd2d53b1')
 	return get_setting('tmdb_api')
 
 def trakt_sync_interval():

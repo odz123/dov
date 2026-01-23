@@ -1,7 +1,6 @@
 import requests
 from caches.main_cache import cache_object
 from modules import kodi_utils
-# logger = kodi_utils.logger
 
 ls, get_setting, set_setting = kodi_utils.local_string, kodi_utils.get_setting, kodi_utils.set_setting
 auth_url = 'https://app.real-debrid.com/oauth/v2/'
@@ -48,13 +47,8 @@ class RealDebridAPI:
 		return False
 
 	def days_remaining(self):
-#		import datetime, time
 		try:
 			account_info = self.account_info()
-#			FormatDateTime = "%Y-%m-%dT%H:%M:%S.%fZ"
-#			try: expires = datetime.datetime.strptime(account_info['expiration'], FormatDateTime)
-#			except: expires = datetime.datetime(*(time.strptime(account_info['expiration'], FormatDateTime)[0:6]))
-#			days = (expires - datetime.datetime.today()).days
 			days = int(account_info['premium']/86400)
 		except Exception: days = None
 		return days
@@ -111,16 +105,9 @@ class RealDebridAPI:
 		return self._post(url, post_data)
 
 	def create_transfer(self, magnet):
-		from modules.source_utils import supported_video_extensions
 		try:
-			extensions = supported_video_extensions()
 			torrent = self.add_magnet(magnet)
 			torrent_id = torrent['id']
-#			info = self.torrent_info(torrent_id)
-#			files = info['files']
-#			torrent_keys = [str(item['id']) for item in files if item['path'].lower().endswith(tuple(extensions))]
-#			torrent_keys = ','.join(torrent_keys)
-#			self.add_torrent_select(torrent_id, torrent_keys)
 			self.add_torrent_select(torrent_id, 'all')
 			return torrent_id
 		except Exception:

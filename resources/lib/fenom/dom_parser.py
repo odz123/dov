@@ -10,19 +10,6 @@ DomMatch = namedtuple('DOMMatch', ['attrs', 'content'])
 re_type = type(re.compile(r''))
 
 
-		# ----- FUTURE -----
-# def parseDOM(html, name='', attrs=None, ret=False):
-	# try:
-		# if attrs:
-			# attrs = dict((key, re.compile(value + ('$' if value else ''))) for key, value in iter(attrs.items()))
-		# results = parse_dom(html, name, attrs, ret)
-		# if ret: results = [result.attrs[ret.lower()] for result in results]
-		# else: results = [result.content for result in results]
-		# return results
-	# except:
-		# from fenom import log_utils
-		# log_utils.error()
-
 def __get_dom_content(html, name, match):
 	try:
 		if match.endswith('/>'): return ''

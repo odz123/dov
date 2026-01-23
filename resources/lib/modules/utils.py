@@ -9,7 +9,6 @@ from html import unescape
 from importlib import import_module
 from datetime import datetime, timedelta, date
 from modules.kodi_utils import local_string as ls, get_setting, logger
-# from modules.kodi_utils import logger
 
 days_translate = {'Monday': 32971, 'Tuesday': 32972, 'Wednesday': 32973, 'Thursday': 32974, 'Friday': 32975, 'Saturday': 32976, 'Sunday': 32977}
 
@@ -48,12 +47,6 @@ def manual_function_import(location, function_name):
 def make_thread_list(_target, _list, _thread):
 	for item in _list:
 		threaded_object = _thread(target=_target, args=(item,))
-		threaded_object.start()
-		yield threaded_object
-
-def make_thread_list_enumerate(_target, _list, _thread):
-	for item_position, item in enumerate(_list):
-		threaded_object = _thread(target=_target, args=(item_position, item))
 		threaded_object.start()
 		yield threaded_object
 
@@ -111,7 +104,6 @@ def make_day(today, date, date_format, use_words=True):
 
 def subtract_dates(date1, date2):
 	return (date1 - date2).days
-	return day
 
 def datetime_workaround(data, str_format):
 	try: datetime_object = datetime.strptime(data, str_format)

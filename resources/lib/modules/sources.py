@@ -11,7 +11,6 @@ from modules.source_objects import get_source_meta, ExternalSource
 from modules.source_utils import external_sources, internal_sources, internal_folders_import
 from modules.source_utils import pack_enable_check, sources_quality_count, scraper_names, stremio_has_debrid_addons, stremio_is_configured
 from modules.utils import string_to_float
-#from modules.kodi_utils import logger
 
 POVPlayer, progressDialogBG, notification = player.POVPlayer, kodi_utils.progressDialogBG, kodi_utils.notification
 show_busy_dialog, hide_busy_dialog, close_all_dialog = kodi_utils.show_busy_dialog, kodi_utils.hide_busy_dialog, kodi_utils.close_all_dialog
@@ -251,8 +250,6 @@ class SourceSelect:
 			if ''.join(self.active_internal_scrapers) == 'external': notification(32854)
 			self.active_external = False
 		else:
-#			if not self.debrid_torrent_enabled: self.exclude_list.extend(scraper_names('torrents'))
-#			elif not self.debrid_hoster_enabled: self.exclude_list.extend(scraper_names('hosters'))
 			external_providers = external_sources(ret_all=self.disabled_ignored)
 			self.external_providers = [
 				i for i in external_providers if not i[0] in self.exclude_list

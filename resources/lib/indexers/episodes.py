@@ -4,9 +4,7 @@ from indexers.metadata import tvshow_meta, season_episodes_meta, tmdb_image_base
 from indexers.trakt_api import trakt_fetch_collection_watchlist, trakt_get_hidden_items, trakt_get_my_calendar, trakt_my_anime_calendar, trakt_anime_calendar
 from caches.watched_cache import get_resumetime, get_watched_status_episode, get_watched_info_tv, get_bookmarks, get_next_episodes, get_in_progress_episodes
 from modules import kodi_utils, settings
-#from modules.utils import jsondate_to_datetime, adjust_premiered_date, make_day, get_datetime, title_key, date_difference, make_thread_list_enumerate
 from modules.utils import jsondate_to_datetime, adjust_premiered_date, make_day, get_datetime, title_key, date_difference, TaskPool
-# logger = kodi_utils.logger
 
 tv_meta_function, season_meta_function, default_duration = tvshow_meta, season_episodes_meta, 3600
 get_watched_status, get_watched_info = get_watched_status_episode, get_watched_info_tv
@@ -140,7 +138,6 @@ class Episodes:
 			cm_append((extras_str, run_plugin % extras_params))
 			cm_append((browse_str, self.container_update % browse_params))
 			cm_append((browse_seas_str, self.container_update % browse_seas_params))
-			clearprog_params, unwatched_params, watched_params = '', '', ''
 			if not unaired:
 				if progress != '0' or resumetime != '0': cm_append((clearprog_str, run_plugin % build_url({
 					'mode': 'watched_unwatched_erase_bookmark', 'media_type': 'episode',
@@ -212,15 +209,10 @@ class Episodes:
 					hidden_data = trakt_get_hidden_items('dropped')
 					self.list = [i for i in self.list if not i['media_ids']['tmdb'] in hidden_data]
 				except: pass
-#				if nextep_settings['include_unwatched']:
-#					try: unwatched = [{'media_ids': i['media_ids'], 'season': 1, 'episode': 0, 'unwatched': True} for i in trakt_fetch_collection_watchlist('watchlist', 'tvshow')]
-#					except: unwatched = []
-#					self.list += unwatched
 				resformat, self.resinsert = '%Y-%m-%dT%H:%M:%S.%fZ', '2000-01-01T00:00:00.000Z'
 			elif self.watched_indicators == 2:
 				resformat, self.resinsert = '%Y-%m-%dT%H:%M:%SZ', '2000-01-01T00:00:00Z'
 			else: resformat, self.resinsert = '%Y-%m-%d %H:%M:%S', '2000-01-01 00:00:00'
-#		threads = list(make_thread_list_enumerate(self.build_episode_content, self.list, Thread))
 		for i in TaskPool().tasks_enumerate(self.build_episode_content, self.list, Thread): i.join()
 		if self.list_type.startswith('next_episode'):
 			def func(function):

@@ -184,25 +184,19 @@ def container_refresh():
 	return execute_builtin('Container.Refresh')
 
 def ok_dialog(heading='POV', text='', highlight='dodgerblue', ok_label=local_string(32839), top_space=False):
-#	from windows import open_window
 	if isinstance(heading, int): heading = local_string(heading)
 	if isinstance(text, int): text = local_string(text)
 	if not text: top_space, text = True, local_string(32760)
 	if top_space: text = '[CR]%s' % text
-	kwargs = {'heading': heading, 'text': text, 'highlight': highlight, 'ok_label': ok_label}
-#	return open_window(('windows.select_ok', 'OK'), 'select_ok.xml', **kwargs)
 	return dialog.ok(heading, text)
 
 def confirm_dialog(heading='POV', text='', highlight='dodgerblue', ok_label=local_string(32839), cancel_label=local_string(32840), top_space=False, default_control=11):
-#	from windows import open_window
 	if isinstance(heading, int): heading = local_string(heading)
 	if isinstance(text, int): text = local_string(text)
 	if isinstance(ok_label, int): ok_label = local_string(ok_label)
 	if isinstance(cancel_label, int): cancel_label = local_string(cancel_label)
 	if not text: text = '[CR]%s' % local_string(32580)
 	elif top_space: text = '[CR]%s' % text
-	kwargs = {'heading': heading, 'text': text, 'highlight': highlight, 'ok_label': ok_label, 'cancel_label': cancel_label, 'default_control': default_control}
-#	return open_window(('windows.select_ok', 'YesNo'), 'select_ok.xml', **kwargs)
 	return dialog.yesno(heading, text, cancel_label, ok_label)
 
 def select_dialog(function_list, **kwargs):
