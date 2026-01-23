@@ -86,7 +86,7 @@ class Navigator:
 		tor_str, usenet_str, web_str = 'Torrent', 'Usenet', 'Web Download'
 		tb_str, cloud_str, ai_str = 'TorBox', ls(32496), ls(32494)
 		clca_str, n_ins = ls(32497) % tb_str, _in_str % (tb_str.upper(), '')
-		self._add_item({'mode': 'torbox.tb_torrent_cloud', 'media_type': 'torent', 'name': tor_str   }, 'torbox.png', n_ins)
+		self._add_item({'mode': 'torbox.tb_torrent_cloud', 'media_type': 'torrent', 'name': tor_str   }, 'torbox.png', n_ins)
 		self._add_item({'mode': 'torbox.tb_torrent_cloud', 'media_type': 'usenet', 'name': usenet_str}, 'torbox.png', n_ins)
 		self._add_item({'mode': 'torbox.tb_torrent_cloud', 'media_type': 'webdl',  'name': web_str   }, 'torbox.png', n_ins)
 		self._add_item({'mode': 'torbox.show_account_info',                        'name': ai_str    }, 'torbox.png', n_ins, False)
