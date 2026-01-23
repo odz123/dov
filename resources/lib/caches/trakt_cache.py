@@ -23,6 +23,20 @@ class TraktCache:
 		self._connect_database()
 		self._set_PRAGMAS()
 
+	def __enter__(self):
+		return self
+
+	def __exit__(self, exc_type, exc_val, exc_tb):
+		self.close()
+		return False
+
+	def close(self):
+		try:
+			if hasattr(self, 'dbcon') and self.dbcon:
+				self.dbcon.close()
+		except Exception:
+			pass
+
 	def set_bulk_movie_watched(self, insert_list):
 		self._delete(WATCHED_DELETE, ('movie',))
 		for i in chunks(insert_list, self.batch_size):
@@ -58,32 +72,32 @@ class TraktCache:
 		self.dbcur.execute("""PRAGMA mmap_size = 268435456""")
 
 def cache_trakt_object(function, string, url):
-	dbcur = TraktCache().dbcur
-	dbcur.execute(TC_BASE_GET, (string,))
-	cached_data = dbcur.fetchone()
-	if cached_data: return literal_eval(cached_data[0])
-	result = function(url)
-	dbcur.execute(TC_BASE_SET, (string, repr(result)))
-	return result
+	with TraktCache() as cache:
+		cache.dbcur.execute(TC_BASE_GET, (string,))
+		cached_data = cache.dbcur.fetchone()
+		if cached_data: return literal_eval(cached_data[0])
+		result = function(url)
+		cache.dbcur.execute(TC_BASE_SET, (string, repr(result)))
+		return result
 
 def reset_activity(latest_activities):
 	string = 'trakt_get_activity'
 	cached_data = None
 	try:
-		dbcur = TraktCache().dbcur
-		dbcur.execute(TC_BASE_GET, (string,))
-		cached_data = dbcur.fetchone()
-		if cached_data: cached_data = literal_eval(cached_data[0])
-		else: cached_data = default_activities()
-		dbcur.execute(TC_BASE_SET, (string, repr(latest_activities)))
+		with TraktCache() as cache:
+			cache.dbcur.execute(TC_BASE_GET, (string,))
+			cached_data = cache.dbcur.fetchone()
+			if cached_data: cached_data = literal_eval(cached_data[0])
+			else: cached_data = default_activities()
+			cache.dbcur.execute(TC_BASE_SET, (string, repr(latest_activities)))
 	except: pass
 	return cached_data
 
 def clear_trakt_hidden_data(list_type):
 	string = 'trakt_hidden_items_%s' % list_type
 	try:
-		dbcur = TraktCache().dbcur
-		dbcur.execute(DELETE, (string,))
+		with TraktCache() as cache:
+			cache.dbcur.execute(DELETE, (string,))
 	except: pass
 
 def clear_trakt_collection_watchlist_data(list_type, media_type):
@@ -91,45 +105,45 @@ def clear_trakt_collection_watchlist_data(list_type, media_type):
 	if media_type in ('tvshows', 'shows'): media_type = 'tvshow'
 	string = 'trakt_%s_%s' % (list_type, media_type)
 	try:
-		dbcur = TraktCache().dbcur
-		dbcur.execute(DELETE, (string,))
+		with TraktCache() as cache:
+			cache.dbcur.execute(DELETE, (string,))
 	except: pass
 
 def clear_trakt_list_contents_data(list_type):
 	string = 'trakt_list_contents_' + list_type + '_%'
 	try:
-		dbcur = TraktCache().dbcur
-		dbcur.execute(DELETE_LIKE, (string,))
+		with TraktCache() as cache:
+			cache.dbcur.execute(DELETE_LIKE, (string,))
 	except: pass
 
 def clear_trakt_list_data(list_type):
 	string = 'trakt_%s' % list_type
 	try:
-		dbcur = TraktCache().dbcur
-		dbcur.execute(DELETE, (string,))
+		with TraktCache() as cache:
+			cache.dbcur.execute(DELETE, (string,))
 	except: pass
 
 def clear_trakt_calendar():
 	try:
-		dbcur = TraktCache().dbcur
-		dbcur.execute(DELETE_LIKE, ('trakt_get_my_calendar_%',))
+		with TraktCache() as cache:
+			cache.dbcur.execute(DELETE_LIKE, ('trakt_get_my_calendar_%',))
 	except: return
 
 def clear_trakt_recommendations(media_type):
 	string = 'trakt_recommendations_%s' % (media_type)
 	try:
-		dbcur = TraktCache().dbcur
-		dbcur.execute(DELETE, (string,))
+		with TraktCache() as cache:
+			cache.dbcur.execute(DELETE, (string,))
 	except: pass
 
 def clear_all_trakt_cache_data(refresh=True):
 	try:
-		dbcur = TraktCache().dbcur
-		for table in ('trakt_data', 'progress', 'watched_status'):
-			# Validate table name against whitelist to prevent SQL injection
-			if table in VALID_TABLES:
-				dbcur.execute('DELETE FROM %s' % table)
-		dbcur.execute("""VACUUM""")
+		with TraktCache() as cache:
+			for table in ('trakt_data', 'progress', 'watched_status'):
+				# Validate table name against whitelist to prevent SQL injection
+				if table in VALID_TABLES:
+					cache.dbcur.execute('DELETE FROM %s' % table)
+			cache.dbcur.execute("""VACUUM""")
 		if not refresh: return True
 		from indexers.trakt_api import trakt_sync_activities_thread
 		trakt_sync_activities_thread()

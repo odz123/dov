@@ -289,10 +289,13 @@ def clear_view(view_type):
 		dbcur = dbcon.cursor()
 		dbcur.execute("""PRAGMA synchronous = OFF""")
 		dbcur.execute("""PRAGMA journal_mode = OFF""")
+		# Get view_types for property clearing, then delete all in one query
 		dbcur.execute("""SELECT view_type FROM views""")
-		for item in dbcur.fetchall():
-			dbcur.execute("""DELETE FROM views WHERE view_type = ?""", (item[0],))
-			clear_property('pov_%s' % item[0])
+		view_types = [item[0] for item in dbcur.fetchall()]
+		for vt in view_types:
+			clear_property('pov_%s' % vt)
+		# Single DELETE instead of N DELETE queries
+		dbcur.execute("""DELETE FROM views""")
 		dbcon = database_connect('special://profile/Database/ViewModes6.db')
 		dbcur = dbcon.cursor()
 		dbcur.execute("""DELETE FROM view WHERE path LIKE 'plugin://plugin.video.pov/%'""")

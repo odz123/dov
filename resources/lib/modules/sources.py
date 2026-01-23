@@ -425,21 +425,53 @@ class SourceSelect:
 		except Exception: pass
 
 	def filter_results(self, results):
-		# Stremio sources are ready to play - bypass all filtering
-		# Note: provider is 'stremio' after process_sources, not 'stremio_{addon}'
-		stremio_sources = [i for i in results if i.get('provider', '').startswith('stremio')]
-		results = [i for i in results if not i.get('provider', '').startswith('stremio')]
-		results = [i for i in results if i['quality'] in self.quality_filter]
-		if not self.include_3D_results: results = [i for i in results if not '3D' in i['extraInfo']]
-		if not self.size_filter: return stremio_sources + results
+		# Combine all filtering into a single pass for performance
+		# Calculate size filter parameters once before the loop
+		max_size = None
 		if self.size_filter == 1:
 			duration = self.meta['duration'] or (3600 if self.media_type == 'episode' else 5400)
 			max_size = ((0.125 * (0.90 * string_to_float(get_setting('results.size.speed', '20'), '20'))) * duration)/1000
-		if self.size_filter == 2:
+		elif self.size_filter == 2:
 			max_size = string_to_float(get_setting('results.size.file', '10000'), '10000') / 1000
-		if self.include_unknown_size: results = [i for i in results if i['scrape_provider'].startswith('folder') or i['size'] <= max_size]
-		else: results = [i for i in results if i['scrape_provider'].startswith('folder') or 0.01 < i['size'] <= max_size]
-		return stremio_sources + results
+
+		# Pre-compute filter conditions
+		quality_filter_set = set(self.quality_filter)  # O(1) lookup
+		include_3D = self.include_3D_results
+		include_unknown = self.include_unknown_size
+
+		stremio_sources = []
+		filtered_results = []
+
+		for item in results:
+			provider = item.get('provider', '')
+			# Stremio sources bypass all filtering - they're ready to play
+			if provider.startswith('stremio'):
+				stremio_sources.append(item)
+				continue
+
+			# Quality filter
+			if item['quality'] not in quality_filter_set:
+				continue
+
+			# 3D filter
+			if not include_3D and '3D' in item['extraInfo']:
+				continue
+
+			# Size filter
+			if max_size is not None:
+				is_folder = item['scrape_provider'].startswith('folder')
+				if not is_folder:
+					item_size = item['size']
+					if include_unknown:
+						if item_size > max_size:
+							continue
+					else:
+						if not (0.01 < item_size <= max_size):
+							continue
+
+			filtered_results.append(item)
+
+		return stremio_sources + filtered_results
 
 	def sort_results(self, results):
 		for item in results:
