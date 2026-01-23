@@ -228,6 +228,67 @@ DEBRID_SERVICES = {
 }
 
 
+def extract_base_url_and_config(url):
+	"""
+	Extract the base addon URL and any existing configuration from a URL.
+	Handles URLs like:
+	- https://torrentio.strem.fun/manifest.json
+	- https://torrentio.strem.fun/sort=qualitysize|realdebrid=xxx/manifest.json
+	- https://torrentio.strem.fun/realdebrid=xxx
+	Returns: (base_url, config_string or None, has_debrid_config)
+	"""
+	from urllib.parse import urlparse, unquote
+
+	url = url.strip().rstrip('/')
+	if not url.startswith(('http://', 'https://')):
+		url = 'https://' + url
+
+	# Remove manifest.json suffix
+	if url.endswith('/manifest.json'):
+		url = url[:-14]
+
+	parsed = urlparse(url)
+	path_parts = parsed.path.strip('/').split('/')
+
+	# Check if path contains configuration (look for = signs which indicate config params)
+	config_string = None
+	base_path_parts = []
+	has_debrid_config = False
+
+	# Known debrid parameter patterns
+	debrid_patterns = [
+		'realdebrid=', 'rd=', 'debridkey=',
+		'premiumize=', 'pm=',
+		'alldebrid=', 'ad=',
+		'torbox=', 'tb=',
+		'offcloud=', 'oc=',
+		'debrid-link=', 'dl=',
+		'easydebrid=', 'ed='
+	]
+
+	for part in path_parts:
+		# Decode URL-encoded parts
+		decoded_part = unquote(part)
+		# Check if this part looks like configuration (contains = sign)
+		if '=' in decoded_part:
+			config_string = decoded_part
+			# Check for debrid config
+			part_lower = decoded_part.lower()
+			if any(pattern in part_lower for pattern in debrid_patterns):
+				has_debrid_config = True
+		else:
+			base_path_parts.append(part)
+
+	# Reconstruct base URL
+	base_path = '/'.join(base_path_parts)
+	if base_path:
+		base_url = f"{parsed.scheme}://{parsed.netloc}/{base_path}"
+	else:
+		base_url = f"{parsed.scheme}://{parsed.netloc}"
+
+	return base_url, config_string, has_debrid_config
+
+
 def get_stremio_addons():
 	"""Get list of configured Stremio addons"""
 	try:
@@ -263,18 +324,18 @@ def get_enabled_debrid_services():
 	return enabled
 
 
-def validate_stremio_addon(url):
-	"""Validate a Stremio addon URL by fetching its manifest"""
+def validate_stremio_addon(url, return_config_info=False):
+	"""
+	Validate a Stremio addon URL by fetching its manifest.
+	If return_config_info=True, also returns extracted config information.
+	"""
 	try:
-		# Clean up URL
-		base_url = url.rstrip('/')
-		if not base_url.startswith(('http://', 'https://')):
-			base_url = 'https://' + base_url
+		# Extract base URL and any existing configuration
+		base_url, existing_config, has_debrid_config = extract_base_url_and_config(url)
 
-		# Check if URL ends with manifest.json, if so use as-is
-		if base_url.endswith('/manifest.json'):
-			manifest_url = base_url
-			base_url = base_url[:-14]
+		# If URL had config, use the full URL for manifest fetch
+		if existing_config:
+			manifest_url = f"{base_url}/{existing_config}/manifest.json"
 		else:
 			manifest_url = f"{base_url}/manifest.json"
 
@@ -326,9 +387,8 @@ def validate_stremio_addon(url):
 		# Check if addon has a configure page
 		behavior_hints = manifest.get('behaviorHints', {})
 		configurable = behavior_hints.get('configurable', False)
-		config_url = behavior_hints.get('configurationRequired', '')
 
-		return {
+		addon_info = {
 			'url': base_url,
 			'name': manifest.get('name', 'Unknown'),
 			'id': manifest.get('id', ''),
@@ -341,7 +401,18 @@ def validate_stremio_addon(url):
 			'supports_subtitles': supports_subtitles,
 			'configurable': configurable,
 			'config_url': ''  # Will be set during configuration
-		}, None
+		}
+
+		# If the URL already had configuration, preserve it
+		if existing_config:
+			addon_info['config_url'] = f"{base_url}/{existing_config}"
+			addon_info['existing_config'] = existing_config
+			if has_debrid_config:
+				addon_info['has_debrid_config'] = True
+
+		if return_config_info:
+			return addon_info, None, existing_config, has_debrid_config
+		return addon_info, None
 
 	except requests.exceptions.Timeout:
 		return None, "Connection timed out"
@@ -353,9 +424,36 @@ def validate_stremio_addon(url):
 		return None, str(e)
 
 
-def build_addon_config_url(base_url, debrid_service=None, custom_config=None):
-	"""Build a configuration URL for an addon with debrid settings"""
+def build_addon_config_url(base_url, debrid_service=None, custom_config=None, existing_config=None):
+	"""
+	Build a configuration URL for an addon with debrid settings.
+	Stremio addons typically use the format: /{config}/manifest.json
+	where config can contain multiple params separated by | or %7C
+	"""
+	from urllib.parse import quote
+
 	config_parts = []
+
+	# Preserve existing config parts if provided (but remove old debrid configs)
+	if existing_config:
+		# Split by | or %7C
+		existing_parts = existing_config.replace('%7C', '|').split('|')
+		debrid_patterns = [
+			'realdebrid=', 'rd=', 'debridkey=',
+			'premiumize=', 'pm=',
+			'alldebrid=', 'ad=',
+			'torbox=', 'tb=',
+			'offcloud=', 'oc=',
+			'debrid-link=', 'dl=',
+			'easydebrid=', 'ed='
+		]
+		for part in existing_parts:
+			# Skip old debrid config parts if we're adding new debrid config
+			if debrid_service:
+				part_lower = part.lower()
+				if any(pattern in part_lower for pattern in debrid_patterns):
+					continue
+			config_parts.append(part)
 
 	# Add debrid configuration if provided
 	if debrid_service:
@@ -369,6 +467,7 @@ def build_addon_config_url(base_url, debrid_service=None, custom_config=None):
 			config_parts.append(f"{key}={value}")
 
 	if config_parts:
+		# Join with | and URL-encode the whole config string
 		config_string = '|'.join(config_parts)
 		# Most Stremio addons use /{config}/manifest.json format
 		return f"{base_url.rstrip('/')}/{config_string}"
@@ -451,8 +550,13 @@ def add_stremio_addon():
 
 	notification('Validating addon...', 2000)
 
-	# Validate the addon
-	addon_info, error = validate_stremio_addon(url)
+	# Validate the addon with config info
+	result = validate_stremio_addon(url, return_config_info=True)
+	if len(result) == 4:
+		addon_info, error, existing_config, has_debrid_config = result
+	else:
+		addon_info, error = result
+		existing_config, has_debrid_config = None, False
 
 	if error:
 		ok_dialog(heading='Error', text=f'Failed to add addon:\n{error}')
@@ -460,16 +564,46 @@ def add_stremio_addon():
 
 	# Check if addon already exists
 	addons = get_stremio_addons()
-	for existing in addons:
+	existing_idx = None
+	for idx, existing in enumerate(addons):
 		if existing.get('id') == addon_info.get('id') or existing.get('url') == addon_info.get('url'):
-			ok_dialog(heading='Error', text='This addon is already configured')
-			return
+			existing_idx = idx
+			break
 
-	# Ask if user wants to configure debrid
-	enabled_debrids = get_enabled_debrid_services()
-	if enabled_debrids:
-		if confirm_dialog(heading='Debrid Configuration', text='Would you like to configure this addon with your debrid service?'):
-			addon_info = configure_addon_debrid(addon_info, enabled_debrids)
+	if existing_idx is not None:
+		# Offer to update instead of just showing error
+		existing_addon = addons[existing_idx]
+		update_msg = f"'{addon_info['name']}' is already configured."
+		if has_debrid_config or existing_config:
+			update_msg += "\n\nThe URL you entered contains configuration. Update the addon with this configuration?"
+		else:
+			update_msg += "\n\nWould you like to update or reconfigure it?"
+
+		if confirm_dialog(heading='Addon Exists', text=update_msg):
+			# Update the existing addon
+			addon_info['config_url'] = existing_addon.get('config_url', '')
+			addon_info['debrid_service'] = existing_addon.get('debrid_service', '')
+
+			# If new URL had config, use it
+			if existing_config:
+				addon_info['config_url'] = f"{addon_info['url']}/{existing_config}"
+				if has_debrid_config:
+					addon_info['has_debrid_config'] = True
+
+			addons[existing_idx] = addon_info
+			save_stremio_addons(addons)
+			notification(f"Updated: {addon_info['name']}", 2000)
+		return
+
+	# If URL already had debrid config, inform user
+	if has_debrid_config:
+		notification(f"Detected existing debrid configuration", 2000)
+	# Ask if user wants to configure debrid (only if not already configured)
+	elif not existing_config:
+		enabled_debrids = get_enabled_debrid_services()
+		if enabled_debrids:
+			if confirm_dialog(heading='Debrid Configuration', text='Would you like to configure this addon with your debrid service?'):
+				addon_info = configure_addon_debrid(addon_info, enabled_debrids)
 
 	# Show addon info and confirm
 	debrid_status = '[COLOR green]Configured[/COLOR]' if addon_info.get('config_url') else '[COLOR gray]Not configured[/COLOR]'
@@ -515,10 +649,17 @@ def configure_addon_debrid(addon_info, enabled_debrids):
 
 	selected_debrid = enabled_debrids[selection]
 
-	# Build config URL
-	config_url = build_addon_config_url(addon_info['url'], selected_debrid)
+	# Preserve existing non-debrid config if any
+	existing_config = addon_info.get('existing_config', '')
+	if not existing_config and addon_info.get('config_url'):
+		# Extract config from existing config_url
+		_, existing_config, _ = extract_base_url_and_config(addon_info['config_url'])
+
+	# Build config URL preserving existing config
+	config_url = build_addon_config_url(addon_info['url'], selected_debrid, existing_config=existing_config)
 	addon_info['config_url'] = config_url
 	addon_info['debrid_service'] = selected_debrid['id']
+	addon_info['has_debrid_config'] = True
 
 	notification(f"Configured with {selected_debrid['name']}", 2000)
 	return addon_info
@@ -609,30 +750,38 @@ def enter_config_url(addon_idx):
 	notification('Validating configuration...', 2000)
 
 	try:
-		# Try to fetch manifest from config URL
-		base_url = url.rstrip('/')
-		if not base_url.startswith(('http://', 'https://')):
-			base_url = 'https://' + base_url
+		# Extract base URL and config from the entered URL
+		extracted_base, existing_config, has_debrid = extract_base_url_and_config(url)
 
-		if not base_url.endswith('/manifest.json'):
-			manifest_url = f"{base_url}/manifest.json"
+		# Build manifest URL
+		if existing_config:
+			manifest_url = f"{extracted_base}/{existing_config}/manifest.json"
+			config_url = f"{extracted_base}/{existing_config}"
 		else:
-			manifest_url = base_url
-			base_url = base_url[:-14]
+			manifest_url = f"{extracted_base}/manifest.json"
+			config_url = extracted_base
 
-		response = requests.get(
-			manifest_url,
-			timeout=10,
-			headers=BROWSER_HEADERS
-		)
+		# Use _fetch_url for Cloudflare bypass
+		response, error = _fetch_url(manifest_url, timeout=10)
 
-		if response.status_code == 200:
-			addon['config_url'] = base_url
-			addons[addon_idx] = addon
-			save_stremio_addons(addons)
-			notification('Configuration URL saved', 2000)
+		if response is not None and response.status_code == 200:
+			content_type = response.headers.get('content-type', '')
+			if 'text/html' not in content_type:
+				addon['config_url'] = config_url
+				if has_debrid:
+					addon['has_debrid_config'] = True
+				addons[addon_idx] = addon
+				save_stremio_addons(addons)
+				notification('Configuration URL saved', 2000)
+			else:
+				ok_dialog(heading='Error', text='Blocked by Cloudflare - configuration may still work')
+				# Still save it since it might work with proper headers during playback
+				addon['config_url'] = config_url
+				addons[addon_idx] = addon
+				save_stremio_addons(addons)
 		else:
-			ok_dialog(heading='Error', text=f'Failed to validate URL (HTTP {response.status_code})')
+			error_msg = error or ('HTTP %d' % response.status_code if response else 'Connection failed')
+			ok_dialog(heading='Error', text=f'Failed to validate URL:\n{error_msg}')
 	except Exception as e:
 		ok_dialog(heading='Error', text=f'Failed to validate URL:\n{str(e)}')
 
@@ -760,12 +909,35 @@ def add_popular_addon():
 		ok_dialog(heading='Error', text=f'Failed to add addon:\n{error}')
 		return
 
-	# Check if already exists
+	# Check if already exists (check both id and url for consistency)
 	addons = get_stremio_addons()
-	for existing in addons:
-		if existing.get('id') == addon_info.get('id'):
-			ok_dialog(heading='Error', text='This addon is already configured')
-			return
+	existing_idx = None
+	for idx, existing in enumerate(addons):
+		if existing.get('id') == addon_info.get('id') or existing.get('url') == addon_info.get('url'):
+			existing_idx = idx
+			break
+
+	if existing_idx is not None:
+		# Offer to reconfigure instead of just showing error
+		if confirm_dialog(heading='Addon Exists',
+						  text=f"'{addon_info['name']}' is already configured.\nWould you like to reconfigure it?"):
+			# Keep existing config if any
+			existing_addon = addons[existing_idx]
+			addon_info['config_url'] = existing_addon.get('config_url', '')
+			addon_info['debrid_service'] = existing_addon.get('debrid_service', '')
+
+			# Offer to reconfigure debrid
+			if selected['debrid_support']:
+				enabled_debrids = get_enabled_debrid_services()
+				if enabled_debrids:
+					if confirm_dialog(heading='Debrid Configuration',
+									  text='Would you like to reconfigure debrid settings?'):
+						addon_info = configure_addon_debrid(addon_info, enabled_debrids)
+
+			addons[existing_idx] = addon_info
+			save_stremio_addons(addons)
+			notification(f"Updated: {addon_info['name']}", 2000)
+		return
 
 	# If addon supports debrid, ask to configure
 	if selected['debrid_support']:
@@ -815,9 +987,15 @@ def reconfigure_all_addons_debrid():
 	for addon in addons:
 		# Only update addons that support debrid (have configurable URLs)
 		if addon.get('url'):
-			config_url = build_addon_config_url(addon['url'], selected_debrid)
+			# Preserve existing non-debrid config if any
+			existing_config = addon.get('existing_config', '')
+			if not existing_config and addon.get('config_url'):
+				_, existing_config, _ = extract_base_url_and_config(addon['config_url'])
+
+			config_url = build_addon_config_url(addon['url'], selected_debrid, existing_config=existing_config)
 			addon['config_url'] = config_url
 			addon['debrid_service'] = selected_debrid['id']
+			addon['has_debrid_config'] = True
 			updated_count += 1
 
 	save_stremio_addons(addons)
