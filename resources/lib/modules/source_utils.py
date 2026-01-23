@@ -59,24 +59,45 @@ UNWANTED_TAGS = ('tamilrockers.com', 'www.tamilrockers.com', 'www.tamilrockers.w
 				'ramin.djawadi', 'extramovies.casa', 'extramovies.wiki', '13+', '18+', 'taht.oyunlar', 'crazy4tv.com', 'karibu', '989pa.com', 'best-torrents-net', '1-3-3-8.com',
 				'ssrmovies.club', 'va:', 'zgxybbs-fdns-uk', 'www.tamilblasters.mx', 'www.1tamilmv.work', 'www.xbay.me', 'crazy4tv-com', '(es)')
 
+# Module-level cache for external sources to avoid repeated directory scans and imports
+_external_sources_cache = {}
+_external_sources_cache_all = {}
+
 def external_sources(ret_all=False):
+	"""Get external sources with caching to avoid repeated directory scans."""
+	global _external_sources_cache, _external_sources_cache_all
+	# Check if we have a cached result
+	cache = _external_sources_cache_all if ret_all else _external_sources_cache
+	if cache:
+		return list(cache.values())
 	source_list = []
 	append = source_list.append
-	enabled = [
+	enabled_set = {
 		k.split('.')[1] for k, v in kodi_utils.make_settings_dict().items()
 		if k.startswith('provider.') and v == 'true' and len(k.split('.')) > 1
-	]
+	}
 	dir_result = kodi_utils.list_dirs('special://home/addons/plugin.video.pov/resources/lib/magneto')
 	files = dir_result[1] if len(dir_result) > 1 else []
 	for item in files:
 		try:
 			module_name = item.split('.')[0]
 			if module_name in ('__init__',): continue
-			if not ret_all and not module_name in enabled: continue
+			if not ret_all and module_name not in enabled_set: continue
 			module = manual_function_import('magneto.%s' % module_name, 'source')
 			append((module_name, module))
+			# Cache the module for future use
+			if ret_all:
+				_external_sources_cache_all[module_name] = (module_name, module)
+			else:
+				_external_sources_cache[module_name] = (module_name, module)
 		except: pass
 	return source_list
+
+def clear_external_sources_cache():
+	"""Clear the external sources cache. Call when provider settings change."""
+	global _external_sources_cache, _external_sources_cache_all
+	_external_sources_cache.clear()
+	_external_sources_cache_all.clear()
 
 def stremio_is_configured():
 	"""Check if Stremio is enabled with at least one addon configured.
@@ -141,19 +162,30 @@ def stremio_has_debrid_addons():
 	except Exception:
 		return False
 
+# Module-level cache for internal source modules
+_internal_sources_modules = {}
+
 def internal_sources(active_sources, media_type, prescrape=False):
+	"""Get internal sources with module caching to avoid repeated imports."""
+	global _internal_sources_modules
 	def import_info():
-		dir_result = kodi_utils.list_dirs('special://home/addons/plugin.video.pov/resources/lib/scrapers')
-		files = dir_result[1] if len(dir_result) > 1 else []
-		for item in files:
-			try:
-				module_name = item.split('.')[0]
-				if module_name in ('__init__', 'external', 'folders'): continue
-				if module_name not in active_sources: continue
-				if prescrape and not check_prescrape_sources(module_name, media_type): continue
-				module = manual_function_import('scrapers.%s' % module_name, 'source')
-				yield ('internal', module, module_name)
-			except: pass
+		# Cache directory listing to avoid repeated filesystem access
+		if not _internal_sources_modules:
+			dir_result = kodi_utils.list_dirs('special://home/addons/plugin.video.pov/resources/lib/scrapers')
+			files = dir_result[1] if len(dir_result) > 1 else []
+			for item in files:
+				try:
+					module_name = item.split('.')[0]
+					if module_name in ('__init__', 'external', 'folders'): continue
+					module = manual_function_import('scrapers.%s' % module_name, 'source')
+					_internal_sources_modules[module_name] = module
+				except: pass
+		# Build result from cached modules
+		active_set = set(active_sources)  # O(1) lookup
+		for module_name, module in _internal_sources_modules.items():
+			if module_name not in active_set: continue
+			if prescrape and not check_prescrape_sources(module_name, media_type): continue
+			yield ('internal', module, module_name)
 	try: sourceDict = list(import_info())
 	except: sourceDict = []
 	return sourceDict

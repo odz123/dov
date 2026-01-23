@@ -1,6 +1,7 @@
 import time
 from ast import literal_eval
 from datetime import datetime
+from threading import Lock
 from modules import kodi_utils
 # logger = kodi_utils.logger
 
@@ -16,11 +17,82 @@ database_connect = kodi_utils.database_connect
 container_refresh = kodi_utils.container_refresh
 get_property, set_property, clear_property = kodi_utils.get_property, kodi_utils.set_property, kodi_utils.clear_property
 
+
+class ConnectionPool:
+	"""Thread-safe connection pool for SQLite databases.
+	Reuses connections to avoid repeated connection overhead."""
+	_pools = {}
+	_pool_lock = Lock()
+	_max_pool_size = 5
+
+	@classmethod
+	def get_connection(cls, db_file, isolation_level=None):
+		"""Get a connection from the pool or create a new one."""
+		with cls._pool_lock:
+			if db_file not in cls._pools:
+				cls._pools[db_file] = []
+			pool = cls._pools[db_file]
+			if pool:
+				conn = pool.pop()
+				try:
+					# Test if connection is still valid
+					conn.execute('SELECT 1')
+					return conn
+				except Exception:
+					# Connection invalid, create new one
+					pass
+		# Create new connection outside lock
+		return database_connect(db_file, isolation_level=isolation_level)
+
+	@classmethod
+	def return_connection(cls, db_file, conn):
+		"""Return a connection to the pool for reuse."""
+		if conn is None:
+			return
+		with cls._pool_lock:
+			if db_file not in cls._pools:
+				cls._pools[db_file] = []
+			pool = cls._pools[db_file]
+			if len(pool) < cls._max_pool_size:
+				pool.append(conn)
+			else:
+				# Pool full, close connection
+				try:
+					conn.close()
+				except Exception:
+					pass
+
+	@classmethod
+	def clear_pool(cls, db_file=None):
+		"""Clear connections from pool, optionally for specific database."""
+		with cls._pool_lock:
+			if db_file:
+				if db_file in cls._pools:
+					for conn in cls._pools[db_file]:
+						try:
+							conn.close()
+						except Exception:
+							pass
+					cls._pools[db_file] = []
+			else:
+				for pool in cls._pools.values():
+					for conn in pool:
+						try:
+							conn.close()
+						except Exception:
+							pass
+				cls._pools.clear()
+
+
 class BaseCache:
 	db_file = ':memory:'
+	_use_pooling = True
 
 	def __init__(self):
-		self.dbcon = database_connect(self.db_file, isolation_level=None)
+		if self._use_pooling and self.db_file != ':memory:':
+			self.dbcon = ConnectionPool.get_connection(self.db_file, isolation_level=None)
+		else:
+			self.dbcon = database_connect(self.db_file, isolation_level=None)
 		self.dbcur = self.dbcon.cursor()
 		self._set_PRAGMAS()
 
@@ -31,12 +103,17 @@ class BaseCache:
 		self.close()
 
 	def close(self):
-		"""Close database connection to prevent resource leaks."""
+		"""Return connection to pool or close it."""
 		try:
 			if self.dbcur:
 				self.dbcur.close()
+				self.dbcur = None
 			if self.dbcon:
-				self.dbcon.close()
+				if self._use_pooling and self.db_file != ':memory:':
+					ConnectionPool.return_connection(self.db_file, self.dbcon)
+				else:
+					self.dbcon.close()
+				self.dbcon = None
 		except Exception:
 			pass
 
