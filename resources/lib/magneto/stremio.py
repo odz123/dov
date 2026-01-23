@@ -8,77 +8,13 @@
 	- Multiple stream types (torrent, direct, YouTube)
 	- Subtitle integration
 	- bingeGroup for autoplay optimization
-	- Cloudflare bypass via cloudscraper (if available)
+	- Cloudflare bypass via shared http_client module
 """
 
 import re
-import time
-import requests
-from json import loads as jsloads
 from fenom import source_utils
 from fenom.control import setting as getSetting
-
-# Try to import cloudscraper for Cloudflare bypass
-try:
-	import cloudscraper
-	HAS_CLOUDSCRAPER = True
-except ImportError:
-	HAS_CLOUDSCRAPER = False
-
-# Try to import curl_cffi for TLS fingerprint bypass (stronger than cloudscraper)
-try:
-	from curl_cffi import requests as curl_requests
-	HAS_CURL_CFFI = True
-except ImportError:
-	HAS_CURL_CFFI = False
-
-# Browser-like headers to help bypass Cloudflare and other protections
-BROWSER_HEADERS = {
-	'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
-	'Accept': 'application/json, text/plain, */*',
-	'Accept-Language': 'en-US,en;q=0.9',
-	'Accept-Encoding': 'gzip, deflate, br',
-	'Connection': 'keep-alive',
-	'Sec-Ch-Ua': '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"',
-	'Sec-Ch-Ua-Mobile': '?0',
-	'Sec-Ch-Ua-Platform': '"Windows"',
-	'Sec-Fetch-Dest': 'empty',
-	'Sec-Fetch-Mode': 'cors',
-	'Sec-Fetch-Site': 'cross-site',
-}
-
-# Cloudscraper session management - refresh stale sessions
-_scraper_session = None
-_scraper_request_count = 0
-_scraper_fail_count = 0
-_SCRAPER_MAX_REQUESTS = 50  # Refresh session after this many requests
-_SCRAPER_MAX_FAILS = 3  # Refresh session after consecutive failures
-
-def _get_scraper(force_new=False):
-	global _scraper_session, _scraper_request_count, _scraper_fail_count
-	if not HAS_CLOUDSCRAPER:
-		return None
-	# Create new session if needed
-	if force_new or _scraper_session is None or _scraper_request_count >= _SCRAPER_MAX_REQUESTS or _scraper_fail_count >= _SCRAPER_MAX_FAILS:
-		try:
-			_scraper_session = cloudscraper.create_scraper(
-				browser={'browser': 'chrome', 'platform': 'windows', 'desktop': True},
-				delay=1
-			)
-			_scraper_request_count = 0
-			_scraper_fail_count = 0
-		except Exception:
-			_scraper_session = None
-	return _scraper_session
-
-def _mark_scraper_success():
-	global _scraper_request_count, _scraper_fail_count
-	_scraper_request_count += 1
-	_scraper_fail_count = 0
-
-def _mark_scraper_fail():
-	global _scraper_fail_count
-	_scraper_fail_count += 1
+from modules import http_client
 
 # Pre-compiled regex patterns for parsing stream metadata
 RE_SEEDERS = re.compile(r'(?:👤|seeders?[:\s]*|peers?[:\s]*)(\d+)', re.I)
@@ -300,263 +236,26 @@ class source:
 
 	def _fetch_streams(self, addon_url, media_type, media_id, addon_info=None):
 		"""Fetch streams from a Stremio addon with enhanced error handling and Cloudflare bypass"""
-		streams = []
-		try:
-			# Clean up addon URL
-			base_url = addon_url.rstrip('/')
-			if base_url.endswith('/manifest.json'):
-				base_url = base_url[:-14]
+		def error_callback(msg):
+			source_utils.scraper_error('STREMIO: %s - %s' % (addon_url, msg))
 
-			# Build stream endpoint
-			endpoint = f"{base_url}/stream/{media_type}/{media_id}.json"
-
-			# Extract domain for Referer/Origin headers
-			try:
-				from urllib.parse import urlparse
-				parsed = urlparse(base_url)
-				origin = f"{parsed.scheme}://{parsed.netloc}"
-			except:
-				origin = base_url
-
-			# Enhanced headers with Referer and Origin
-			headers = BROWSER_HEADERS.copy()
-			headers['Referer'] = f"{origin}/"
-			headers['Origin'] = origin
-
-			# Try multiple methods in order of effectiveness:
-			# 1. curl_cffi (best TLS fingerprint bypass)
-			# 2. cloudscraper (good JS challenge bypass)
-			# 3. requests with browser headers (basic)
-			response = None
-			last_error = None
-			cloudflare_blocked = False
-
-			# Method 1: curl_cffi with Chrome impersonation (best for TLS fingerprinting)
-			if HAS_CURL_CFFI:
-				try:
-					for attempt in range(3):
-						try:
-							response = curl_requests.get(
-								endpoint,
-								timeout=self.timeout,
-								headers=headers,
-								impersonate='chrome120'
-							)
-							if response.status_code == 200:
-								content_type = response.headers.get('content-type', '')
-								if 'text/html' not in content_type:
-									data = response.json()
-									streams = data.get('streams') or []
-									return streams
-							if response.status_code in (403, 418, 503) or 'text/html' in response.headers.get('content-type', ''):
-								cloudflare_blocked = True
-								if attempt < 2:
-									time.sleep(0.5 * (attempt + 1))
-									continue
-							break
-						except Exception:
-							if attempt < 2:
-								time.sleep(0.5 * (attempt + 1))
-								continue
-							raise
-				except Exception as e:
-					last_error = e
-
-			# Method 2: cloudscraper (JS challenge solver)
-			if not streams:
-				scraper = _get_scraper()
-				if scraper:
-					try:
-						for attempt in range(3):
-							try:
-								response = scraper.get(endpoint, timeout=self.timeout, headers=headers)
-								if response.status_code == 200:
-									content_type = response.headers.get('content-type', '')
-									if 'text/html' not in content_type:
-										try:
-											data = response.json()
-											streams = data.get('streams') or []
-											_mark_scraper_success()
-											return streams
-										except ValueError:
-											pass  # Invalid JSON, try next method
-								if response.status_code in (403, 418, 503) or 'text/html' in response.headers.get('content-type', ''):
-									cloudflare_blocked = True
-									_mark_scraper_fail()
-									if attempt < 2:
-										time.sleep(0.5 * (attempt + 1))
-										# Try with fresh session on last attempt
-										if attempt == 1:
-											scraper = _get_scraper(force_new=True)
-											if not scraper:
-												break
-										continue
-								break
-							except Exception:
-								_mark_scraper_fail()
-								if attempt < 2:
-									time.sleep(0.5 * (attempt + 1))
-									continue
-								raise
-					except Exception as e:
-						last_error = e
-
-			# Method 3: Regular requests with browser headers (fallback)
-			if not streams:
-				try:
-					for attempt in range(2):
-						try:
-							response = requests.get(endpoint, timeout=self.timeout, headers=headers)
-							if response.status_code == 200:
-								content_type = response.headers.get('content-type', '')
-								if 'text/html' not in content_type:
-									try:
-										data = response.json()
-										streams = data.get('streams') or []
-										return streams
-									except ValueError:
-										pass
-							if response.status_code in (403, 418, 503):
-								cloudflare_blocked = True
-								if attempt == 0:
-									time.sleep(0.5)
-									continue
-							break
-						except (requests.exceptions.Timeout, requests.exceptions.ConnectionError):
-							if attempt == 0:
-								time.sleep(0.5)
-								continue
-							raise
-				except Exception as e:
-					last_error = e
-
-			# All methods failed - log appropriate error
-			if response is not None:
-				status = response.status_code
-				content_type = response.headers.get('content-type', '')
-				if status == 403 or (status == 200 and 'text/html' in content_type):
-					if cloudflare_blocked:
-						source_utils.scraper_error('STREMIO: Cloudflare blocked %s - try configuring addon with debrid credentials' % base_url)
-					else:
-						source_utils.scraper_error('STREMIO: HTTP 403 from %s' % base_url)
-				elif status == 418:
-					source_utils.scraper_error('STREMIO: Bot protection at %s - use configured addon URL with debrid' % base_url)
-				elif status == 503:
-					source_utils.scraper_error('STREMIO: Service unavailable %s - addon may be down' % base_url)
-				elif status == 522 or status == 524:
-					source_utils.scraper_error('STREMIO: Timeout at origin %s - addon server slow' % base_url)
-				elif status != 200:
-					source_utils.scraper_error('STREMIO: HTTP %d from %s' % (status, base_url))
-			elif last_error:
-				source_utils.scraper_error('STREMIO: %s - %s' % (base_url, str(last_error)[:80]))
-
-		except requests.exceptions.Timeout:
-			source_utils.scraper_error('STREMIO_TIMEOUT: %s' % base_url)
-		except requests.exceptions.ConnectionError:
-			source_utils.scraper_error('STREMIO_CONNECTION: %s' % base_url)
-		except Exception as e:
-			source_utils.scraper_error('STREMIO: %s' % str(e)[:100])
-		return streams
+		return http_client.fetch_streams(
+			addon_url, media_type, media_id,
+			timeout=self.timeout,
+			error_callback=error_callback
+		)
 
 	def _fetch_subtitles(self, addon_url, media_type, media_id):
 		"""Fetch subtitles from a Stremio addon"""
-		subtitles = []
 		if not self.fetch_subtitles:
-			return subtitles
-		try:
-			base_url = addon_url.rstrip('/')
-			if base_url.endswith('/manifest.json'):
-				base_url = base_url[:-14]
-
-			endpoint = f"{base_url}/subtitles/{media_type}/{media_id}.json"
-
-			# Enhanced headers
-			try:
-				from urllib.parse import urlparse
-				parsed = urlparse(base_url)
-				origin = f"{parsed.scheme}://{parsed.netloc}"
-			except:
-				origin = base_url
-
-			headers = BROWSER_HEADERS.copy()
-			headers['Referer'] = f"{origin}/"
-			headers['Origin'] = origin
-
-			# Try curl_cffi first, then cloudscraper, then requests
-			response = None
-			if HAS_CURL_CFFI:
-				try:
-					response = curl_requests.get(endpoint, timeout=5, headers=headers, impersonate='chrome120')
-				except:
-					pass
-
-			if response is None or response.status_code != 200:
-				scraper = _get_scraper()
-				if scraper:
-					try:
-						response = scraper.get(endpoint, timeout=5, headers=headers)
-					except:
-						pass
-
-			if response is None or response.status_code != 200:
-				response = requests.get(endpoint, timeout=5, headers=headers)
-
-			if response and response.status_code == 200:
-				content_type = response.headers.get('content-type', '')
-				if 'text/html' not in content_type:
-					data = response.json()
-					subtitles = data.get('subtitles', [])
-		except:
-			pass
-		return subtitles
+			return []
+		return http_client.fetch_subtitles(addon_url, media_type, media_id, timeout=5)
 
 	def _get_addon_name(self, addon_url):
 		"""Extract addon name from URL or fetch from manifest"""
-		try:
-			base_url = addon_url.rstrip('/')
-			if base_url.endswith('/manifest.json'):
-				base_url = base_url[:-14]
-
-			manifest_url = f"{base_url}/manifest.json"
-
-			# Enhanced headers
-			try:
-				from urllib.parse import urlparse
-				parsed = urlparse(base_url)
-				origin = f"{parsed.scheme}://{parsed.netloc}"
-			except:
-				origin = base_url
-
-			headers = BROWSER_HEADERS.copy()
-			headers['Referer'] = f"{origin}/"
-			headers['Origin'] = origin
-
-			# Try to fetch manifest for name with multiple methods
-			response = None
-			if HAS_CURL_CFFI:
-				try:
-					response = curl_requests.get(manifest_url, timeout=3, headers=headers, impersonate='chrome120')
-				except:
-					pass
-
-			if response is None or response.status_code != 200:
-				scraper = _get_scraper()
-				if scraper:
-					try:
-						response = scraper.get(manifest_url, timeout=3, headers=headers)
-					except:
-						pass
-
-			if response is None or response.status_code != 200:
-				response = requests.get(manifest_url, timeout=3, headers=headers)
-
-			if response and response.status_code == 200:
-				content_type = response.headers.get('content-type', '')
-				if 'text/html' not in content_type:
-					manifest = response.json()
-					return manifest.get('name', 'stremio')
-		except:
-			pass
+		manifest = http_client.fetch_manifest(addon_url, timeout=3)
+		if manifest:
+			return manifest.get('name', 'stremio')
 
 		# Fallback: extract from URL
 		try:
