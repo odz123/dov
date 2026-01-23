@@ -1,6 +1,5 @@
 import requests
 from modules import kodi_utils
-# logger = kodi_utils.logger
 
 ls, get_setting = kodi_utils.local_string, kodi_utils.get_setting
 ip_url = 'https://api.ipify.org'
@@ -87,20 +86,14 @@ class EasyDebridAPI:
 		except: pass
 
 	def clear_cache(*args):
-		from modules.kodi_utils import clear_property, path_exists, database_connect, maincache_db
+		from modules.kodi_utils import clear_property
 		try:
-#			if not path_exists(maincache_db): return True
 			from caches.debrid_cache import DebridCache
-#			dbcon = database_connect(maincache_db)
-#			dbcur = dbcon.cursor()
 			# USER CLOUD
 			try:
-#				dbcur.execute("""DELETE FROM maincache WHERE id = ?""", ('pov_ed_user_cloud',))
 				clear_property('pov_ed_user_cloud')
-#				dbcon.commit()
 				user_cloud_success = True
 			except: user_cloud_success = False
-#			dbcon.close()
 			# HASH CACHED STATUS
 			try:
 				DebridCache().clear_debrid_results('ed')

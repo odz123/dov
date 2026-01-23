@@ -3,9 +3,7 @@ from threading import Thread
 from indexers.metadata import movie_meta, rpdb_get, tmdb_image_base
 from caches.watched_cache import get_watched_info_movie, get_watched_status_movie, get_resumetime, get_bookmarks
 from modules import kodi_utils, settings
-#from modules.utils import manual_function_import, get_datetime, make_thread_list_enumerate, chunks
 from modules.utils import manual_function_import, get_datetime, TaskPool, chunks
-# logger = kodi_utils.logger
 
 movie_meta_function, get_datetime_function, default_duration = movie_meta, get_datetime, 5400
 get_watched_function, get_watched_info_function = get_watched_status_movie, get_watched_info_movie
@@ -62,7 +60,6 @@ class Movies:
 			props = {'pov_sort_order': string(sort)}
 			cm = []
 			cm_append = cm.append
-			clearprog_params, unwatched_params, watched_params = '', '', ''
 			rootname, title, year = meta_get('rootname'), meta_get('title'), meta_get('year')
 			tmdb_id, imdb_id = meta_get('tmdb_id'), meta_get('imdb_id')
 			poster = meta_get(self.poster_main) or meta_get(self.poster_backup) or poster_empty
@@ -145,7 +142,6 @@ class Movies:
 		except: pass
 
 	def worker(self):
-#		threads = list(make_thread_list_enumerate(self.build_movie_content, self.list, Thread))
 		for i in TaskPool().tasks_enumerate(self.build_movie_content, self.list, Thread): i.join()
 		self.items.sort(key=lambda k: int(k[1].getProperty('pov_sort_order')))
 		return self.items

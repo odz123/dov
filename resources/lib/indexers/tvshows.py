@@ -4,9 +4,7 @@ from indexers.trakt_api import trakt_get_hidden_items
 from indexers.metadata import tvshow_meta, rpdb_get
 from caches.watched_cache import get_watched_info_tv, get_watched_status_tvshow
 from modules import kodi_utils, settings
-#from modules.utils import manual_function_import, get_datetime, make_thread_list_enumerate
 from modules.utils import manual_function_import, get_datetime, TaskPool
-# logger = kodi_utils.logger
 
 tv_meta_function, get_datetime_function = tvshow_meta, get_datetime
 get_watched_function, get_watched_info_function = get_watched_status_tvshow, get_watched_info_tv
@@ -151,7 +149,6 @@ class TVShows:
 		except: pass
 
 	def worker(self):
-#		threads = list(make_thread_list_enumerate(self.build_tvshow_content, self.list, Thread))
 		for i in TaskPool().tasks_enumerate(self.build_tvshow_content, self.list, Thread): i.join()
 		self.items.sort(key=lambda k: int(k[1].getProperty('pov_sort_order')))
 		return self.items
