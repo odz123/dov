@@ -32,13 +32,23 @@ def thumb_cleaner():
 	progress_dialog = xbmcgui.DialogProgress()
 	progress_dialog.create('Thumbnails Remover', '')
 	progress_dialog.update(0, 'Gathering Thumbnail Info...')
+
+	# Batch fetch all cachedurls in one query instead of N+1 queries
+	_ids = [item[0] for item in result]
+	# Process in chunks of 500 to avoid SQL parameter limits
+	url_map = {}
+	for i in range(0, len(_ids), 500):
+		chunk = _ids[i:i+500]
+		placeholders = ','.join('?' * len(chunk))
+		dbcur.execute("SELECT id, cachedurl FROM texture WHERE id IN (%s)" % placeholders, chunk)
+		for row in dbcur.fetchall():
+			url_map[row[0]] = row[1]
+
 	for count, item in enumerate(result):
 		if progress_dialog.iscanceled(): break
 		_id = item[0]
-		dbcur.execute("SELECT cachedurl FROM texture WHERE id = ?", (_id, ))
-		url_result = dbcur.fetchall()
-		if not url_result: continue
-		url = url_result[0][0]
+		url = url_map.get(_id)
+		if not url: continue
 		path = thumbs_folder.joinpath(url)
 		path.unlink(missing_ok=True)
 		item_list.append((_id,))

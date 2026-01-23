@@ -569,7 +569,8 @@ def import_trakt_watchlist(*args):
 		except: pass
 		len_items = len(items)
 		threads = TaskPool(40).tasks(_process, [(i[1], i[0]) for i in enumerate(items, 1)], Thread)
-		[i.join(3/4) for i in threads]
+		for t in threads:
+			t.join(3/4)
 		clear_tmdbl_cache()
 		kodi_utils.notification('List sent to TMDB')
 	except: kodi_utils.notification(32574)

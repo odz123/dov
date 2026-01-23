@@ -31,24 +31,58 @@ class TaskPool:
 
 	def tasks(self, _target, _list, _thread):
 		maxsize = min(len(_list), self.maxsize)
-		[self._queue.put(tag) for tag in _list]
+		for tag in _list:
+			self._queue.put(tag)
 		threads = [_thread(target=self._thread_target, args=(self._queue, _target)) for i in range(maxsize)]
 		return list(self.process(threads))
 
 	def tasks_enumerate(self, _target, _list, _thread):
 		maxsize = min(len(_list), self.maxsize)
-		[self._queue.put((p, tag)) for p, tag in enumerate(_list, 1)]
+		for p, tag in enumerate(_list, 1):
+			self._queue.put((p, tag))
 		threads = [_thread(target=self._thread_target, args=(self._queue, _target)) for i in range(maxsize)]
 		return list(self.process(threads))
 
 def manual_function_import(location, function_name):
 	return getattr(import_module(location), function_name)
 
-def make_thread_list(_target, _list, _thread):
-	for item in _list:
-		threaded_object = _thread(target=_target, args=(item,))
-		threaded_object.start()
-		yield threaded_object
+def make_thread_list(_target, _list, _thread, max_threads=100):
+	"""Create and start threads for each item in _list.
+
+	Args:
+		_target: Target function to call
+		_list: List of items to process
+		_thread: Thread class to use
+		max_threads: Maximum concurrent threads (default 100). If list is larger,
+					 threads are started in batches and joined before next batch.
+
+	Yields:
+		Thread objects (already started)
+	"""
+	_list = list(_list)  # Materialize if generator
+	if len(_list) <= max_threads:
+		# Original behavior for small lists - start all at once
+		for item in _list:
+			threaded_object = _thread(target=_target, args=(item,))
+			threaded_object.start()
+			yield threaded_object
+	else:
+		# Bounded behavior for large lists - process in batches
+		all_threads = []
+		for i in range(0, len(_list), max_threads):
+			batch = _list[i:i + max_threads]
+			batch_threads = []
+			for item in batch:
+				threaded_object = _thread(target=_target, args=(item,))
+				threaded_object.start()
+				batch_threads.append(threaded_object)
+			all_threads.extend(batch_threads)
+			# Join current batch before starting next if not the last batch
+			if i + max_threads < len(_list):
+				for t in batch_threads:
+					t.join()
+		for t in all_threads:
+			yield t
 
 def chunks(item_list, limit):
 	"""
