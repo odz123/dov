@@ -24,6 +24,8 @@ def get_random_episode(tmdb_id, continual=False):
 	if continual:
 		episode_history = {}
 		episode_list = []
+		max_history_per_show = 50  # Limit history to prevent memory bloat
+		max_shows_tracked = 20  # Limit number of shows tracked
 		try:
 			episode_history = json.loads(kodi_utils.get_property('pov_random_episode_history'))
 			if tmdb_key in episode_history: episode_list = episode_history[tmdb_key]
@@ -32,7 +34,16 @@ def get_random_episode(tmdb_id, continual=False):
 	chosen_episode = choice(episodes_data)
 	if continual:
 		episode_list.append(chosen_episode)
+		# Trim episode list if it exceeds max limit
+		if len(episode_list) > max_history_per_show:
+			episode_list = episode_list[-max_history_per_show:]
 		episode_history[tmdb_key] = episode_list
+		# Trim shows tracked if exceeds max limit (remove oldest entries)
+		if len(episode_history) > max_shows_tracked:
+			# Keep most recent shows by removing first items
+			keys_to_remove = list(episode_history.keys())[:-max_shows_tracked]
+			for key in keys_to_remove:
+				del episode_history[key]
 		kodi_utils.set_property('pov_random_episode_history', json.dumps(episode_history))
 	title, season, episode = meta['title'], int(chosen_episode['season']), int(chosen_episode['episode'])
 	query = title + ' S%.2dE%.2d' % (season, episode)

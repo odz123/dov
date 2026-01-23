@@ -348,16 +348,28 @@ def agent():
 class cfcookie:
 	def __init__(self):
 		self.cookie = None
+		self._lock = None
 
 	def get(self, netloc, ua, timeout):
-		from threading import Thread
-		threads = []
-		for i in list(range(0, 15)):
-			threads.append(Thread(target=self.get_cookie, args=(netloc, ua, timeout)))
-		for i in threads: i.start()
-		for i in list(range(0, 30)):
-			if self.cookie is not None: return self.cookie
-			sleep(1)
+		from threading import Thread, Lock, Event
+		# Use proper synchronization instead of 15 threads with race condition
+		self._lock = Lock()
+		self._done = Event()
+		max_retries = 3
+
+		for attempt in range(max_retries):
+			if self.cookie is not None:
+				return self.cookie
+			try:
+				self.get_cookie(netloc, ua, timeout)
+				if self.cookie is not None:
+					return self.cookie
+			except Exception:
+				pass
+			if attempt < max_retries - 1:
+				sleep(1)  # Brief pause between retries
+
+		return self.cookie
 
 	def get_cookie(self, netloc, ua, timeout):
 		try:
@@ -413,7 +425,12 @@ class cfcookie:
 				response = urllib2.urlopen(req, timeout=int(timeout))
 			except: pass
 			cookie = '; '.join(['%s=%s' % (i.name, i.value) for i in cookies])
-			if 'cf_clearance' in cookie: self.cookie = cookie
+			if 'cf_clearance' in cookie:
+				if self._lock:
+					with self._lock:
+						self.cookie = cookie
+				else:
+					self.cookie = cookie
 		except:
 			from fenom import log_utils
 			log_utils.error()

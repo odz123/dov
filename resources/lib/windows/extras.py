@@ -35,25 +35,46 @@ class Extras(BaseDialog):
 		BaseDialog.__init__(self, args)
 		self.control_id = None
 		self.focus_id = 2049
+		self._threads = []  # Track threads for proper cleanup
 		self.set_starting_constants(kwargs)
 		self.set_properties()
 
+	def _safe_thread_target(self, target, *args):
+		"""Wrapper to catch exceptions in threads and prevent crashes."""
+		try:
+			target(*args)
+		except Exception:
+			pass  # Silently handle thread exceptions to prevent UI crashes
+
 	def onInit(self):
-		for i in (
-			Thread(target=self.set_poster), Thread(target=self.make_cast), Thread(target=self.make_recommended),
-			Thread(target=self.make_reviews), Thread(target=self.make_trivia), Thread(target=self.make_blunders),
-			Thread(target=self.make_parentsguide), Thread(target=self.make_videos), Thread(target=self.make_year),
-			Thread(target=self.make_genres), Thread(target=self.make_network),
-			Thread(target=self.make_artwork, args=('posters',)), Thread(target=self.make_artwork, args=('backdrops',))
-		): i.start()
-		if self.media_type == 'movie': Thread(target=self.make_collection).start()
-		else: self.setProperty('tikiskins.extras.make.collection', 'false')
+		# Create and track threads with exception handling
+		thread_targets = [
+			(self.set_poster,), (self.make_cast,), (self.make_recommended,),
+			(self.make_reviews,), (self.make_trivia,), (self.make_blunders,),
+			(self.make_parentsguide,), (self.make_videos,), (self.make_year,),
+			(self.make_genres,), (self.make_network,),
+			(self.make_artwork, 'posters'), (self.make_artwork, 'backdrops')
+		]
+		for target_info in thread_targets:
+			target = target_info[0]
+			args = target_info[1:] if len(target_info) > 1 else ()
+			t = Thread(target=self._safe_thread_target, args=(target,) + args, daemon=True)
+			self._threads.append(t)
+			t.start()
+		if self.media_type == 'movie':
+			t = Thread(target=self._safe_thread_target, args=(self.make_collection,), daemon=True)
+			self._threads.append(t)
+			t.start()
+		else:
+			self.setProperty('tikiskins.extras.make.collection', 'false')
 		self.make_options()
 		self.setFocusId(self.focus_id)
 
 	def run(self):
 		self.doModal()
 		self.clearProperties()
+		# Clear thread references to allow garbage collection
+		self._threads.clear()
 		hide_busy_dialog()
 		if self.selected: self.execute_code(self.selected)
 
