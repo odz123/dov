@@ -234,7 +234,7 @@ class Indexer(TVShows):
 						self.list = [i for i in self.list if not int(i) in hidden_data]
 					except: pass
 			elif self.action in Indexer.similar:
-				tmdb_id = self.params['tmdb_id']
+				tmdb_id = params_get('tmdb_id')
 				data = function(tmdb_id, page_no)
 				self.list = [i['id'] for i in data['results']]
 				if data['page'] < data['total_pages']: self.new_page = {'new_page': string(data['page'] + 1), 'tmdb_id': tmdb_id}
@@ -247,29 +247,29 @@ class Indexer(TVShows):
 				if data['page'] < data['total_pages']: self.new_page = {'new_page': string(data['page'] + 1), key: function_var}
 			elif self.action == 'tmdb_tv_discover':
 				from indexers.discover import set_history
-				name = self.params['name']
-				query = self.params['query']
+				name, query = params_get('name'), params_get('query')
 				if page_no == 1: set_history('tvshow', name, query)
 				data = function(query, page_no)
 				self.list = [i['id'] for i in data['results']]
 				if data['page'] < data['total_pages']: self.new_page = {'query': query, 'name': name, 'new_page': string(data['page'] + 1)}
 			elif self.action in ('tmdb_tv_genres', 'tmdb_tvanime_genres'):
-				genre_id = self.params['genre_id']
+				genre_id = params_get('genre_id')
 				if not genre_id: return
 				data = function(genre_id, page_no)
 				self.list = [i['id'] for i in data['results']]
 				if data['page'] < data['total_pages']: self.new_page = {'new_page': string(data['page'] + 1), 'genre_id': genre_id}
 			elif self.action == 'tmdb_tv_search':
-				query = self.params['query']
+				query = params_get('query')
 				data = function(query, page_no)
 				self.list = [i['id'] for i in data['results']]
 				total_pages = data['total_pages']
-				if total_pages > page_no: self.new_page = {'new_page': string(page_no + 1), 'query': query}
+				if total_pages > page_no: self.new_page = {'new_page': string(page_no + 1), 'new_letter': letter, 'query': query}
 			elif self.action == 'trakt_tv_certifications':
 				self.id_type = 'trakt_dict'
-				data = function(self.params['certification'], page_no)
+				certification = params_get('certification')
+				data = function(certification, page_no)
 				self.list = [i['show']['ids'] for i in data]
-				self.new_page = {'new_page': string(page_no + 1), 'certification': self.params['certification']}
+				self.new_page = {'new_page': string(page_no + 1), 'certification': certification}
 			elif self.action == 'trakt_recommendations':
 				self.id_type = 'trakt_dict'
 				data = function('shows')
