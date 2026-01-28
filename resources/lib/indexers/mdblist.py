@@ -40,7 +40,7 @@ def search_mdbl_lists(params):
 			except: pass
 	page = params.get('new_page', '1')
 	search_title = params.get('search_title') or kodi_utils.dialog.input('POV')
-	if search_title: lists, pages = mdblist_api.mdbl_searchlists(search_title), '1'
+	if search_title: lists, pages = mdblist_api.mdbl_searchlists(search_title) or [], '1'
 	else: lists, pages = [], page
 	__handle__ = int(sys.argv[1])
 	kodi_utils.add_items(__handle__, list(_process()))
@@ -78,8 +78,8 @@ def get_mdbl_lists(params):
 				yield (url, listitem, True)
 			except: pass
 	lists = []
-	lists += mdblist_api.mdbl_userlists()
-	lists += mdblist_api.mdbl_externallists()
+	lists += mdblist_api.mdbl_userlists() or []
+	lists += mdblist_api.mdbl_externallists() or []
 	__handle__ = int(sys.argv[1])
 	kodi_utils.add_items(__handle__, list(_process()))
 	kodi_utils.set_category(__handle__, params.get('name'))
@@ -109,7 +109,7 @@ def get_mdbl_toplists(params):
 				listitem.addContextMenuItems(cm)
 				yield (url, listitem, True)
 			except: pass
-	lists = mdblist_api.mdbl_toplists()
+	lists = mdblist_api.mdbl_toplists() or []
 	__handle__ = int(sys.argv[1])
 	kodi_utils.add_items(__handle__, list(_process()))
 	kodi_utils.set_category(__handle__, params.get('name'))
@@ -129,7 +129,7 @@ def build_mdb_list(params):
 	user, slug, name = params.get('user'), params.get('slug'), params.get('name')
 	list_type, list_id = params.get('list_type'), params.get('list_id')
 	letter, page = params.get('new_letter', 'None'), int(params.get('new_page', '1'))
-	results = mdblist_api.mdbl_list_items(list_id, list_type)
+	results = mdblist_api.mdbl_list_items(list_id, list_type) or []
 	if paginate() and results: process_list, total_pages = paginate_list(results, page, letter, page_limit())
 	else: process_list, total_pages = results, 1
 	movies, tvshows = Movies({'id_type': 'trakt_dict'}), TVShows({'id_type': 'trakt_dict'})
