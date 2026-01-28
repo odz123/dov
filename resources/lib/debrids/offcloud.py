@@ -18,10 +18,10 @@ class Indexer(Debrid):
 		if   '_delete' in params['mode']:
 			return self.cloud_delete(params['folder_id'])
 		elif '_browse_cloud' in params['mode']:
-			items = self.user_cloud(params['folder_id'])
+			items = self.user_cloud(params['folder_id']) or []
 			_builder = self.browse_cloud
 		elif '_torrent_cloud' in params['mode']:
-			items = self.user_cloud()
+			items = self.user_cloud() or []
 			_builder = self.torrent_cloud
 		else: return getattr(self, params['mode'].split('.')[-1])()
 		__handle__ = int(sys.argv[1])

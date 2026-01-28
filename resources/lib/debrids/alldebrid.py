@@ -19,14 +19,17 @@ class Indexer(Debrid):
 		if   '_delete' in params['mode']:
 			return self.cloud_delete(params['id'])
 		elif '_browse_cloud' in params['mode']:
-			items = self.list_transfer(params['id'])
-			items = self.flatten_magnet_files(items['files'])
+			transfer_data = self.list_transfer(params['id'])
+			files = transfer_data.get('files', []) if transfer_data else []
+			items = self.flatten_magnet_files(files)
 			_builder = self.browse_cloud
 		elif '_torrent_cloud' in params['mode']:
-			items = self.user_cloud()['magnets']
+			cloud_data = self.user_cloud()
+			items = cloud_data.get('magnets', []) if cloud_data else []
 			_builder = self.torrent_cloud
 		elif '_downloads' in params['mode']:
-			items = self.downloads()['links']
+			downloads_data = self.downloads()
+			items = downloads_data.get('links', []) if downloads_data else []
 			_builder = self.browse_downloads
 		else: return getattr(self, params['mode'].split('.')[-1])()
 		__handle__ = int(sys.argv[1])

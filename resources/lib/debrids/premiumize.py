@@ -21,10 +21,12 @@ class Indexer(Debrid):
 			return self.cloud_rename(params['file_type'], params['id'], params['name'])
 		elif '_torrent_cloud' in params['mode']:
 			args = params.get('id'), params.get('folder_name')
-			items = self.user_cloud(args[0])['content']
+			cloud_data = self.user_cloud(args[0])
+			items = cloud_data.get('content', []) if cloud_data else []
 			_builder = self.torrent_cloud
 		elif '_downloads' in params['mode']:
-			items = self.downloads()['transfers']
+			downloads_data = self.downloads()
+			items = downloads_data.get('transfers', []) if downloads_data else []
 			_builder = self.browse_downloads
 		else: return getattr(self, params['mode'].split('.')[-1])()
 		__handle__ = int(sys.argv[1])
