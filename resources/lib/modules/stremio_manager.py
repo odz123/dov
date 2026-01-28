@@ -365,6 +365,7 @@ def validate_stremio_addon(url, return_config_info=False):
 		supports_stream = False
 		supports_catalog = False
 		supports_subtitles = False
+		supports_meta = False
 
 		for res in resources:
 			res_name = res if isinstance(res, str) else res.get('name', '')
@@ -374,6 +375,8 @@ def validate_stremio_addon(url, return_config_info=False):
 				supports_catalog = True
 			elif res_name == 'subtitles':
 				supports_subtitles = True
+			elif res_name == 'meta':
+				supports_meta = True
 
 		if not supports_stream:
 			return None, "Addon does not provide stream resources"
@@ -399,6 +402,7 @@ def validate_stremio_addon(url, return_config_info=False):
 			'has_series': 'series' in types,
 			'supports_catalog': supports_catalog,
 			'supports_subtitles': supports_subtitles,
+			'supports_meta': supports_meta,
 			'configurable': configurable,
 			'config_url': ''  # Will be set during configuration
 		}

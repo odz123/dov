@@ -901,6 +901,7 @@ class StremioIndexer:
 		addon_url = self.params_get('addon_url', '')
 		meta_type = self.params_get('meta_type', 'movie')
 		meta_id = self.params_get('meta_id', '')
+		action = self.params_get('action', 'dialog')  # 'dialog', 'extras', 'cache'
 
 		if not meta_id:
 			notification('Missing meta parameters', 2000)
@@ -921,8 +922,49 @@ class StremioIndexer:
 			notification('Failed to fetch metadata', 2000)
 			return
 
-		# Display meta info
+		# Get IMDb ID for integration
+		imdb_id = meta.get('imdb_id', '') or meta.get('id', '')
+		if ':' in imdb_id:
+			imdb_id = imdb_id.split(':')[0]
+
+		# Action: Cache metadata to POV's Stremio meta cache
+		if action == 'cache':
+			self._cache_stremio_meta(meta, meta_type, imdb_id)
+			notification('Metadata cached', 1500)
+			return
+
+		# Action: Open in POV's extras menu (if IMDb ID available)
+		if action == 'extras' and imdb_id.startswith('tt'):
+			from modules.kodi_utils import execute_builtin
+			media_type = 'movie' if meta_type == 'movie' else 'tvshow'
+			url = build_url({
+				'mode': 'extras_menu_choice',
+				'media_type': media_type,
+				'imdb_id': imdb_id,
+				'name': meta.get('name', '')
+			})
+			execute_builtin(f'Container.Update({url})')
+			return
+
+		# Default: Display meta info dialog
 		self._show_meta_dialog(meta, meta_type)
+
+	def _cache_stremio_meta(self, stremio_meta, meta_type, imdb_id):
+		"""Cache Stremio metadata to POV's metadata cache"""
+		try:
+			from indexers.stremio_meta import StremioMetaProvider
+			provider = StremioMetaProvider()
+			pov_type = 'movie' if meta_type == 'movie' else 'tvshow'
+
+			if pov_type == 'movie':
+				pov_meta = provider._convert_movie_meta(stremio_meta, imdb_id)
+			else:
+				pov_meta = provider._convert_tvshow_meta(stremio_meta, imdb_id)
+
+			if pov_meta:
+				provider.cache.set(pov_type, imdb_id, pov_meta)
+		except:
+			pass
 
 	def fetch_meta(self, addon_url, meta_type, meta_id):
 		"""Fetch detailed metadata for an item with Cloudflare bypass"""

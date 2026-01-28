@@ -6,7 +6,7 @@ from caches import BaseCache, metacache_db, get_property, set_property, clear_pr
 # Use literal_eval instead of eval for security - only evaluates literals, not arbitrary code
 safe_eval = literal_eval
 
-all_tables = ('metadata', 'season_metadata', 'function_cache')
+all_tables = ('metadata', 'season_metadata', 'function_cache', 'stremio_metadata')
 movie_show = ('movie', 'tvshow')
 id_types = ('tmdb_id', 'imdb_id', 'tvdb_id')
 # Valid column and table names for safe SQL construction (prevents SQL injection)
@@ -24,6 +24,11 @@ DELETE_SEASON = 'DELETE FROM season_metadata WHERE tmdb_id = ?'
 DELETE_SEASONS = 'DELETE FROM season_metadata WHERE tmdb_id LIKE ?'
 DELETE_FUNCTION = 'DELETE FROM function_cache WHERE string_id = ?'
 DELETE_ALL = 'DELETE FROM %s'
+# Stremio metadata queries
+GET_STREMIO_META = 'SELECT meta, expires FROM stremio_metadata WHERE db_type = ? AND imdb_id = ?'
+SET_STREMIO_META = 'INSERT OR REPLACE INTO stremio_metadata VALUES (?, ?, ?, ?)'
+DELETE_STREMIO_META = 'DELETE FROM stremio_metadata WHERE db_type = ? AND imdb_id = ?'
+GET_ALL_STREMIO = 'SELECT db_type, imdb_id FROM stremio_metadata'
 string = str
 
 class MetaCache(BaseCache):
@@ -150,6 +155,92 @@ class MetaCache(BaseCache):
 			return {'poster2': meta['poster2'], 'fanart2': meta['fanart2'], 'banner': meta['banner'], 'clearart': meta['clearart'],
 					'clearlogo': meta['clearlogo'], 'landscape': meta['landscape'], 'discart': meta['discart'], 'fanart_added': True}
 		else: return None
+
+	# Stremio metadata methods
+	def get_stremio(self, media_type, imdb_id):
+		"""Get Stremio metadata from cache"""
+		try:
+			imdb_id = string(imdb_id)
+			current_time = self._get_timestamp(datetime.now())
+			# Check memory cache first
+			mem_meta = self.get_stremio_memory_cache(media_type, imdb_id, current_time)
+			if mem_meta is not None:
+				return mem_meta
+			# Check database
+			cache_data = self.dbcur.execute(GET_STREMIO_META, (media_type, imdb_id)).fetchone()
+			if cache_data:
+				meta, expiry = safe_eval(cache_data[0]), cache_data[1]
+				if expiry < current_time:
+					self.delete_stremio(media_type, imdb_id)
+					return None
+				self.set_stremio_memory_cache(media_type, imdb_id, meta, expiry)
+				return meta
+		except (ValueError, SyntaxError, TypeError, KeyError):
+			pass
+		return None
+
+	def set_stremio(self, media_type, imdb_id, meta, expiration=7):
+		"""Set Stremio metadata in cache"""
+		try:
+			imdb_id = string(imdb_id)
+			expires = self._get_timestamp(datetime.now() + timedelta(days=expiration))
+			self.dbcur.execute(SET_STREMIO_META, (media_type, imdb_id, repr(meta), expires))
+			self.set_stremio_memory_cache(media_type, imdb_id, meta, expires)
+		except (KeyError, TypeError, ValueError):
+			return None
+
+	def delete_stremio(self, media_type, imdb_id):
+		"""Delete Stremio metadata from cache"""
+		try:
+			imdb_id = string(imdb_id)
+			self.dbcur.execute(DELETE_STREMIO_META, (media_type, imdb_id))
+			self.delete_stremio_memory_cache(media_type, imdb_id)
+		except (KeyError, TypeError):
+			return
+
+	def get_stremio_memory_cache(self, media_type, imdb_id, current_time):
+		"""Get Stremio metadata from memory cache"""
+		result = None
+		try:
+			prop_string = 'pov_stremio_%s_%s' % (media_type, imdb_id)
+			cachedata = get_property(prop_string)
+			if cachedata:
+				cachedata = safe_eval(cachedata)
+				if cachedata[0] > current_time:
+					result = cachedata[1]
+		except (ValueError, SyntaxError, TypeError, IndexError):
+			pass
+		return result
+
+	def set_stremio_memory_cache(self, media_type, imdb_id, meta, expires):
+		"""Set Stremio metadata in memory cache"""
+		try:
+			prop_string = 'pov_stremio_%s_%s' % (media_type, imdb_id)
+			cachedata = (expires, meta)
+			set_property(prop_string, repr(cachedata))
+		except (TypeError, ValueError):
+			pass
+
+	def delete_stremio_memory_cache(self, media_type, imdb_id):
+		"""Delete Stremio metadata from memory cache"""
+		try:
+			clear_property('pov_stremio_%s_%s' % (media_type, imdb_id))
+		except (TypeError, ValueError):
+			pass
+
+	def delete_all_stremio(self):
+		"""Delete all Stremio metadata from cache"""
+		try:
+			self.dbcur.execute(GET_ALL_STREMIO)
+			all_entries = self.dbcur.fetchall()
+			self.dbcur.execute(DELETE_ALL % 'stremio_metadata')
+			for entry in all_entries:
+				try:
+					self.delete_stremio_memory_cache(str(entry[0]), str(entry[1]))
+				except (IndexError, TypeError):
+					pass
+		except Exception:
+			return
 
 def cache_function(function, prop_string, url, expiration=96, json=False):
 	metacache = MetaCache()
