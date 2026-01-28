@@ -69,7 +69,7 @@ class NextEpisode(BaseDialog):
 					if self.closed: break
 					current_time = self.player.getTime()
 					remaining = round(total_time - current_time)
-					current_point = (remaining / float(total_remaining)) * 100
+					current_point = (remaining / float(total_remaining)) * 100 if total_remaining > 0 else 0
 					progress_bar.setPercent(current_point)
 					self.sleep(1000)
 				except: pass

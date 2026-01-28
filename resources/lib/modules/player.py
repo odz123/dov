@@ -68,7 +68,7 @@ class POVPlayer(kodi_utils.xbmc_player):
 				try:
 					kodi_utils.sleep(1000)
 					self.total_time, self.curr_time = self.getTotalTime(), self.getTime()
-					self.current_point = round(float(self.curr_time/self.total_time * 100), 1)
+					self.current_point = round(float(self.curr_time/self.total_time * 100), 1) if self.total_time > 0 else 0
 					if self.curr_time > self.stinger_check and not self.stingers_checked:
 						self.run_stingers()
 					if self.current_point >= self.set_watched and not self.media_marked:
