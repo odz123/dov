@@ -86,6 +86,7 @@ class OffcloudAPI:
 
 	def parse_magnet_pack(self, magnet_url, info_hash):
 		from modules.source_utils import supported_video_extensions
+		torrent_id = None
 		try:
 			extensions = supported_video_extensions()
 			torrent = self.add_magnet(magnet_url)

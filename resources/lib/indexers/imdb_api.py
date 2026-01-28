@@ -157,17 +157,27 @@ def get_imdb(params):
 		def _process():
 			for item in items:
 				try:
-					title = parseDOM(item, 'a')[1]
+					title_list = parseDOM(item, 'a')
+					if len(title_list) < 2: continue
+					title = title_list[1]
 					year = parseDOM(item, 'span', attrs={'class': 'lister-item-year.+?'})
-					year = re.findall(r'(\d{4})', year[0])[0]
-					imdb_id = parseDOM(item, 'a', ret='href')[0]
-					imdb_id = re.findall(r'(tt\d*)', imdb_id)[0]
+					if not year: continue
+					year_match = re.findall(r'(\d{4})', year[0])
+					if not year_match: continue
+					year = year_match[0]
+					imdb_id_list = parseDOM(item, 'a', ret='href')
+					if not imdb_id_list: continue
+					imdb_id_match = re.findall(r'(tt\d*)', imdb_id_list[0])
+					if not imdb_id_match: continue
+					imdb_id = imdb_id_match[0]
 					yield {'title': str(title), 'year': str(year), 'imdb_id': str(imdb_id)}
 				except: pass
 		if action in ('imdb_watchlist', 'imdb_user_list_contents'):
 			list_url_type = user_list_movies_url if params['media_type'] == 'movie' else user_list_tvshows_url
 			if action == 'imdb_watchlist':
-				url = parseDOM(remove_accents(session.get(url, timeout=timeout).text), 'meta', ret='content', attrs = {'property': 'pageId'})[0]
+				page_id = parseDOM(remove_accents(session.get(url, timeout=timeout).text), 'meta', ret='content', attrs = {'property': 'pageId'})
+				if not page_id: return (imdb_list, next_page)
+				url = page_id[0]
 			url = base_url % list_url_type % (url, params['sort'], params['page_no'])
 		result = session.get(url, timeout=timeout)
 		result = remove_accents(result.text)
@@ -229,7 +239,7 @@ def get_imdb(params):
 					try:
 						rating = parseDOM(listing, 'span', attrs={'class': 'rating-other-user-rating'})
 						rating = parseDOM(rating, 'span')
-						rating = rating[0] + rating[1]
+						rating = (rating[0] + rating[1]) if len(rating) >= 2 else (rating[0] if rating else '')
 					except: rating = ''
 					try:
 						content = parseDOM(listing, 'div', attrs={'class': 'text show-more__control'})[0]

@@ -287,7 +287,7 @@ class SourceSelect:
 		start_time = time.monotonic()
 		end_time = start_time + timeout
 		if not self.progress_dialog: self._make_progress_dialog()
-		while alive_threads := [x.name for x in _threads if x.is_alive() is True]:
+		while alive_threads := [x.name for x in _threads if x.is_alive()]:
 			if monitor.abortRequested() or time.monotonic() > end_time: break
 			try:
 				self._process_internal_results()

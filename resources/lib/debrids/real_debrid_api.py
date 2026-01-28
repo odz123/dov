@@ -105,13 +105,14 @@ class RealDebridAPI:
 		return self._post(url, post_data)
 
 	def create_transfer(self, magnet):
+		torrent_id = None
 		try:
 			torrent = self.add_magnet(magnet)
 			torrent_id = torrent['id']
 			self.add_torrent_select(torrent_id, 'all')
 			return torrent_id
 		except Exception:
-			self.delete_torrent(torrent_id)
+			if torrent_id: self.delete_torrent(torrent_id)
 			return ''
 
 	def parse_magnet_pack(self, magnet_url, info_hash, errors=False):

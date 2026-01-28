@@ -52,7 +52,7 @@ class source:
 			# log_utils.log('url = %s' % url)
 			if 'timeout' in data: self.timeout = int(data['timeout'])
 			results = session.get(url, timeout=self.timeout)
-			files = results.json()
+			files = results.json() if results.status_code == 200 else []
 			undesirables = source_utils.get_undesirables()
 			check_foreign_audio = source_utils.check_foreign_audio()
 		except:
