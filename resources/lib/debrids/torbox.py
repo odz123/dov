@@ -19,17 +19,18 @@ class Indexer(Debrid):
 			return self.cloud_delete(params['folder_id'], params['media_type'])
 		elif '_browse_cloud' in params['mode']:
 			folder_id, media_type = params['folder_id'], params['media_type']
-			if   media_type == 'usenet': items = self.user_cloud_usenet(folder_id)
-			elif media_type == 'webdl': items = self.user_cloud_webdl(folder_id)
-			else: items = self.user_cloud(folder_id)
-			items = [{**i, 'url': '%d,%d' % (int(folder_id), i['id']), 'media_type': media_type} for i in items['files']]
+			if   media_type == 'usenet': cloud_data = self.user_cloud_usenet(folder_id)
+			elif media_type == 'webdl': cloud_data = self.user_cloud_webdl(folder_id)
+			else: cloud_data = self.user_cloud(folder_id)
+			files = cloud_data.get('files', []) if cloud_data else []
+			items = [{**i, 'url': '%d,%d' % (int(folder_id), i['id']), 'media_type': media_type} for i in files]
 			_builder = self.browse_cloud
 		elif '_torrent_cloud' in params['mode']:
 			media_type = params['media_type']
-			if   media_type == 'usenet': items = self.user_cloud_usenet()
-			elif media_type == 'webdl': items = self.user_cloud_webdl()
-			else: items = self.user_cloud()
-			items = [{**i, 'media_type': media_type} for i in items]
+			if   media_type == 'usenet': cloud_items = self.user_cloud_usenet()
+			elif media_type == 'webdl': cloud_items = self.user_cloud_webdl()
+			else: cloud_items = self.user_cloud()
+			items = [{**i, 'media_type': media_type} for i in (cloud_items or [])]
 			_builder = self.torrent_cloud
 		else: return getattr(self, params['mode'].split('.')[-1])()
 		__handle__ = int(sys.argv[1])

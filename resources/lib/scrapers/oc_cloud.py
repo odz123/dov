@@ -61,7 +61,7 @@ class source(Debrid):
 			results_append = self.scrape_results.append
 			threads = []
 			append = threads.append
-			my_cloud_files = self.user_cloud(check_cache=False)
+			my_cloud_files = self.user_cloud(check_cache=False) or []
 			for item in my_cloud_files:
 				if not self.folder_query in clean_title(normalize(item['fileName'])): continue
 				if item['isDirectory']:
@@ -76,7 +76,7 @@ class source(Debrid):
 	def _scrape_folders(self, folder_info):
 		try:
 			results_append = self.scrape_results.append
-			folder = self.user_cloud(folder_info['requestId'], check_cache=False)
+			folder = self.user_cloud(folder_info['requestId'], check_cache=False) or []
 			for item in folder:
 				try:
 					results_append({'filename': item, 'folder_name': folder_info['fileName'], 'link': item})

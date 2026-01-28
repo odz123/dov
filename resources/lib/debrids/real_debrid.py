@@ -19,14 +19,16 @@ class Indexer(Debrid):
 			return self.cloud_delete(params['id'], params['cache_type'])
 		elif '_browse_cloud' in params['mode']:
 			torrent_files = self.user_cloud_info(params['id'])
-			items = (i for i in torrent_files['files'] if i['selected'])
-			items = [{**i, 'url_link': link} for i, link in zip(items, torrent_files['links'])]
+			if not torrent_files: items = []
+			else:
+				items = (i for i in torrent_files.get('files', []) if i.get('selected'))
+				items = [{**i, 'url_link': link} for i, link in zip(items, torrent_files.get('links', []))]
 			_builder = self.browse_cloud
 		elif '_torrent_cloud' in params['mode']:
-			items = self.user_cloud()
+			items = self.user_cloud() or []
 			_builder = self.torrent_cloud
 		elif '_downloads' in params['mode']:
-			items = self.downloads()
+			items = self.downloads() or []
 			_builder = self.browse_downloads
 		else: return getattr(self, params['mode'].split('.')[-1])()
 		__handle__ = int(sys.argv[1])

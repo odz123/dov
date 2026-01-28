@@ -49,7 +49,7 @@ def get_tmdb_lists(params):
 				yield (url, listitem, True)
 			except: pass
 	image_resolution = get_resolution()
-	lists = tmdb_api.user_lists_all()
+	lists = tmdb_api.user_lists_all() or []
 	__handle__ = int(sys.argv[1])
 	kodi_utils.add_items(__handle__, list(_process()))
 	kodi_utils.set_category(__handle__, params.get('name'))
@@ -69,7 +69,7 @@ def build_tmdb_list(params):
 	use_alphabet = nav_jump_use_alphabet() > 0
 	user, name, list_id = params.get('user'), params.get('name'), params.get('list_id')
 	letter, page = params.get('new_letter', 'None'), int(params.get('new_page', '1'))
-	results = tmdb_api.all_items(tmdb_api.list_details, list_id)
+	results = tmdb_api.all_items(tmdb_api.list_details, list_id) or []
 	if paginate() and results: process_list, total_pages = paginate_list(results, page, letter, page_limit())
 	else: process_list, total_pages = results, 1
 	movies, tvshows = Movies({'id_type': 'tmdb_id'}), TVShows({'id_type': 'tmdb_id'})

@@ -77,7 +77,7 @@ class source(Debrid):
 	def _scrape_folders(self, function, media_type):
 		try:
 			results_append = self.scrape_results.append
-			folder = function(check_cache=False)
+			folder = function(check_cache=False) or []
 			for file in folder:
 				for item in file['files']:
 					try:
