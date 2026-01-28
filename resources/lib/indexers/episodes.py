@@ -242,28 +242,28 @@ class Indexer(Episodes):
 			mode = params_get('mode')
 			if   'in_progress' in mode:
 				self.list_type = 'in_progress'
-				self.list = get_in_progress_episodes()
+				self.list = get_in_progress_episodes() or []
 			elif 'next_episode' in mode:
 				watched_info = get_watched_info_tv(self.watched_indicators)
 				self.list_type = 'next_episode_pov'
-				self.list = get_next_episodes(watched_info)
+				self.list = get_next_episodes(watched_info) or []
 			elif 'my_calendar' in mode:
 				recently_aired = params_get('recently_aired')
-				self.list = trakt_get_my_calendar(recently_aired, get_datetime())
+				self.list = trakt_get_my_calendar(recently_aired, get_datetime()) or []
 				if recently_aired:
 					self.list_type = 'trakt_recently_aired'
 					self.list = self.list[:20]
 				else:
 					self.list_type = 'trakt_calendar'
-					self.list = sorted(self.list, key=lambda k: k['sort_title'])
+					self.list = sorted(self.list, key=lambda k: k.get('sort_title', ''))
 			elif 'my_anime_calendar' in mode:
-				self.list = trakt_my_anime_calendar(get_datetime())
+				self.list = trakt_my_anime_calendar(get_datetime()) or []
 				self.list_type = 'trakt_calendar'
-				self.list = sorted(self.list, key=lambda k: k['sort_title'])
+				self.list = sorted(self.list, key=lambda k: k.get('sort_title', ''))
 			elif 'anime_calendar' in mode:
-				self.list = trakt_anime_calendar(get_datetime())
+				self.list = trakt_anime_calendar(get_datetime()) or []
 				self.list_type = 'trakt_calendar'
-				self.list = sorted(self.list, key=lambda k: k['sort_title'])
+				self.list = sorted(self.list, key=lambda k: k.get('sort_title', ''))
 			kodi_utils.add_items(__handle__, self.worker())
 		except: pass
 		kodi_utils.set_category(__handle__, category)

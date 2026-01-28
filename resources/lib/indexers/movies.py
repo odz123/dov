@@ -179,26 +179,31 @@ class Indexer(Movies):
 			if self.action in Indexer.personal_dict: var_module, import_function = Indexer.personal_dict[self.action]
 			else: var_module, import_function = 'indexers.%s_api' % self.action.split('_')[0], self.action
 			try: function = manual_function_import(var_module, import_function)
-			except: pass
+			except: function = None
+			if not function: return
 			if self.action in Indexer.tmdb_main:
 				data = function(page_no)
-				self.list = [i['id'] for i in data['results']]
-				total_pages = data['total_pages']
-				if total_pages > page_no: self.new_page = {'new_page': string(data['page'] + 1)}
+				if not data: return
+				self.list = [i['id'] for i in data.get('results', []) if 'id' in i]
+				total_pages = data.get('total_pages', 0)
+				if total_pages > page_no: self.new_page = {'new_page': string(data.get('page', 0) + 1)}
 			elif self.action in Indexer.trakt_main:
 				self.id_type = 'trakt_dict'
 				data = function(page_no)
-				self.list = [i['movie']['ids'] for i in data]
+				if not data: return
+				self.list = [i['movie']['ids'] for i in data if i.get('movie', {}).get('ids')]
 				if self.action not in ('trakt_moviesanime_trending',):
 					self.new_page = {'new_page': string(page_no + 1)}
 			elif self.action in Indexer.tmdb_personal:
 				data, total_pages = function('movie', page_no, letter)
-				self.list = [i['id'] for i in data]
+				if not data: return
+				self.list = [i['id'] for i in data if 'id' in i]
 				if total_pages > page_no: self.new_page = {'new_page': string(page_no + 1), 'new_letter': letter}
 			elif self.action in Indexer.trakt_personal:
 				self.id_type = 'trakt_dict'
 				data, total_pages = function('movies', page_no, letter)
-				self.list = [i['media_ids'] for i in data]
+				if not data: return
+				self.list = [i['media_ids'] for i in data if 'media_ids' in i]
 				if total_pages > 2: self.total_pages = total_pages
 				try:
 					if total_pages > page_no: self.new_page = {'new_page': string(page_no + 1), 'new_letter': letter}
@@ -206,7 +211,8 @@ class Indexer(Movies):
 			elif self.action in Indexer.mdblist_personal:
 				self.id_type = 'trakt_dict'
 				data, total_pages = function('movies', page_no, letter)
-				self.list = [{'imdb': i['imdb_id'], 'tmdb': i['id']} for i in data]
+				if not data: return
+				self.list = [{'imdb': i.get('imdb_id'), 'tmdb': i.get('id')} for i in data if i.get('id') or i.get('imdb_id')]
 				if total_pages > 2: self.total_pages = total_pages
 				try:
 					if total_pages > page_no: self.new_page = {'new_page': string(page_no + 1), 'new_letter': letter}
@@ -215,32 +221,38 @@ class Indexer(Movies):
 				self.id_type = 'imdb_id'
 				list_id = params_get('list_id')
 				data, next_page = function('movie', list_id, page_no)
-				self.list = [i['imdb_id'] for i in data]
+				if not data: return
+				self.list = [i['imdb_id'] for i in data if 'imdb_id' in i]
 				if next_page: self.new_page = {'list_id': list_id, 'new_page': string(page_no + 1), 'new_letter': letter}
 			elif self.action in Indexer.personal_dict:
 				data, total_pages = function('movie', page_no, letter)
-				self.list = [i['media_id'] for i in data]
+				if not data: return
+				self.list = [i['media_id'] for i in data if 'media_id' in i]
 				if total_pages > 2: self.total_pages = total_pages
 				if total_pages > page_no: self.new_page = {'new_page': string(page_no + 1), 'new_letter': letter}
 			elif self.action in Indexer.similar:
 				tmdb_id = params_get('tmdb_id')
+				if not tmdb_id: return
 				data = function(tmdb_id, page_no)
-				self.list = [i['id'] for i in data['results']]
-				if data['page'] < data['total_pages']: self.new_page = {'new_page': string(data['page'] + 1), 'tmdb_id': tmdb_id}
+				if not data: return
+				self.list = [i['id'] for i in data.get('results', []) if 'id' in i]
+				if data.get('page', 0) < data.get('total_pages', 0): self.new_page = {'new_page': string(data.get('page', 0) + 1), 'tmdb_id': tmdb_id}
 			elif self.action in Indexer.tmdb_special_key_dict:
 				key = Indexer.tmdb_special_key_dict[self.action]
 				function_var = params_get(key)
 				if not function_var: return
 				data = function(function_var, page_no)
-				self.list = [i['id'] for i in data['results']]
-				if data['page'] < data['total_pages']: self.new_page = {'new_page': string(data['page'] + 1), key: function_var}
+				if not data: return
+				self.list = [i['id'] for i in data.get('results', []) if 'id' in i]
+				if data.get('page', 0) < data.get('total_pages', 0): self.new_page = {'new_page': string(data.get('page', 0) + 1), key: function_var}
 			elif self.action == 'tmdb_movies_discover':
 				from indexers.discover import set_history
 				name, query = params_get('name'), params_get('query')
 				if page_no == 1: set_history('movie', name, query)
 				data = function(query, page_no)
-				self.list = [i['id'] for i in data['results']]
-				if data['page'] < data['total_pages']: self.new_page = {'query': query, 'name': name, 'new_page': string(data['page'] + 1)}
+				if not data: return
+				self.list = [i['id'] for i in data.get('results', []) if 'id' in i]
+				if data.get('page', 0) < data.get('total_pages', 0): self.new_page = {'query': query, 'name': name, 'new_page': string(data.get('page', 0) + 1)}
 			elif self.action == 'imdb_movies_oscar_winners':
 				from modules.meta_lists import oscar_winners
 				self.list = [i for i in chunks(oscar_winners, 20)][page_no-1]
@@ -249,28 +261,36 @@ class Indexer(Movies):
 				genre_id = params_get('genre_id')
 				if not genre_id: return
 				data = function(genre_id, page_no)
-				self.list = [i['id'] for i in data['results']]
-				if data['page'] < data['total_pages']: self.new_page = {'new_page': string(data['page'] + 1), 'genre_id': genre_id}
+				if not data: return
+				self.list = [i['id'] for i in data.get('results', []) if 'id' in i]
+				if data.get('page', 0) < data.get('total_pages', 0): self.new_page = {'new_page': string(data.get('page', 0) + 1), 'genre_id': genre_id}
 			elif self.action == 'tmdb_movies_search':
 				query = params_get('query')
 				data = function(query, page_no)
-				self.list = [i['id'] for i in data['results']]
-				total_pages = data['total_pages']
+				if not data: return
+				self.list = [i['id'] for i in data.get('results', []) if 'id' in i]
+				total_pages = data.get('total_pages', 0)
 				if total_pages > page_no: self.new_page = {'new_page': string(page_no + 1), 'new_letter': letter, 'query': query}
 			elif self.action == 'tmdb_movies_search_collections':
 				self.builder, view_type, content_type = self.build_collections_results, 'view.main', ''
 				query = params_get('query')
 				data = function(query, page_no)
-				self.list = data['results']
-				total_pages = data['total_pages']
+				if not data: return
+				self.list = data.get('results', [])
+				total_pages = data.get('total_pages', 0)
 				if total_pages > page_no: self.new_page = {'new_page': string(page_no + 1), 'query': query}
 			elif self.action == 'tmdb_movies_collection':
-				data = sorted(function(params_get('collection_id'))['parts'], key=lambda k: k['release_date'] or '2050')
-				self.list = [i['id'] for i in data]
+				collection_id = params_get('collection_id')
+				if not collection_id: return
+				collection_data = function(collection_id)
+				if not collection_data: return
+				data = sorted(collection_data.get('parts', []), key=lambda k: k.get('release_date') or '2050')
+				self.list = [i['id'] for i in data if 'id' in i]
 			elif self.action == 'trakt_recommendations':
 				self.id_type = 'trakt_dict'
 				data = function('movies')
-				self.list = [i['ids'] for i in data]
+				if not data: return
+				self.list = [i['ids'] for i in data if 'ids' in i]
 			if self.total_pages and not self.is_widget and settings.nav_jump_use_alphabet():
 				url_params = {
 					'mode': 'build_navigate_to_page', 'current_page': page_no, 'total_pages': self.total_pages,
