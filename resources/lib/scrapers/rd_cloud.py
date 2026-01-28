@@ -60,7 +60,7 @@ class source(Debrid):
 			results_append = self.scrape_results.append
 			threads = []
 			append = threads.append
-			my_cloud_files = self.user_cloud()
+			my_cloud_files = self.user_cloud() or []
 			for item in my_cloud_files:
 				normalized = normalize(item['filename'])
 				folder_name = clean_title(normalized)
@@ -75,8 +75,9 @@ class source(Debrid):
 		try:
 			results_append = self.scrape_results.append
 			folder = self.user_cloud_info(folder_id)
-			selected = (i for i in folder['files'] if i['selected'])
-			for item, link in zip(selected, folder['links']):
+			if not folder: return
+			selected = (i for i in folder.get('files', []) if i.get('selected'))
+			for item, link in zip(selected, folder.get('links', [])):
 				try:
 					name = item['path'].split('/')[-1]
 					item.update({'filename': name, 'folder_name': folder['filename'], 'link': link})
@@ -87,7 +88,7 @@ class source(Debrid):
 	def _scrape_downloads(self):
 		try:
 			results_append = self.scrape_results.append
-			my_downloads = self.downloads()
+			my_downloads = self.downloads() or []
 			for item in my_downloads:
 				try:
 					item.update({'folder_name': item['filename'], 'bytes': item['filesize'], 'downloads': True})

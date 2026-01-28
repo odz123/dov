@@ -31,7 +31,7 @@ def search_easynews(params):
 				yield (url, listitem, False)
 			except: pass
 	search_name = clean_file_name(unquote(params.get('query')))
-	files = EasyNews().search(search_name)
+	files = EasyNews().search(search_name) or []
 	__handle__ = int(sys.argv[1])
 	kodi_utils.add_items(__handle__, list(_builder()))
 	kodi_utils.set_content(__handle__, 'files')

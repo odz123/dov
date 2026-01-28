@@ -57,7 +57,8 @@ class source(Debrid):
 	def _scrape_cloud(self):
 		try:
 			results_append = self.scrape_results.append
-			my_cloud_files = self.item_listall()['files']
+			cloud_data = self.item_listall()
+			my_cloud_files = cloud_data.get('files', []) if cloud_data else []
 			for item in my_cloud_files:
 				try:
 					item.update({'filename': item['name'], 'folder_name': item['path'], 'link': item['id']})

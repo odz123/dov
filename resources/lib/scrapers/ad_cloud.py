@@ -60,7 +60,8 @@ class source(Debrid):
 			results_append = self.scrape_results.append
 			threads = []
 			append = threads.append
-			my_cloud_files = self.user_cloud()['magnets']
+			cloud_data = self.user_cloud()
+			my_cloud_files = cloud_data.get('magnets', []) if cloud_data else []
 			for item in my_cloud_files:
 				normalized = normalize(item['filename'])
 				folder_name = clean_title(normalized)
@@ -75,7 +76,8 @@ class source(Debrid):
 		try:
 			results_append = self.scrape_results.append
 			folder = self.list_transfer(folder_id)
-			folder = self.flatten_magnet_files(folder['files'])
+			if not folder: return
+			folder = self.flatten_magnet_files(folder.get('files', []))
 			for item in folder:
 				try:
 					item.update({
@@ -88,7 +90,8 @@ class source(Debrid):
 	def _scrape_downloads(self):
 		try:
 			results_append = self.scrape_results.append
-			my_downloads = self.downloads()['links']
+			downloads_data = self.downloads()
+			my_downloads = downloads_data.get('links', []) if downloads_data else []
 			for item in my_downloads:
 				try:
 					item.update({'folder_name': item['filename'], 'downloads': True})
