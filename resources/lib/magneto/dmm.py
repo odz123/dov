@@ -60,7 +60,8 @@ class source:
 			headers = {'User-Agent': client.randomagent(), 'Accept-Encoding': 'gzip, deflate, br', 'Accept': '*/*'}
 			params = {'dmmProblemKey': dmmProblemKey, 'solution': solution}
 			results = requests.get(url, params=params, headers=headers, timeout=self.timeout)
-			files = results.json()['results']
+			response_json = results.json()
+			files = response_json.get('results', [])
 		except:
 			source_utils.scraper_error('DMM')
 			return

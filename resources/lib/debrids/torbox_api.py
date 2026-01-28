@@ -137,6 +137,7 @@ class TorBoxAPI:
 
 	def parse_magnet_pack(self, magnet_url, info_hash):
 		from modules.source_utils import supported_video_extensions
+		torrent_id = None
 		try:
 			extensions = supported_video_extensions()
 			torrent_id = self.create_transfer(magnet_url)
@@ -155,6 +156,7 @@ class TorBoxAPI:
 
 	def resolve_nzb(self, nzb_url, info_hash, store_to_cloud, title, season, episode, nzb_info=None):
 		from modules.source_utils import supported_video_extensions, seas_ep_filter, extras_filter
+		nzb_id = None
 		try:
 			extensions = supported_video_extensions()
 			extras_filtering_list = tuple(i for i in extras_filter() if not i in title.lower())

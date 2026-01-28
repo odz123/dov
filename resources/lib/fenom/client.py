@@ -384,9 +384,15 @@ class cfcookie:
 				except: encoding = None
 				if encoding == 'gzip': result = gzip.GzipFile(fileobj=BytesIO(result)).read()
 
-			jschl = re.findall(r'name\s*=\s*["\']jschl_vc["\']\s*value\s*=\s*["\'](.+?)["\']/>', result, re.I)[0]
-			init = re.findall(r'setTimeout\(function\(\){\s*.*?.*:(.*?)};', result, re.I)[-1]
-			builder = re.findall(r"challenge-form\'\);\s*(.*)a.v", result, re.I)[0]
+			jschl_match = re.findall(r'name\s*=\s*["\']jschl_vc["\']\s*value\s*=\s*["\'](.+?)["\']/>', result, re.I)
+			if not jschl_match: return result
+			jschl = jschl_match[0]
+			init_match = re.findall(r'setTimeout\(function\(\){\s*.*?.*:(.*?)};', result, re.I)
+			if not init_match: return result
+			init = init_match[-1]
+			builder_match = re.findall(r"challenge-form\'\);\s*(.*)a.v", result, re.I)
+			if not builder_match: return result
+			builder = builder_match[0]
 			decryptVal = self.parseJSString(init)
 			lines = builder.split(';')
 
@@ -411,9 +417,11 @@ class cfcookie:
 			query = '%s/cdn-cgi/l/chk_jschl?jschl_vc=%s&jschl_answer=%s' % (netloc, jschl, answer)
 
 			if 'type="hidden" name="pass"' in result:
-				passval = re.findall(r'name\s*=\s*["\']pass["\']\s*value\s*=\s*["\'](.*?)["\']', result, re.I)[0]
-				query = '%s/cdn-cgi/l/chk_jschl?pass=%s&jschl_vc=%s&jschl_answer=%s' % (netloc, quote_plus(passval), jschl, answer)
-				sleep(6)
+				passval_match = re.findall(r'name\s*=\s*["\']pass["\']\s*value\s*=\s*["\'](.*?)["\']', result, re.I)
+				if passval_match:
+					passval = passval_match[0]
+					query = '%s/cdn-cgi/l/chk_jschl?pass=%s&jschl_vc=%s&jschl_answer=%s' % (netloc, quote_plus(passval), jschl, answer)
+					sleep(6)
 
 			cookies = cookiejar.LWPCookieJar()
 			handlers = [urllib2.HTTPHandler(), urllib2.HTTPSHandler(), urllib2.HTTPCookieProcessor(cookies)]

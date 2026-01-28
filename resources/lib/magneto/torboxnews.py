@@ -47,7 +47,8 @@ class source:
 			if 'timeout' in data: self.timeout = int(data['timeout'])
 			headers = {'User-Agent': self.user_agent, 'Authorization': 'Bearer %s' % self.token}
 			results = requests.get(url, params=params, headers=headers, timeout=self.timeout)
-			files = results.json()['data']['nzbs']
+			response_json = results.json()
+			files = response_json.get('data', {}).get('nzbs', [])
 			undesirables = source_utils.get_undesirables()
 			check_foreign_audio = source_utils.check_foreign_audio()
 		except:

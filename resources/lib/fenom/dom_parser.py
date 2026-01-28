@@ -40,6 +40,7 @@ def __get_dom_content(html, name, match):
 		return ''
 
 def __get_dom_elements(item, name, attrs):
+	this_list = []
 	try:
 		if not attrs:
 			pattern = r'(<%s(?:\s[^>]*>|/?>))' % name
@@ -78,8 +79,8 @@ def __get_dom_elements(item, name, attrs):
 		return this_list
 
 def __get_attribs(element):
+	attribs = {}
 	try:
-		attribs = {}
 		for match in re.finditer(r'''\s+(?P<key>[^=]+)=\s*(?:(?P<delim>["'])(?P<value1>.*?)(?P=delim)|(?P<value2>[^"'][^>\s]*))''', element):
 			match = match.groupdict()
 			value1 = match.get('value1')

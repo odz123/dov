@@ -85,9 +85,11 @@ class source:
 				magnet = urlparse(magnet).query
 				magnet = dict(parse_qsl(magnet))
 
-				hash = magnet.get('xt').split(':')[-1]
+				xt_value = magnet.get('xt', '')
+				if not xt_value: continue
+				hash = xt_value.split(':')[-1]
 				hash = base64.b16encode(base64.b32decode(hash)).decode('utf-8')
-				name = magnet.get('dn')
+				name = magnet.get('dn', '')
 				# name = client.parseDOM(row, 'div', attrs={'class': 'link'})
 				# name = client.parseDOM(name, 'a')[0]
 				name = source_utils.clean_name(name)
@@ -185,9 +187,11 @@ class source:
 				magnet = urlparse(magnet).query
 				magnet = dict(parse_qsl(magnet))
 
-				hash = magnet.get('xt').split(':')[-1]
+				xt_value = magnet.get('xt', '')
+				if not xt_value: continue
+				hash = xt_value.split(':')[-1]
 				hash = base64.b16encode(base64.b32decode(hash)).decode('utf-8')
-				name = magnet.get('dn')
+				name = magnet.get('dn', '')
 				# name = client.parseDOM(row, 'div', attrs={'class': 'link'})
 				# name = client.parseDOM(name, 'a')[0]
 				name = source_utils.clean_name(name)

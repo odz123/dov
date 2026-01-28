@@ -203,7 +203,9 @@ def trakt_account_info():
 		if movie_minutes == 0: movies_watched_minutes = ['0 days', '0:00:00']
 		elif movie_minutes < 1440: movies_watched_minutes = ['0 days', '{:0>8}'.format(str(timedelta(minutes=movie_minutes)))]
 		else: movies_watched_minutes = ('{:0>8}'.format(str(timedelta(minutes=movie_minutes)))).split(', ')
-		movies_watched_minutes = ('%s %s hours %s minutes' % (movies_watched_minutes[0], movies_watched_minutes[1].split(':')[0], movies_watched_minutes[1].split(':')[1]))
+		if len(movies_watched_minutes) < 2: movies_watched_minutes = ['0 days', movies_watched_minutes[0] if movies_watched_minutes else '0:00:00']
+		time_parts = movies_watched_minutes[1].split(':')
+		movies_watched_minutes = ('%s %s hours %s minutes' % (movies_watched_minutes[0], time_parts[0] if len(time_parts) > 0 else '0', time_parts[1] if len(time_parts) > 1 else '00'))
 		shows_collected = stats['shows']['collected']
 		shows_watched = stats['shows']['watched']
 		episodes_watched = stats['episodes']['watched']
@@ -211,7 +213,9 @@ def trakt_account_info():
 		if episode_minutes == 0: episodes_watched_minutes = ['0 days', '0:00:00']
 		elif episode_minutes < 1440: episodes_watched_minutes = ['0 days', '{:0>8}'.format(str(timedelta(minutes=episode_minutes)))]
 		else: episodes_watched_minutes = ('{:0>8}'.format(str(timedelta(minutes=episode_minutes)))).split(', ')
-		episodes_watched_minutes = ('%s %s hours %s minutes' % (episodes_watched_minutes[0], episodes_watched_minutes[1].split(':')[0], episodes_watched_minutes[1].split(':')[1]))
+		if len(episodes_watched_minutes) < 2: episodes_watched_minutes = ['0 days', episodes_watched_minutes[0] if episodes_watched_minutes else '0:00:00']
+		time_parts = episodes_watched_minutes[1].split(':')
+		episodes_watched_minutes = ('%s %s hours %s minutes' % (episodes_watched_minutes[0], time_parts[0] if len(time_parts) > 0 else '0', time_parts[1] if len(time_parts) > 1 else '00'))
 		body = []
 		append = body.append
 		append('[B]Username:[/B] %s' % username)

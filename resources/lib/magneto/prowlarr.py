@@ -50,7 +50,7 @@ class source:
 				params = {'type': 'search', 'limit': 100, 'categories': 2000, 'query': title.lower()}
 			if 'timeout' in data: self.timeout = int(data['timeout'])
 			results = session.get(url, params=params, headers=self.headers, timeout=self.timeout)
-			files = results.json()
+			files = results.json() if results.status_code == 200 else []
 			undesirables = source_utils.get_undesirables()
 			check_foreign_audio = source_utils.check_foreign_audio()
 		except:
