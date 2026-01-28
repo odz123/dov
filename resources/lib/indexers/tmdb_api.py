@@ -269,7 +269,8 @@ def tmdb_people_full_info(actor_id, language=None):
 def tmdb_people_info(query):
 	string = 'tmdb_people_info_%s' % query
 	url = '%s/search/person?api_key=%s&language=en-US&query=%s' % (base_url, tmdb_api_key(), query)
-	return cache_object(get_tmdb, string, url, expiration=EXPIRES_4_HOURS)['results']
+	result = cache_object(get_tmdb, string, url, expiration=EXPIRES_4_HOURS)
+	return result.get('results', []) if result else []
 
 def get_dates(days, reverse=True):
 	import datetime
@@ -361,9 +362,10 @@ def episode_groups(tmdb_id, tmdb_api=None):
 	string = 'tmdb_episode_group_%s' % tmdb_id
 	url = '%s/tv/%s/episode_groups?api_key=%s' % (base_url, tmdb_id, get_tmdb_api(tmdb_api))
 	result = cache_function(get_tmdb, string, url, EXPIRES_1_WEEK)
-	for i in result['results']: i['type'] = eps_map[i['type']]
-	result = result['results']
-	return result
+	if not result: return []
+	results = result.get('results', [])
+	for i in results: i['type'] = eps_map.get(i.get('type'), 'Unknown')
+	return results
 
 def episode_group_details(group_id, tmdb_api=None):
 	try:
@@ -401,7 +403,8 @@ def tmdb_favorite(media_type, page, letter):
 
 def tmdb_recommendations(media_type, page, letter):
 	original_list = recommendations(media_type, page)
-	final_list, total_pages = original_list['results'], original_list['total_pages']
+	if not original_list: return [], 1
+	final_list, total_pages = original_list.get('results', []), original_list.get('total_pages', 1)
 	return final_list, total_pages
 
 def add_to_watchlist_favorite(item, list_type):
@@ -421,8 +424,9 @@ def _account_id(func):
 def all_items(func, *args):
 	def _process(f, *a):
 		r = f(*a)
-		results[a[-1]] = r['results']
-		return r['total_pages']
+		if not r: return 1
+		results[a[-1]] = r.get('results', [])
+		return r.get('total_pages', 1)
 	results, page, total_pages = {}, 1, 1
 	total_pages = _process(func, *args, page)
 	threads = TaskPool(40).tasks(_process, [(func, *args, i) for i in range(page + 1, total_pages + 1)], Thread)
