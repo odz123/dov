@@ -196,7 +196,6 @@ def internal_folders_import(folders):
 			scraper_name = item[0]
 			module = manual_function_import('scrapers.folders', 'source')
 			yield ('folders', (module, (item[1], scraper_name)), scraper_name)
-	sourceDict = list(import_info())
 	try: sourceDict = list(import_info())
 	except: sourceDict = []
 	return sourceDict

@@ -132,7 +132,7 @@ class Discover:
 				result = api_result.get('results', []) if api_result else []
 				if result:
 					keywords_choice = self._multiselect_dialog(heading_base % ('%s %s' % (ls(32193), ls(32657))), [i['name'].upper() for i in result], result)
-					if keywords_choice != None:
+					if keywords_choice is not None:
 						for i in keywords_choice:
 							key_ids_append(str(i['id']))
 							key_words_append(i['name'].upper())
@@ -158,7 +158,7 @@ class Discover:
 				result = api_result.get('results', []) if api_result else []
 				if result:
 					keywords_choice = self._multiselect_dialog(heading_base % ('%s %s' % (ls(32193), ls(32657))), [i['name'].upper() for i in result], result)
-					if keywords_choice != None:
+					if keywords_choice is not None:
 						for i in keywords_choice:
 							key_ids_append(str(i['id']))
 							key_words_append(i['name'].upper())
@@ -172,7 +172,7 @@ class Discover:
 		years = meta_lists.years()
 		years_list = [str(i) for i in years]
 		year_start = self._selection_dialog(years_list, years, heading_base % ('%s %s' % (ls(32654), ls(32543))))
-		if year_start != None:
+		if year_start is not None:
 			if self.discover_params['media_type'] == 'movie':
 				value = 'primary_release_date.gte'
 			else:
@@ -186,7 +186,7 @@ class Discover:
 		years = meta_lists.years()
 		years_list = [str(i) for i in years]
 		year_end = self._selection_dialog(years_list, years, heading_base % ('%s %s' % (ls(32655), ls(32543))))
-		if year_end != None:
+		if year_end is not None:
 			if self.discover_params['media_type'] == 'movie':
 				value = 'primary_release_date.lte'
 			else:
@@ -201,7 +201,7 @@ class Discover:
 		else: genres = meta_lists.tvshow_genres
 		genre_list = [(k, v[0]) for k, v in sorted(genres.items())]
 		genres_choice = self._multiselect_dialog(heading_base % (include_base_str % ls(32470)), [i[0] for i in genre_list], genre_list)
-		if genres_choice != None:
+		if genres_choice is not None:
 			genre_ids = ','.join([i[1] for i in genres_choice])
 			genre_names = ', '.join([i[0] for i in genres_choice])
 			values = ('&with_genres=%s' % genre_ids, genre_names)
@@ -214,7 +214,7 @@ class Discover:
 		else: genres = meta_lists.tvshow_genres
 		genre_list = [(k, v[0]) for k, v in sorted(genres.items())]
 		genres_choice = self._multiselect_dialog(heading_base % (exclude_base_str % ls(32470)), [i[0] for i in genre_list], genre_list)
-		if genres_choice != None:
+		if genres_choice is not None:
 			genre_ids = ','.join([i[1] for i in genres_choice])
 			genre_names = ', '.join([i[0] for i in genres_choice])
 			values = ('&without_genres=%s' % genre_ids, '/'.join(genre_names.split(', ')))
@@ -225,7 +225,7 @@ class Discover:
 		if self._action(key) in ('clear', None): return
 		languages_list = meta_lists.languages
 		language = self._selection_dialog([i[0] for i in languages_list], languages_list, heading_base % ls(32658))
-		if language != None:
+		if language is not None:
 			values = ('&with_original_language=%s' % str(language[1]), str(language[1]).upper())
 			self._process(key, values)
 
@@ -236,7 +236,7 @@ class Discover:
 		region_names = [i['name'] for i in regions]
 		region_codes = [i['code'] for i in regions]
 		region = self._selection_dialog(region_names, region_codes, heading_base % ls(32659))
-		if region != None:
+		if region is not None:
 			matching_regions = [i['name'] for i in regions if i['code'] == region]
 			region_name = matching_regions[0] if matching_regions else region
 			values = ('&region=%s' % region, region_name)
@@ -248,7 +248,7 @@ class Discover:
 		ratings = [i for i in range(1, 11)]
 		ratings_list = [str(float(i)) for i in ratings]
 		rating = self._selection_dialog(ratings_list, ratings, heading_base % ('%s %s' % (ls(32661), ls(32621))))
-		if rating != None:
+		if rating is not None:
 			values = ('&vote_average.gte=%s' % str(rating), str(float(rating)))
 			self._process(key, values)
 
@@ -260,7 +260,7 @@ class Discover:
 		rating_votes.insert(0, 1)
 		rating_votes_list = [str(i) for i in rating_votes]
 		rating_votes = self._selection_dialog(rating_votes_list, rating_votes, heading_base % ('%s %s' % (ls(32661), ls(32663))))
-		if rating_votes != None:
+		if rating_votes is not None:
 			values = ('&vote_count.gte=%s' % str(rating_votes), str(rating_votes))
 			self._process(key, values)
 
@@ -270,7 +270,7 @@ class Discover:
 		certifications = meta_lists.movie_certifications
 		certifications_list = [i.upper() for i in certifications]
 		certification = self._selection_dialog(certifications_list, certifications, heading_base % ls(32473))
-		if certification != None:
+		if certification is not None:
 			values = ('&certification_country=US&certification=%s' % certification, certification.upper())
 			self._process(key, values)
 
@@ -338,7 +338,7 @@ class Discover:
 					results = api_result.get('results', [])
 					if results:
 						company_choice = self._multiselect_dialog(heading_base % ls(32660), [i['name'].upper() for i in results], results)
-				if company_choice != None:
+				if company_choice is not None:
 					for i in company_choice:
 						company_ids_append(str(i['id']))
 						company_append(i['name'].upper())
@@ -354,7 +354,7 @@ class Discover:
 		else:
 			sort_by_list = self._tvshows_sort()
 		sort_by_value = self._selection_dialog([i[0] for i in sort_by_list], [i[1] for i in sort_by_list], heading_base % ls(32067))
-		if sort_by_value != None:
+		if sort_by_value is not None:
 			matching_sorts = [i[0] for i in sort_by_list if i[1] == sort_by_value]
 			sort_by_name = matching_sorts[0] if matching_sorts else sort_by_value
 			values = (sort_by_value, sort_by_name)
@@ -363,7 +363,7 @@ class Discover:
 	def adult(self):
 		key = 'adult'
 		include_adult = self._selection_dialog((ls(32859), ls(32860)), ('true', 'false'), heading_base % include_base_str % ls(32665))
-		if include_adult != None:
+		if include_adult is not None:
 			values = ('&include_adult=%s' % include_adult, include_adult.capitalize())
 			self._process(key, values)
 
