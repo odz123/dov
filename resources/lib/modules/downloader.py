@@ -188,7 +188,7 @@ class Downloader:
 			if clean_title(self.title).lower() in file_name.lower():
 				final_name = os.path.splitext(urlparse(name_url).path)[0].split('/')[-1]
 			else:
-				try: final_name = self.name.translate(None, r'\/:*?"<>|').strip('.')
+				try: final_name = self.name.translate(str.maketrans('', '', r'\/:*?"<>|')).strip('.')
 				except: final_name = os.path.splitext(urlparse(name_url).path)[0].split('/')[-1]
 		self.final_name = safe_string(remove_accents(final_name))
 

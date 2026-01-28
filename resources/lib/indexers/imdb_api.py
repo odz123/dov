@@ -421,9 +421,9 @@ def get_imdb(params):
 
 def clear_imdb_cache(silent=False):
 	from modules.kodi_utils import path_exists, clear_property, database_connect, maincache_db
+	if not path_exists(maincache_db): return True
+	dbcon = database_connect(maincache_db, isolation_level=None)
 	try:
-		if not path_exists(maincache_db): return True
-		dbcon = database_connect(maincache_db, isolation_level=None)
 		dbcur = dbcon.cursor()
 		dbcur.execute("""PRAGMA synchronous = OFF""")
 		dbcur.execute("""PRAGMA journal_mode = OFF""")
@@ -434,6 +434,8 @@ def clear_imdb_cache(silent=False):
 		for i in imdb_results: clear_property(i)
 		return True
 	except: return False
+	finally:
+		dbcon.close()
 
 def imdb_build_user_lists(media_type):
 	def _builder():

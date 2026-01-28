@@ -90,8 +90,8 @@ def isVersionUpdate():
 	versionFile = joinPath(dataPath, 'installed.version')
 	try:
 		if not xbmcvfs.exists(versionFile):
-			f = open(versionFile, 'w')
-			f.close()
+			with open(versionFile, 'w') as f:
+				pass
 	except:
 		LOGINFO = 1 # (LOGNOTICE(2) deprecated in 19, use LOGINFO(1))
 		xbmc.log('FenomScrapers Addon Data Path Does not Exist. Creating Folder....', LOGINFO)
@@ -192,10 +192,9 @@ def openSettings(query=None, id=addonInfo('id')):
 def getSettingDefault(id):
 	import re
 	try:
-		settings = open(SETTINGS_PATH, 'r')
-		value = ' '.join(settings.readlines())
-		value.strip('\n')
-		settings.close()
+		with open(SETTINGS_PATH, 'r') as settings:
+			value = ' '.join(settings.readlines())
+		value = value.replace('\n', '')
 		value = re.findall(r'id=\"%s\".*?default=\"(.*?)\"' % (id), value)[0]
 		return value
 	except:

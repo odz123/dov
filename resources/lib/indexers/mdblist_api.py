@@ -442,9 +442,9 @@ def mdbl_sync_activities(force_update=False):
 
 def clear_mdbl_cache(silent=False):
 	from modules.kodi_utils import path_exists, clear_property, database_connect, maincache_db
+	if not path_exists(maincache_db): return True
+	dbcon = database_connect(maincache_db, isolation_level=None)
 	try:
-		if not path_exists(maincache_db): return True
-		dbcon = database_connect(maincache_db, isolation_level=None)
 		dbcur = dbcon.cursor()
 		dbcur.execute("""PRAGMA synchronous = OFF""")
 		dbcur.execute("""PRAGMA journal_mode = OFF""")
@@ -455,6 +455,8 @@ def clear_mdbl_cache(silent=False):
 		for i in mdb_results: clear_property(i)
 		return True
 	except: return False
+	finally:
+		dbcon.close()
 
 def get_mdbl(params):
 	results = []

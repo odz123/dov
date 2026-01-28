@@ -210,10 +210,10 @@ class TorBoxAPI:
 
 	def clear_cache(*args):
 		from modules.kodi_utils import clear_property, path_exists, database_connect, maincache_db
+		if not path_exists(maincache_db): return True
+		from caches.debrid_cache import DebridCache
+		dbcon = database_connect(maincache_db)
 		try:
-			if not path_exists(maincache_db): return True
-			from caches.debrid_cache import DebridCache
-			dbcon = database_connect(maincache_db)
 			dbcur = dbcon.cursor()
 			try:
 				dbcur.execute("""DELETE FROM maincache WHERE id = ?""", ('torbox_usenet_queries',))
@@ -231,13 +231,14 @@ class TorBoxAPI:
 					dbcon.commit()
 				user_cloud_success = True
 			except: user_cloud_success = False
-			dbcon.close()
-			# HASH CACHED STATUS
-			try:
-				DebridCache().clear_debrid_results('tb')
-				hash_cache_status_success = True
-			except: hash_cache_status_success = False
 		except: return False
+		finally:
+			dbcon.close()
+		# HASH CACHED STATUS
+		try:
+			DebridCache().clear_debrid_results('tb')
+			hash_cache_status_success = True
+		except: hash_cache_status_success = False
 		if False in (usenet_queries_success, user_cloud_success, hash_cache_status_success): return False
 		return True
 

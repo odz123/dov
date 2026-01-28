@@ -167,11 +167,12 @@ def request(url, close=True, redirect=True, error=False, proxy=None, post=None, 
 						return (str(response), str(response.code), response_headers)
 
 		if output == 'cookie':
+			result = None
 			try: result = '; '.join(['%s=%s' % (i.name, i.value) for i in cookies])
 			except: pass
 			try: result = cf
 			except: pass
-			if close is True: response.close()
+			if close == True: response.close()
 			return result
 		elif output == 'geturl':
 			result = response.geturl()
@@ -191,8 +192,8 @@ def request(url, close=True, redirect=True, error=False, proxy=None, post=None, 
 			return result
 		elif output == 'file_size':
 			try: content = int(response.headers['Content-Length'])
-			except: content = '0'
-			if close is True: response.close()
+			except: content = 0
+			if close == True: response.close()
 			return content
 		if flare != 'cloudflare':
 			if limit == '0': result = response.read(224 * 1024)

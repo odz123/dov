@@ -243,10 +243,13 @@ def choose_view(view_type, content):
 def set_view(view_type):
 	view_id = str(current_window_id().getFocusId())
 	dbcon = database_connect(views_db, isolation_level=None)
-	dbcur = dbcon.cursor()
-	dbcur.execute("""PRAGMA synchronous = OFF""")
-	dbcur.execute("""PRAGMA journal_mode = OFF""")
-	dbcur.execute("""INSERT OR REPLACE INTO views VALUES (?, ?)""", (view_type, view_id))
+	try:
+		dbcur = dbcon.cursor()
+		dbcur.execute("""PRAGMA synchronous = OFF""")
+		dbcur.execute("""PRAGMA journal_mode = OFF""")
+		dbcur.execute("""INSERT OR REPLACE INTO views VALUES (?, ?)""", (view_type, view_id))
+	finally:
+		dbcon.close()
 	set_view_property(view_type, view_id)
 	notification(get_infolabel('Container.Viewmode').upper(), 1500)
 
@@ -255,9 +258,12 @@ def set_view_property(view_type, view_id):
 
 def set_view_properties():
 	dbcon = database_connect(views_db, isolation_level=None)
-	dbcur = dbcon.cursor()
-	dbcur.execute("""SELECT * FROM views""")
-	view_ids = dbcur.fetchall()
+	try:
+		dbcur = dbcon.cursor()
+		dbcur.execute("""SELECT * FROM views""")
+		view_ids = dbcur.fetchall()
+	finally:
+		dbcon.close()
 	for item in view_ids: set_property('pov_%s' % item[0], item[1])
 
 def set_view_mode(view_type, content='files'):
@@ -265,6 +271,7 @@ def set_view_mode(view_type, content='files'):
 	view_id = get_property('pov_%s' % view_type)
 	hold = 0
 	if not view_id:
+		dbcon = None
 		try:
 			dbcon = database_connect(views_db, isolation_level=None)
 			dbcur = dbcon.cursor()
@@ -273,6 +280,8 @@ def set_view_mode(view_type, content='files'):
 			if not row: return
 			view_id = row[0]
 		except: return
+		finally:
+			if dbcon: dbcon.close()
 	try:
 		sleep(100)
 		while not container_content() == content:

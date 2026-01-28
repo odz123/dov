@@ -600,10 +600,13 @@ class Discover:
 def get_history(media_type):
 	string = 'pov_discover_%s_%%' % media_type
 	dbcon = kodi_utils.database_connect(maincache_db)
-	dbcur = dbcon.cursor()
-	dbcur.execute("""SELECT id, data FROM maincache WHERE id LIKE ? ORDER BY rowid DESC""", (string,))
-	history = dbcur.fetchall()
-	return history
+	try:
+		dbcur = dbcon.cursor()
+		dbcur.execute("""SELECT id, data FROM maincache WHERE id LIKE ? ORDER BY rowid DESC""", (string,))
+		history = dbcur.fetchall()
+		return history
+	finally:
+		dbcon.close()
 
 def set_history(media_type, name, query):
 	from caches.main_cache import MainCache
@@ -623,10 +626,13 @@ def set_history(media_type, name, query):
 
 def remove_from_history(params):
 	dbcon = kodi_utils.database_connect(maincache_db, isolation_level=None)
-	dbcur = dbcon.cursor()
-	dbcur.execute("""PRAGMA synchronous = OFF""")
-	dbcur.execute("""PRAGMA journal_mode = OFF""")
-	dbcur.execute("""DELETE FROM maincache WHERE id = ?""", (params['data_id'],))
+	try:
+		dbcur = dbcon.cursor()
+		dbcur.execute("""PRAGMA synchronous = OFF""")
+		dbcur.execute("""PRAGMA journal_mode = OFF""")
+		dbcur.execute("""DELETE FROM maincache WHERE id = ?""", (params['data_id'],))
+	finally:
+		dbcon.close()
 	kodi_utils.clear_property(params['data_id'])
 	kodi_utils.container_refresh()
 	if not params['silent']: kodi_utils.notification(32576)

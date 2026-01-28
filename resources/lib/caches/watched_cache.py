@@ -106,7 +106,8 @@ def set_bookmark(media_type, tmdb_id, curr_time, total_time, title, season='', e
 	dbcon = None
 	try:
 		adjusted_current_time = float(curr_time) - 5
-		resume_point = round(adjusted_current_time/float(total_time)*100, 1)
+		total_time_float = float(total_time)
+		resume_point = round(adjusted_current_time/total_time_float*100, 1) if total_time_float > 0 else 0
 		watched_indicators = settings.watched_indicators()
 		if watched_indicators == 1:
 			trakt_progress('set_progress', media_type, tmdb_id, resume_point, season, episode, refresh_trakt=True)
@@ -426,7 +427,7 @@ def mark_as_watched_unwatched_tvshow(params):
 			season_number = ep['season']
 			ep_number = ep['episode']
 			display = 'S%.2dE%.2d' % (int(season_number), int(ep_number))
-			kodi_utils.progressDialogBG.update(int(float(count)/float(total)*100), ls(32577), '%s' % display)
+			kodi_utils.progressDialogBG.update(int(float(count)/float(total)*100) if total > 0 else 0, ls(32577), '%s' % display)
 			episode_date, premiered = adjust_premiered_date(ep['premiered'], adjust_hours)
 			if not episode_date or current_date < episode_date: continue
 			insert_append(make_batch_insert(action, 'episode', tmdb_id, season_number, ep_number, last_played, title))
@@ -475,7 +476,7 @@ def mark_as_watched_unwatched_season(params):
 		display = 'S%.2dE%.2d' % (season_number, ep_number)
 		episode_date, premiered = adjust_premiered_date(item['premiered'], adjust_hours)
 		if not episode_date or current_date < episode_date: continue
-		kodi_utils.progressDialogBG.update(int(float(count) / float(len(ep_data)) * 100), ls(32577), '%s' % display)
+		kodi_utils.progressDialogBG.update(int(float(count) / float(len(ep_data)) * 100) if ep_data else 0, ls(32577), '%s' % display)
 		insert_append(make_batch_insert(action, 'episode', tmdb_id, season_number, ep_number, last_played, title))
 	if watched_indicators == 1:
 		if not trakt_watched_unwatched(action, 'season', tmdb_id, tvdb_id, season): return kodi_utils.notification(32574)
@@ -752,7 +753,7 @@ def batch_mark_episodes_as_watched_unwatched_kodi_library(action, show_info, epi
 				if int(current_playcount) != playcount:
 					sleep(50)
 					display = ls(32856)
-					progressDialogBG.update(int(float(count) / float(len(ep_ids)) * 100), ls(32577), display)
+					progressDialogBG.update(int(float(count) / float(len(ep_ids)) * 100) if ep_ids else 0, ls(32577), display)
 					query = {"jsonrpc": "2.0", "method": "VideoLibrary.SetEpisodeDetails", "params": {"episodeid": ep_id, "playcount": playcount}, "id": 1}
 					action_append(query)
 				else: pass
