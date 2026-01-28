@@ -1,6 +1,7 @@
 from indexers import tmdb_api as tmdb, fanarttv_api as fanarttv
 from caches.meta_cache import MetaCache
 from modules.utils import jsondate_to_datetime, subtract_dates, TaskPool
+from modules.kodi_utils import get_setting
 # from modules.kodi_utils import logger
 
 movie_data, tvshow_data, tmdb_english_translation = tmdb.movie_details, tmdb.tvshow_details, tmdb.english_translation
@@ -436,4 +437,190 @@ def rpdb_get(media_type, media_id, api_key):
 		rpdb_data = {'rpdb': url % (api_key, id_type, media_id), 'rpdb_added': True}
 	else: rpdb_data = {'rpdb': '', 'rpdb_added': False}
 	return rpdb_data
+
+# Stremio Metadata Integration Functions
+
+def stremio_meta_enabled():
+	"""Check if Stremio metadata is enabled in settings"""
+	return get_setting('stremio.meta.enabled', 'false') == 'true'
+
+def stremio_meta_mode():
+	"""Get Stremio metadata mode: 0=Fallback, 1=Supplement, 2=Primary"""
+	return int(get_setting('stremio.meta.mode', '0'))
+
+def get_stremio_movie_meta(imdb_id):
+	"""Fetch movie metadata from Stremio addons"""
+	try:
+		from indexers.stremio_meta import StremioMetaProvider
+		provider = StremioMetaProvider()
+		return provider.get_movie_meta(imdb_id)
+	except:
+		pass
+	return None
+
+def get_stremio_tvshow_meta(imdb_id):
+	"""Fetch TV show metadata from Stremio addons"""
+	try:
+		from indexers.stremio_meta import StremioMetaProvider
+		provider = StremioMetaProvider()
+		return provider.get_tvshow_meta(imdb_id)
+	except:
+		pass
+	return None
+
+def get_stremio_season_meta(imdb_id, season):
+	"""Fetch season episodes metadata from Stremio addons"""
+	try:
+		from indexers.stremio_meta import StremioMetaProvider
+		provider = StremioMetaProvider()
+		return provider.get_season_episodes(imdb_id, int(season))
+	except:
+		pass
+	return None
+
+def merge_stremio_meta(tmdb_meta, stremio_meta, prefer_stremio=False):
+	"""
+	Merge Stremio metadata with TMDB metadata.
+
+	Args:
+		tmdb_meta: TMDB metadata dict
+		stremio_meta: Stremio metadata dict
+		prefer_stremio: If True, prefer Stremio data over TMDB
+
+	Returns:
+		dict: Merged metadata
+	"""
+	if not tmdb_meta:
+		return stremio_meta
+	if not stremio_meta:
+		return tmdb_meta
+
+	merged = dict(tmdb_meta)
+
+	# Fields to potentially fill from Stremio if missing in TMDB
+	fill_fields = [
+		'poster', 'fanart', 'clearlogo', 'tmdblogo', 'plot', 'tagline',
+		'trailer', 'director', 'writer', 'cast', 'genre', 'rating'
+	]
+
+	for field in fill_fields:
+		tmdb_value = tmdb_meta.get(field)
+		stremio_value = stremio_meta.get(field)
+
+		if prefer_stremio and stremio_value:
+			merged[field] = stremio_value
+		elif not tmdb_value and stremio_value:
+			merged[field] = stremio_value
+
+	# Special handling for artwork
+	if not merged.get('poster') and stremio_meta.get('poster'):
+		merged['poster'] = stremio_meta['poster']
+	if not merged.get('fanart') and stremio_meta.get('fanart'):
+		merged['fanart'] = stremio_meta['fanart']
+	if not merged.get('clearlogo') and stremio_meta.get('clearlogo'):
+		merged['clearlogo'] = stremio_meta['clearlogo']
+		merged['tmdblogo'] = stremio_meta['clearlogo']
+
+	merged['stremio_supplemented'] = True
+	return merged
+
+def movie_meta_with_stremio(id_type, media_id, user_info, current_date):
+	"""
+	Get movie metadata with Stremio integration.
+	Uses configured mode: fallback, supplement, or primary.
+	"""
+	if not stremio_meta_enabled():
+		return movie_meta(id_type, media_id, user_info, current_date)
+
+	mode = stremio_meta_mode()
+	imdb_id = None
+
+	# Extract IMDb ID if available
+	if id_type == 'imdb_id':
+		imdb_id = media_id
+	elif id_type == 'trakt_dict' and media_id.get('imdb'):
+		imdb_id = media_id['imdb']
+
+	# Mode 2: Primary - Try Stremio first
+	if mode == 2 and imdb_id:
+		stremio_meta = get_stremio_movie_meta(imdb_id)
+		if stremio_meta and not stremio_meta.get('blank_entry'):
+			return stremio_meta
+
+	# Get TMDB metadata
+	tmdb_meta = movie_meta(id_type, media_id, user_info, current_date)
+
+	# Mode 0: Fallback - Use Stremio only if TMDB failed
+	if mode == 0:
+		if (not tmdb_meta or tmdb_meta.get('blank_entry')) and imdb_id:
+			stremio_meta = get_stremio_movie_meta(imdb_id)
+			if stremio_meta:
+				return stremio_meta
+
+	# Mode 1: Supplement - Merge Stremio data with TMDB
+	elif mode == 1 and imdb_id:
+		stremio_meta = get_stremio_movie_meta(imdb_id)
+		if stremio_meta:
+			return merge_stremio_meta(tmdb_meta, stremio_meta)
+
+	return tmdb_meta
+
+def tvshow_meta_with_stremio(id_type, media_id, user_info, current_date):
+	"""
+	Get TV show metadata with Stremio integration.
+	Uses configured mode: fallback, supplement, or primary.
+	"""
+	if not stremio_meta_enabled():
+		return tvshow_meta(id_type, media_id, user_info, current_date)
+
+	mode = stremio_meta_mode()
+	imdb_id = None
+
+	# Extract IMDb ID if available
+	if id_type == 'imdb_id':
+		imdb_id = media_id
+	elif id_type == 'trakt_dict' and media_id.get('imdb'):
+		imdb_id = media_id['imdb']
+
+	# Mode 2: Primary - Try Stremio first
+	if mode == 2 and imdb_id:
+		stremio_meta = get_stremio_tvshow_meta(imdb_id)
+		if stremio_meta and not stremio_meta.get('blank_entry'):
+			return stremio_meta
+
+	# Get TMDB metadata
+	tmdb_meta = tvshow_meta(id_type, media_id, user_info, current_date)
+
+	# Mode 0: Fallback - Use Stremio only if TMDB failed
+	if mode == 0:
+		if (not tmdb_meta or tmdb_meta.get('blank_entry')) and imdb_id:
+			stremio_meta = get_stremio_tvshow_meta(imdb_id)
+			if stremio_meta:
+				return stremio_meta
+
+	# Mode 1: Supplement - Merge Stremio data with TMDB
+	elif mode == 1 and imdb_id:
+		stremio_meta = get_stremio_tvshow_meta(imdb_id)
+		if stremio_meta:
+			return merge_stremio_meta(tmdb_meta, stremio_meta)
+
+	return tmdb_meta
+
+def season_episodes_meta_with_stremio(season, meta, user_info):
+	"""
+	Get season episodes metadata with Stremio fallback.
+	"""
+	# Try TMDB first
+	tmdb_data = season_episodes_meta(season, meta, user_info)
+
+	if tmdb_data:
+		return tmdb_data
+
+	# Fallback to Stremio if enabled and TMDB failed
+	if stremio_meta_enabled() and stremio_meta_mode() >= 0:
+		imdb_id = meta.get('imdb_id')
+		if imdb_id:
+			return get_stremio_season_meta(imdb_id, season)
+
+	return tmdb_data
 

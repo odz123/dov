@@ -63,7 +63,10 @@ def check_databases():
 					(db_type text not null, tmdb_id text not null, imdb_id text, tvdb_id text, meta text, expires integer, unique (db_type, tmdb_id))""")
 	dbcon.execute("""CREATE TABLE IF NOT EXISTS season_metadata (tmdb_id text not null unique, meta text, expires integer)""")
 	dbcon.execute("""CREATE TABLE IF NOT EXISTS function_cache (string_id text not null, data text, expires integer)""")
+	dbcon.execute("""CREATE TABLE IF NOT EXISTS stremio_metadata
+					(db_type text not null, imdb_id text not null, meta text, expires integer, unique (db_type, imdb_id))""")
 	dbcon.execute("""CREATE INDEX IF NOT EXISTS pov_select_id_media ON metadata (tmdb_id, db_type)""")
+	dbcon.execute("""CREATE INDEX IF NOT EXISTS pov_stremio_imdb ON stremio_metadata (imdb_id, db_type)""")
 	dbcon.close()
 	dbcon = database_connect(debridcache_db) # Debrid Cache
 	dbcon.execute("""CREATE TABLE IF NOT EXISTS debrid_data (hash text not null, debrid text not null, cached text, expires integer, unique (hash, debrid))""")
@@ -126,7 +129,8 @@ def clean_databases(current_time=None, database_check=True, silent=False):
 		(maincache_db, command_base % ('maincache', 'expires')),
 		(metacache_db, command_base % ('metadata', 'expires')),
 		(metacache_db, command_base % ('function_cache', 'expires')),
-		(metacache_db, command_base % ('season_metadata', 'expires'))
+		(metacache_db, command_base % ('season_metadata', 'expires')),
+		(metacache_db, command_base % ('stremio_metadata', 'expires'))
 	):
 		dbcon = None
 		try:
@@ -235,6 +239,10 @@ def clear_cache(cache_type, silent=False):
 		if not _confirm(): return
 		from indexers.stremio_catalog import clear_stremio_catalog_cache
 		clear_stremio_catalog_cache()
+	elif cache_type == 'stremio_meta':
+		if not _confirm(): return
+		from caches.meta_cache import MetaCache
+		MetaCache().delete_all_stremio()
 	else: # 'list'
 		if not _confirm(): return
 		from caches.main_cache import MainCache
