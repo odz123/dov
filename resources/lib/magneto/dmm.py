@@ -69,8 +69,9 @@ class source:
 		for file in files:
 			try:
 				package, episode_start = None, 0
-				hash = file['hash']
-				name = source_utils.clean_name(file['title'])
+				hash = file.get('hash', '')
+				if not hash: continue
+				name = source_utils.clean_name(file.get('title', ''))
 
 				if not source_utils.check_title(self.title, self.aliases, name, self.hdlr, self.year):
 					if self.total_seasons is None: continue

@@ -56,8 +56,9 @@ class source:
 		for file in files:
 			try:
 				package, episode_start = None, 0
-				hash = file['infoHash']
-				file_title = file['folderName'] or file['filename']
+				hash = file.get('infoHash', '')
+				if not hash: continue
+				file_title = file.get('folderName') or file.get('filename', '')
 
 				name = source_utils.clean_name(file_title)
 

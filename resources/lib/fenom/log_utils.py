@@ -141,8 +141,9 @@ def upload_LogFile():
 		UserAgent = 'FenomScrpaers %s' % addonVersion()
 		response = requests.post(url + 'documents', data=text.encode('utf-8', errors='ignore'), headers={'User-Agent': UserAgent}, timeout=30)
 		# log('log_response: ' + str(response))
-		if 'key' in response.json():
-			result = url + response.json()['key']
+		response_data = response.json()
+		if 'key' in response_data:
+			result = url + response_data['key']
 			log('FenomScrapers log file uploaded to: %s' % result)
 			from sys import platform as sys_platform
 			supported_platform = any(value in sys_platform for value in ('win32', 'linux2'))
@@ -153,9 +154,9 @@ def upload_LogFile():
 			if select is not None and 'Copy url To Clipboard' in url_list[select][0]:
 				from fenom.source_utils import copy2clip
 				copy2clip(url_list[select - 1][1])
-		elif 'message' in response.json():
-			notification(message='FenomScrapers Log upload failed: %s' % str(response.json()['message']))
-			log('FenomScrapers Log upload failed: %s' % str(response.json()['message']), level=LOGERROR)
+		elif 'message' in response_data:
+			notification(message='FenomScrapers Log upload failed: %s' % str(response_data['message']))
+			log('FenomScrapers Log upload failed: %s' % str(response_data['message']), level=LOGERROR)
 		else:
 			notification(message='FenomScrapers Log upload failed')
 			log('FenomScrapers Log upload failed: %s' % response.text, level=LOGERROR)

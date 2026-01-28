@@ -61,8 +61,9 @@ class source:
 		for file in files:
 			try:
 				package, episode_start = None, 0
-				hash = file['hash']
-				name = file['name']
+				hash = file.get('hash', '')
+				if not hash: continue
+				name = file.get('name', '')
 
 				name = source_utils.clean_name(name)
 
