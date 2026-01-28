@@ -105,6 +105,7 @@ class OffcloudAPI:
 			return torrent_files
 		except Exception as e:
 			if torrent_id: self.delete_torrent(torrent_id)
+			return []
 
 	def user_cloud(self, request_id=None, check_cache=True, completed=True):
 		string = 'pov_oc_user_cloud_info_%s' % request_id if request_id else 'pov_oc_user_cloud'

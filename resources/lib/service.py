@@ -73,7 +73,9 @@ def clearSubs():
 	logger('POV', 'Clear Subtitles Service Starting')
 	sub_formats = ('.srt', '.ssa', '.smi', '.sub', '.idx')
 	subtitle_path = 'special://temp/'
-	for i in kodi_utils.list_dirs(subtitle_path)[1]:
+	dir_result = kodi_utils.list_dirs(subtitle_path)
+	files = dir_result[1] if len(dir_result) > 1 else []
+	for i in files:
 		if i.startswith('POVSubs_') or i.endswith(sub_formats):
 			kodi_utils.delete_file(subtitle_path + i)
 	return logger('POV', 'Clear Subtitles Service Finished')

@@ -153,6 +153,7 @@ class Source:
 		except Exception as e:
 			kodi_utils.logger('resolve_external_sources exception', f"{e}\n{self.dumps()}")
 			if files and torrent_id: Thread(target=api.delete_torrent, args=(torrent_id,)).start()
+			return None
 
 	def resolve_internal_sources(self, direct_debrid_link=False):
 		try:
@@ -184,6 +185,7 @@ class Source:
 			return url
 		except Exception as e:
 			kodi_utils.logger('resolve_internal_sources exception', f"{e}\n{self.dumps()}")
+			return None
 
 	def browse_packs(self, highlight=None, download=False):
 		show_busy_dialog()
