@@ -1,4 +1,5 @@
 import requests
+from time import sleep
 from threading import Thread
 from caches.main_cache import cache_object
 from caches.meta_cache import cache_function
@@ -15,18 +16,81 @@ eps_map = {1: 'Original air date', 2: 'Absolute', 3: 'DVD', 4: 'Digital', 5: 'St
 tmdb_image_base = 'https://image.tmdb.org/t/p/%s%s'
 base_url = 'https://api.themoviedb.org/3'
 timeout = 3.05
+
+# TMDB API error codes per specification
+# https://developer.themoviedb.org/docs/errors
+TMDB_ERROR_CODES = {
+	1: 'Success',
+	2: 'Invalid service',
+	3: 'Authentication failed - no permissions',
+	4: 'Invalid format',
+	5: 'Invalid parameters',
+	6: 'Invalid id',
+	7: 'Invalid API key',
+	9: 'Service offline',
+	10: 'Suspended API key',
+	11: 'Internal error',
+	12: 'Item updated successfully',
+	13: 'Item deleted successfully',
+	14: 'Authentication failed',
+	15: 'Failed',
+	18: 'Validation failed',
+	20: 'Date range exceeds 14 days',
+	22: 'Invalid page',
+	23: 'Invalid date format',
+	24: 'Request timeout',
+	25: 'Rate limit exceeded',
+	26: 'Missing username/password',
+	27: 'Too many remote calls',
+	28: 'Invalid timezone',
+	29: 'Confirm action required',
+	30: 'Invalid username/password',
+	31: 'Account disabled',
+	32: 'Email not verified',
+	33: 'Invalid request token',
+	34: 'Resource not found',
+	35: 'Invalid token',
+	36: 'Write permission denied',
+	37: 'Session not found',
+	38: 'Edit permission denied',
+	39: 'Resource is private',
+	40: 'No changes',
+	43: 'Backend connection failure',
+	44: 'Invalid id',
+	46: 'Maintenance mode',
+	47: 'Invalid input'
+}
+
 session = requests.Session()
-retry = requests.adapters.Retry(total=None, status=1, status_forcelist=(429, 502, 503, 504))
+# Configure retry with exponential backoff for rate limiting (429) and server errors
+# TMDB spec: respect 429 responses, retry on 502/503/504 server errors
+retry = requests.adapters.Retry(
+	total=3,
+	status=3,
+	status_forcelist=(429, 502, 503, 504),
+	backoff_factor=1.0,
+	respect_retry_after_header=True
+)
 session.mount('https://api.themoviedb.org', requests.adapters.HTTPAdapter(pool_maxsize=100, max_retries=retry))
 
 def get_tmdb(url, errors=True):
 	try:
 		response = session.get(url, timeout=timeout)
 		result = response.json() if 'json' in response.headers.get('Content-Type', '') else response.text
-		if not response.ok: response.raise_for_status()
+		if not response.ok:
+			# Parse TMDB-specific error code from response
+			error_code = result.get('status_code') if isinstance(result, dict) else None
+			error_msg = result.get('status_message') if isinstance(result, dict) else str(result)
+			if error_code:
+				tmdb_error = TMDB_ERROR_CODES.get(error_code, 'Unknown error')
+				if errors: logger('tmdb error', 'Code %d: %s - %s' % (error_code, tmdb_error, error_msg))
+			else:
+				if errors: logger('tmdb error', 'HTTP %d: %s' % (response.status_code, error_msg))
+			return None
 		return result
 	except requests.exceptions.RequestException as e:
 		if errors: logger('tmdb error', str(e))
+		return None
 
 def tmdb_keyword_id(query):
 	string = 'tmdb_keyword_id_%s' % query
@@ -450,16 +514,31 @@ list_heading = 'TMDB Lists'
 
 def list_request(url, params=None, data=None, method=None):
 	access_token = get_setting('tmdb.token')
-	headers = {'Authorization': f"Bearer {access_token}"}
+	# TMDB API v4 requires Authorization header with Bearer token
+	# Content-Type header required for POST/PUT/DELETE per API spec
+	headers = {
+		'Authorization': 'Bearer %s' % access_token,
+		'Content-Type': 'application/json;charset=utf-8'
+	}
 	method = method or 'get'
-	list_timeout=timeout ** 2 if not method in ('get',) else timeout
+	list_timeout = timeout ** 2 if method not in ('get',) else timeout
 	try:
 		response = session.request(method, url, params=params, json=data, headers=headers, timeout=list_timeout)
 		result = response.json() if 'json' in response.headers.get('Content-Type', '') else response.text
-		if not response.ok: response.raise_for_status()
+		if not response.ok:
+			# Parse TMDB-specific error code from response
+			error_code = result.get('status_code') if isinstance(result, dict) else None
+			error_msg = result.get('status_message') if isinstance(result, dict) else str(result)
+			if error_code:
+				tmdb_error = TMDB_ERROR_CODES.get(error_code, 'Unknown error')
+				logger('tmdb list error', 'Code %d: %s - %s' % (error_code, tmdb_error, error_msg))
+			else:
+				logger('tmdb list error', 'HTTP %d: %s' % (response.status_code, error_msg))
+			return None
 		return result
 	except requests.exceptions.RequestException as e:
-		logger('tmdb error', str(e))
+		logger('tmdb list error', str(e))
+		return None
 
 def list_details(list_id, page=1):
 	string = 'tmdblist_detail_%s_%s' % (list_id, page)
@@ -505,21 +584,21 @@ def user_lists(page=1, account_id=''):
 def watchlist(media_type, page=1, account_id=''):
 	string = 'tmdblist_watchlist_%s_%s_%s' % (account_id, media_type, page)
 	url = '%s/account/%s/%s/watchlist' % (list_url, account_id, media_type)
-	url += '?page=%slanguage=en-US&sort_by=created_at.desc' % page
+	url += '?page=%s&language=en-US&sort_by=created_at.desc' % page
 	return cache_object(list_request, string, url, json=False)
 
 @_account_id
 def favorite(media_type, page=1, account_id=''):
 	string = 'tmdblist_favorite_%s_%s_%s' % (account_id, media_type, page)
 	url = '%s/account/%s/%s/favorites' % (list_url, account_id, media_type)
-	url += '?page=%slanguage=en-US&sort_by=created_at.desc' % page
+	url += '?page=%s&language=en-US&sort_by=created_at.desc' % page
 	return cache_object(list_request, string, url, json=False)
 
 @_account_id
 def recommendations(media_type, page=1, account_id=''):
 	string = 'tmdblist_recommendations_%s_%s_%s' % (account_id, media_type, page)
 	url = '%s/account/%s/%s/recommendations' % (list_url, account_id, media_type)
-	url += '?page=%slanguage=en-US' % page
+	url += '?page=%s&language=en-US' % page
 	return cache_object(list_request, string, url, json=False)
 
 def tmdb_clean_watchlist(silent=False):
