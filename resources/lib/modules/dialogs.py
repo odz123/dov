@@ -287,7 +287,7 @@ def set_quality_choice(quality_setting):
 	kwargs = {'items': json.dumps(list_items), 'heading': 'POV', 'multi_choice': 'true', 'preselect': preselect}
 	choice = select_dialog(fl, **kwargs)
 	if choice is None: return
-	if choice == []:
+	if not choice:
 		ok_dialog(text=32574, top_space=True)
 		return set_quality_choice(quality_setting)
 	set_setting(quality_setting, ', '.join(choice))
@@ -305,8 +305,8 @@ def extras_lists_choice():
 	list_items = [{'line1': item} for item in dl]
 	kwargs = {'items': json.dumps(list_items), 'heading': 'POV', 'multi_choice': 'true', 'preselect': preselect}
 	selection = select_dialog(fl, **kwargs)
-	if selection == []: return set_setting('extras.enabled_menus', 'noop')
-	elif selection is None: return
+	if selection is None: return
+	if not selection: return set_setting('extras.enabled_menus', 'noop')
 	selection = [str(i) for i in selection]
 	set_setting('extras.enabled_menus', ','.join(selection))
 
@@ -323,7 +323,7 @@ def set_language_filter_choice(filter_setting):
 	kwargs = {'items': json.dumps(list_items), 'heading': 'POV', 'multi_choice': 'true', 'preselect': preselect}
 	choice = select_dialog(fl, **kwargs)
 	if choice is None: return
-	if choice == []: return set_setting(filter_setting, 'eng')
+	if not choice: return set_setting(filter_setting, 'eng')
 	set_setting(filter_setting, ', '.join(choice))
 
 def folder_scraper_manager_choice(folder_info=None):

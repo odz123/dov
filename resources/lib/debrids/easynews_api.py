@@ -43,7 +43,8 @@ class EasyNewsAPI:
 			usage_html = self._get(self.usage_link)
 			usage_info = parseDOM(usage_html, 'div', attrs={'class': 'table-responsive'})
 			usage_info = parseDOM(usage_info, 'td')[0:11][1::3]
-			usage_info[1] = re.sub(r'[</].+?>', '', usage_info[1])
+			if len(usage_info) > 1:
+				usage_info[1] = re.sub(r'[</].+?>', '', usage_info[1])
 		except: pass
 		return account_info, usage_info
 
@@ -101,15 +102,18 @@ class EasyNewsAPI:
 def clear_media_results_database():
 	from modules.kodi_utils import clear_property, database_connect, maincache_db
 	dbcon = database_connect(maincache_db)
-	dbcur = dbcon.cursor()
-	dbcur.execute("""PRAGMA synchronous = OFF""")
-	dbcur.execute("""PRAGMA journal_mode = OFF""")
-	dbcur.execute("""SELECT id FROM maincache WHERE id LIKE 'pov_EASYNEWS_SEARCH_%'""")
-	easynews_results = [str(i[0]) for i in dbcur.fetchall()]
-	if not easynews_results: return 'success'
 	try:
-		dbcur.execute("""DELETE FROM maincache WHERE id LIKE 'pov_EASYNEWS_SEARCH_%'""")
-		for i in easynews_results: clear_property(i)
-		return 'success'
-	except: return 'failed'
+		dbcur = dbcon.cursor()
+		dbcur.execute("""PRAGMA synchronous = OFF""")
+		dbcur.execute("""PRAGMA journal_mode = OFF""")
+		dbcur.execute("""SELECT id FROM maincache WHERE id LIKE 'pov_EASYNEWS_SEARCH_%'""")
+		easynews_results = [str(i[0]) for i in dbcur.fetchall()]
+		if not easynews_results: return 'success'
+		try:
+			dbcur.execute("""DELETE FROM maincache WHERE id LIKE 'pov_EASYNEWS_SEARCH_%'""")
+			for i in easynews_results: clear_property(i)
+			return 'success'
+		except: return 'failed'
+	finally:
+		dbcon.close()
 

@@ -115,7 +115,7 @@ class People(BaseDialog):
 		else: self.person_deathday = ''
 		if self.person_deathday: self.person_age = calculate_age(self.person_birthday, '%Y-%m-%d', self.person_deathday)
 		elif self.person_birthday: self.person_age = calculate_age(self.person_birthday, '%Y-%m-%d')
-		else:self.person_age = ''
+		else: self.person_age = ''
 		self.imdb_id = person_info['imdb_id']
 		more_from_data = person_info['combined_credits']
 		acting_data = more_from_data['cast']

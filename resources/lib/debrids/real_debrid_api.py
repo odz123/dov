@@ -158,10 +158,10 @@ class RealDebridAPI:
 
 	def clear_cache(*args):
 		from modules.kodi_utils import clear_property, path_exists, database_connect, maincache_db
+		if not path_exists(maincache_db): return True
+		from caches.debrid_cache import DebridCache
+		dbcon = database_connect(maincache_db)
 		try:
-			if not path_exists(maincache_db): return True
-			from caches.debrid_cache import DebridCache
-			dbcon = database_connect(maincache_db)
 			dbcur = dbcon.cursor()
 			# USER CLOUD
 			try:
@@ -187,13 +187,14 @@ class RealDebridAPI:
 				dbcon.commit()
 				hoster_links_success = True
 			except Exception: hoster_links_success = False
-			dbcon.close()
-			# HASH CACHED STATUS
-			try:
-				DebridCache().clear_debrid_results('rd')
-				hash_cache_status_success = True
-			except Exception: hash_cache_status_success = False
 		except Exception: return False
+		finally:
+			dbcon.close()
+		# HASH CACHED STATUS
+		try:
+			DebridCache().clear_debrid_results('rd')
+			hash_cache_status_success = True
+		except Exception: hash_cache_status_success = False
 		if False in (user_cloud_success, download_links_success, hoster_links_success, hash_cache_status_success): return False
 		return True
 

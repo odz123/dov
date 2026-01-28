@@ -105,6 +105,7 @@ class OffcloudAPI:
 			return torrent_files
 		except Exception as e:
 			if torrent_id: self.delete_torrent(torrent_id)
+			return []
 
 	def user_cloud(self, request_id=None, check_cache=True, completed=True):
 		string = 'pov_oc_user_cloud_info_%s' % request_id if request_id else 'pov_oc_user_cloud'
@@ -116,10 +117,10 @@ class OffcloudAPI:
 
 	def clear_cache(*args):
 		from modules.kodi_utils import clear_property, path_exists, database_connect, maincache_db
+		if not path_exists(maincache_db): return True
+		from caches.debrid_cache import DebridCache
+		dbcon = database_connect(maincache_db)
 		try:
-			if not path_exists(maincache_db): return True
-			from caches.debrid_cache import DebridCache
-			dbcon = database_connect(maincache_db)
 			dbcur = dbcon.cursor()
 			# USER CLOUD
 			try:
@@ -131,13 +132,14 @@ class OffcloudAPI:
 					dbcon.commit()
 				user_cloud_success = True
 			except: user_cloud_success = False
-			dbcon.close()
-			# HASH CACHED STATUS
-			try:
-				DebridCache().clear_debrid_results('oc')
-				hash_cache_status_success = True
-			except: hash_cache_status_success = False
 		except: return False
+		finally:
+			dbcon.close()
+		# HASH CACHED STATUS
+		try:
+			DebridCache().clear_debrid_results('oc')
+			hash_cache_status_success = True
+		except: hash_cache_status_success = False
 		if False in (user_cloud_success, hash_cache_status_success): return False
 		return True
 

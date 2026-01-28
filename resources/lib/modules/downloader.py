@@ -188,7 +188,7 @@ class Downloader:
 			if clean_title(self.title).lower() in file_name.lower():
 				final_name = os.path.splitext(urlparse(name_url).path)[0].split('/')[-1]
 			else:
-				try: final_name = self.name.translate(None, r'\/:*?"<>|').strip('.')
+				try: final_name = self.name.translate(str.maketrans('', '', r'\/:*?"<>|')).strip('.')
 				except: final_name = os.path.splitext(urlparse(name_url).path)[0].split('/')[-1]
 		self.final_name = safe_string(remove_accents(final_name))
 
@@ -286,6 +286,8 @@ class Downloader:
 				kodi_utils.sleep(sleep_time*1000)
 			if (self.resumable and errors > 0) or errors >= 10:
 				if (not self.resumable and resume >= 50) or resume >= 500:
+					try: f.close()
+					except: pass
 					try: progressDialog.close()
 					except: pass
 					return self.finish_download(self.final_name, self.media_type, False, self.image)

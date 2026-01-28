@@ -228,8 +228,12 @@ def remove_accents(obj):
 	return obj
 
 def regex_from_to(text, from_string, to_string, excluding=True):
-	if excluding: r = re.search(r"(?i)" + from_string + r"([\S\s]+?)" + to_string, text).group(1)
-	else: r = re.search(r"(?i)(" + from_string + r"[\S\s]+?" + to_string + ")", text).group(1)
+	if excluding:
+		match = re.search(r"(?i)" + from_string + r"([\S\s]+?)" + to_string, text)
+		r = match.group(1) if match else ''
+	else:
+		match = re.search(r"(?i)(" + from_string + r"[\S\s]+?" + to_string + ")", text)
+		r = match.group(1) if match else ''
 	return r
 
 def regex_get_all(text, start_with, end_with):

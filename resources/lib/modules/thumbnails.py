@@ -8,7 +8,7 @@ def notification(line1, time=3000, sound=False):
 	xbmcgui.Dialog().notification(addon_info('name'), line1, addon_info('icon'), time, sound)
 
 def thumb_cleaner():
-	current_date = datetime.date(datetime.utcnow())
+	current_date = datetime.utcnow().date()
 	thumbs_folder = Path(xbmcvfs.translatePath('special://thumbnails'))
 	dbfile = Path(xbmcvfs.translatePath('special://database'), 'Textures13.db')
 	if not dbfile.exists(): return notification('Failed')
