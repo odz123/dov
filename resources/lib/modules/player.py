@@ -20,6 +20,7 @@ class POVPlayer(kodi_utils.xbmc_player):
 		self.media_marked, self.nextep_info_gathered = False, False
 		self.subs_searched, self.stingers_checked = False, False
 		self.nextep_started, self.play_random_continual = False, False
+		self.scrobble_started = False
 		self.autoplay_next_episode = False
 		self.autoplay_nextep = settings.autoplay_next_episode()
 		self.autoscrape_next_episode = False
@@ -27,6 +28,7 @@ class POVPlayer(kodi_utils.xbmc_player):
 		self.stinger_enabled = get_setting('stingers.enable') == 'true'
 		self.stinger_check = int(get_setting('stingers.threshold', '30'))
 		self.volume_check = get_setting('volumecheck.enabled', 'false') == 'true'
+		self.watched_indicators = settings.watched_indicators()
 
 	def run(self, url=None, meta=None, progress_media=None):
 		if not url: return
@@ -60,6 +62,7 @@ class POVPlayer(kodi_utils.xbmc_player):
 			if callable(progress_media): progress_media()
 			kodi_utils.close_all_dialog()
 			if self.volume_check: kodi_utils.volume_checker(get_setting('volumecheck.percent', '100'))
+			self.run_scrobble_start()
 			kodi_utils.sleep(1000)
 			while self.isPlayingVideo():
 				try:
@@ -88,6 +91,7 @@ class POVPlayer(kodi_utils.xbmc_player):
 				except Exception: pass
 				if not self.subs_searched: self.run_subtitles()
 			if not self.media_marked: self.media_watched_marker()
+			self.run_scrobble_stop()
 			ws.clear_local_bookmarks()
 		except Exception: pass
 
@@ -231,6 +235,22 @@ class POVPlayer(kodi_utils.xbmc_player):
 			poster = self.meta.get('poster') or poster_empty
 			tmdb_id = self.tmdb_id if self.media_type == 'movie' and self.stinger_enabled else None
 			Thread(target=self.getStingers, args=(tmdb_id, poster)).start()
+		except Exception: pass
+
+	def run_scrobble_start(self):
+		if self.scrobble_started or self.watched_indicators != 2: return
+		self.scrobble_started = True
+		try:
+			from indexers.mdblist_api import mdbl_scrobble
+			Thread(target=mdbl_scrobble, args=('start', self.media_type, self.tmdb_id, 0, self.season, self.episode)).start()
+		except Exception: pass
+
+	def run_scrobble_stop(self):
+		if not self.scrobble_started or self.watched_indicators != 2: return
+		try:
+			from indexers.mdblist_api import mdbl_scrobble
+			progress = getattr(self, 'current_point', 0)
+			Thread(target=mdbl_scrobble, args=('stop', self.media_type, self.tmdb_id, progress, self.season, self.episode)).start()
 		except Exception: pass
 
 	def info_next_ep(self):
