@@ -167,6 +167,7 @@ def mdbl_account_info():
 	try:
 		kodi_utils.show_busy_dialog()
 		account_info = mdblist_api.call_mdblist('user')
+		rate_limit = mdblist_api.get_rate_limit_status()
 		api_requests = account_info['api_requests']
 		remaining = api_requests - account_info['api_requests_count']
 		body = []
@@ -175,6 +176,9 @@ def mdbl_account_info():
 		append('[B]Supporter:[/B] %s' % account_info['is_supporter'])
 		append('[B]API Request Limit:[/B] %s' % api_requests)
 		append('[B]API Request Remaining:[/B] %s' % remaining)
+		append('')
+		append('[B]Current Session Rate Limit:[/B]')
+		append('  Remaining: %s / %s' % (rate_limit['remaining'], rate_limit['limit']))
 		kodi_utils.hide_busy_dialog()
 		return kodi_utils.show_text(mdblist_str.upper(), '\n\n'.join(body), font_size='large')
 	except: kodi_utils.hide_busy_dialog()

@@ -22,11 +22,38 @@ session = requests.Session()
 retry = requests.adapters.Retry(total=None, status=1, status_forcelist=(429, 502, 503, 504))
 session.mount('https://api.mdblist.com', requests.adapters.HTTPAdapter(pool_maxsize=100, max_retries=retry))
 
+# Rate limit tracking
+_rate_limit_remaining = 1000
+_rate_limit_limit = 1000
+_rate_limit_reset = 0
+
+def _update_rate_limits(response):
+	"""Parse and store rate limit headers from MDBList API response."""
+	global _rate_limit_remaining, _rate_limit_limit, _rate_limit_reset
+	try:
+		if 'X-RateLimit-Remaining' in response.headers:
+			_rate_limit_remaining = int(response.headers['X-RateLimit-Remaining'])
+		if 'X-RateLimit-Limit' in response.headers:
+			_rate_limit_limit = int(response.headers['X-RateLimit-Limit'])
+		if 'X-RateLimit-Reset' in response.headers:
+			_rate_limit_reset = int(response.headers['X-RateLimit-Reset'])
+	except (ValueError, KeyError):
+		pass
+
+def get_rate_limit_status():
+	"""Return current rate limit status for debugging/monitoring."""
+	return {
+		'remaining': _rate_limit_remaining,
+		'limit': _rate_limit_limit,
+		'reset': _rate_limit_reset
+	}
+
 def call_mdblist(path, params=None, json=None, method=None):
 	params = params or {}
 	params['apikey'] = get_setting('mdblist.token')
 	try:
 		response = session.request(method or 'get', base_url % path, params=params, json=json, timeout=timeout)
+		_update_rate_limits(response)
 		result = response.json() if 'json' in response.headers.get('Content-Type', '') else response.text
 		if not response.ok: response.raise_for_status()
 		return result
@@ -233,6 +260,60 @@ def mdbl_progress(action, media, media_id, percent, season=None, episode=None, r
 	else: data = {'show': {'ids': {'tmdb': media_id}, 'season': {'episode': {'number': int(episode)}, 'number': int(season)}}, 'progress': float(percent)}
 	call_mdblist(url, json=data, method='post')
 	if refresh_mdb: mdbl_sync_activities()
+
+def mdbl_scrobble(action, media, media_id, percent, season=None, episode=None):
+	"""Scrobble playback state to MDBList. Action can be 'start', 'pause', or 'stop'."""
+	url = 'scrobble/%s' % action
+	try: media_id = int(media_id)
+	except: pass
+	if media in ('movie', 'movies'):
+		data = {'movie': {'ids': {'tmdb': media_id}}, 'progress': float(percent)}
+	else:
+		data = {'show': {'ids': {'tmdb': media_id}, 'season': {'episode': {'number': int(episode)}, 'number': int(season)}}, 'progress': float(percent)}
+	return call_mdblist(url, json=data, method='post')
+
+def mdbl_get_ratings(media_type='movies', offset=0, limit=1000, since=None):
+	"""Get user ratings from MDBList. media_type can be 'movies' or 'shows'."""
+	url = 'sync/ratings'
+	params = {'offset': offset, 'limit': limit}
+	if since: params['since'] = since
+	return call_mdblist(url, params=params)
+
+def mdbl_add_rating(media, media_id, rating, season=None, episode=None):
+	"""Add a rating to MDBList. Rating should be 1-10."""
+	url = 'sync/ratings'
+	try: media_id = int(media_id)
+	except: pass
+	if media in ('movie', 'movies'):
+		data = {'movies': [{'ids': {'tmdb': media_id}, 'rating': int(rating)}]}
+	elif media == 'episode':
+		data = {'shows': [{'ids': {'tmdb': media_id}, 'seasons': [{'number': int(season), 'episodes': [{'number': int(episode), 'rating': int(rating)}]}]}]}
+	else:
+		data = {'shows': [{'ids': {'tmdb': media_id}, 'rating': int(rating)}]}
+	result = call_mdblist(url, json=data, method='post')
+	return result.get('updated', {}).get('movies', 0) > 0 or result.get('updated', {}).get('episodes', 0) > 0 if result else False
+
+def mdbl_remove_rating(media, media_id, season=None, episode=None):
+	"""Remove a rating from MDBList."""
+	url = 'sync/ratings/remove'
+	try: media_id = int(media_id)
+	except: pass
+	if media in ('movie', 'movies'):
+		data = {'movies': [{'ids': {'tmdb': media_id}}]}
+	elif media == 'episode':
+		data = {'shows': [{'ids': {'tmdb': media_id}, 'seasons': [{'number': int(season), 'episodes': [{'number': int(episode)}]}]}]}
+	else:
+		data = {'shows': [{'ids': {'tmdb': media_id}}]}
+	result = call_mdblist(url, json=data, method='post')
+	return result.get('removed', {}).get('movies', 0) > 0 or result.get('removed', {}).get('episodes', 0) > 0 if result else False
+
+def mdbl_create_list(name, description='', privacy='private'):
+	"""Create a new static list on MDBList. Returns list info or None on failure."""
+	url = 'lists/user/add'
+	data = {'name': name}
+	if description: data['description'] = description
+	if privacy: data['privacy'] = privacy
+	return call_mdblist(url, json=data, method='post')
 
 def mdbl_progress_movies(progress_info):
 	def _process(item):
