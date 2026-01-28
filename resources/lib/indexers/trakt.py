@@ -223,6 +223,9 @@ def trakt_account_info():
 		append('[B]Movies:[/B] [B]%s[/B] Collected, [B]%s[/B] Watched for [B]%s[/B]' % (movies_collected, movies_watched, movies_watched_minutes))
 		append('[B]Shows:[/B] [B]%s[/B] Collected, [B]%s[/B] Watched' % (shows_collected, shows_watched))
 		append('[B]Episodes:[/B] [B]%s[/B] Watched for [B]%s[/B]' % (episodes_watched, episodes_watched_minutes))
+		# Add rate limit status
+		rate_limits = trakt_api.get_rate_limit_status()
+		append('[B]API Rate Limits:[/B] GET: %s remaining, POST: %s remaining' % (rate_limits['get_remaining'], rate_limits['post_remaining']))
 		kodi_utils.hide_busy_dialog()
 		return kodi_utils.show_text(ls(32037).upper(), '\n\n'.join(body), font_size='large')
 	except: kodi_utils.hide_busy_dialog()
