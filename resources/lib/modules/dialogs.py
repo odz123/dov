@@ -124,11 +124,12 @@ def trakt_manager_choice(params):
 
 def mdbl_manager_choice(params):
 	if not get_setting('mdblist.token', ''): return notification(32760, 3500)
-	from indexers.mdblist_api import mdbl_userlists, mdbl_list_items, mdbl_modify_list, clear_mdbl_cache
+	from indexers.mdblist_api import mdbl_userlists, mdbl_list_items, mdbl_modify_list, mdbl_add_rating, mdbl_remove_rating, mdbl_create_list, clear_mdbl_cache
 	heading = ls(32200).replace('[B]', '').replace('[/B]', '')
 	icon = media_path('mdblist.png')
 	choices = [(str(item['id']), item['name'], '%s items' % item['items']) for item in mdbl_userlists() if not item['dynamic']]
-	choices += [('collection', 'Collection', ''), ('watchlist', 'Watchlist', ''), ('clear', 'Clear list cache', '')]
+	choices += [('collection', 'Collection', ''), ('watchlist', 'Watchlist', '')]
+	choices += [('rate', 'Rate this item', ''), ('create_list', 'Create new list', ''), ('clear', 'Clear list cache', '')]
 	if not choices: return
 	list_items = [{'line1': item[1], 'line2': item[2],'icon': icon} for item in choices]
 	kwargs = {'items': json.dumps(list_items), 'heading': heading, 'multi_line': 'true'}
@@ -137,6 +138,18 @@ def mdbl_manager_choice(params):
 	if choice[0] == 'clear':
 		clear_mdbl_cache()
 		return mdbl_manager_choice(params)
+	if choice[0] == 'rate':
+		return mdbl_rate_media(params)
+	if choice[0] == 'create_list':
+		list_name = kodi_utils.dialog.input('Enter list name')
+		if not list_name: return
+		result = mdbl_create_list(list_name)
+		if result and 'id' in result:
+			clear_mdbl_cache()
+			notification(32576)
+		else:
+			notification(32574)
+		return
 	list_items = (True for item in mdbl_list_items(choice[0], None) if item['imdb_id'] == params['imdb_id'])
 	action, message = ('remove', 'Remove from') if next(list_items, False) else ('add', 'Add to')
 	if action == 'remove' and not confirm_dialog(text='%s %s list?' % (message, choice[1]), top_space=True): return
@@ -147,6 +160,29 @@ def mdbl_manager_choice(params):
 		notification(32576)
 		if action == 'remove': container_refresh()
 	else: notification(32574)
+
+def mdbl_rate_media(params):
+	from indexers.mdblist_api import mdbl_add_rating, mdbl_remove_rating
+	icon = media_path('mdblist.png')
+	heading = 'Rate on MDBList'
+	choices = [(str(i), str(i)) for i in range(1, 11)]
+	choices += [('remove', 'Remove rating')]
+	list_items = [{'line1': item[1], 'icon': icon} for item in choices]
+	kwargs = {'items': json.dumps(list_items), 'heading': heading}
+	choice = select_dialog([i[0] for i in choices], **kwargs)
+	if choice is None: return
+	media = 'movies' if params['media_type'] in ('movie', 'movies') else 'shows'
+	tmdb_id = params.get('tmdb_id')
+	if choice == 'remove':
+		if mdbl_remove_rating(media, tmdb_id):
+			notification(32576)
+		else:
+			notification(32574)
+	else:
+		if mdbl_add_rating(media, tmdb_id, int(choice)):
+			notification(32576)
+		else:
+			notification(32574)
 
 def tmdb_manager_choice(params):
 	if not get_setting('tmdb.token', ''): return notification(32760, 3500)
