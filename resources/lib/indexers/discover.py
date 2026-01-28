@@ -93,7 +93,9 @@ class Discover:
 		if self.media_type == 'movie': function = tmdb_movies_title_year
 		else: function = tmdb_tv_title_year
 		year = kodi_utils.dialog.numeric(0, heading_base % ('%s (%s)' % (ls(32543), ls(32669))))
-		results = function(title, year)['results']
+		api_result = function(title, year)
+		if not api_result: return kodi_utils.notification(32575)
+		results = api_result.get('results', [])
 		if len(results) == 0: return kodi_utils.notification(32575)
 		choice_list = []
 		append = choice_list.append
@@ -126,12 +128,14 @@ class Discover:
 		keyword = kodi_utils.dialog.input(heading_base % (include_base_str % ls(32657)))
 		if keyword:
 			try:
-				result = tmdb_keyword_id(keyword)['results']
-				keywords_choice = self._multiselect_dialog(heading_base % ('%s %s' % (ls(32193), ls(32657))), [i['name'].upper() for i in result], result)
-				if keywords_choice != None:
-					for i in keywords_choice:
-						key_ids_append(str(i['id']))
-						key_words_append(i['name'].upper())
+				api_result = tmdb_keyword_id(keyword)
+				result = api_result.get('results', []) if api_result else []
+				if result:
+					keywords_choice = self._multiselect_dialog(heading_base % ('%s %s' % (ls(32193), ls(32657))), [i['name'].upper() for i in result], result)
+					if keywords_choice != None:
+						for i in keywords_choice:
+							key_ids_append(str(i['id']))
+							key_words_append(i['name'].upper())
 			except: pass
 			values = ('&with_keywords=%s' % ','.join([i for i in current_key_ids]), ', '.join([i for i in current_keywords]))
 			self._process(key, values)
@@ -150,12 +154,14 @@ class Discover:
 		keyword = kodi_utils.dialog.input(heading_base % (exclude_base_str % ls(32657)))
 		if keyword:
 			try:
-				result = tmdb_keyword_id(keyword)['results']
-				keywords_choice = self._multiselect_dialog(heading_base % ('%s %s' % (ls(32193), ls(32657))), [i['name'].upper() for i in result], result)
-				if keywords_choice != None:
-					for i in keywords_choice:
-						key_ids_append(str(i['id']))
-						key_words_append(i['name'].upper())
+				api_result = tmdb_keyword_id(keyword)
+				result = api_result.get('results', []) if api_result else []
+				if result:
+					keywords_choice = self._multiselect_dialog(heading_base % ('%s %s' % (ls(32193), ls(32657))), [i['name'].upper() for i in result], result)
+					if keywords_choice != None:
+						for i in keywords_choice:
+							key_ids_append(str(i['id']))
+							key_words_append(i['name'].upper())
 			except: pass
 			values = ('&without_keywords=%s' % ','.join([i for i in current_key_ids]), ', '.join([i for i in current_keywords]))
 			self._process(key, values)
@@ -324,12 +330,14 @@ class Discover:
 		if company:
 			company_choice = None
 			try:
-				results = tmdb_company_id(company)
-				if results['total_results'] == 0: return None
-				if results['total_results'] == 1: company_choice = results['results']
+				api_result = tmdb_company_id(company)
+				if not api_result: return None
+				if api_result.get('total_results', 0) == 0: return None
+				if api_result.get('total_results', 0) == 1: company_choice = api_result.get('results', [])
 				if not company_choice:
-					results = results['results']
-					company_choice = self._multiselect_dialog(heading_base % ls(32660), [i['name'].upper() for i in results], results)
+					results = api_result.get('results', [])
+					if results:
+						company_choice = self._multiselect_dialog(heading_base % ls(32660), [i['name'].upper() for i in results], results)
 				if company_choice != None:
 					for i in company_choice:
 						company_ids_append(str(i['id']))

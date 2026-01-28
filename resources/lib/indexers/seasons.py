@@ -228,6 +228,7 @@ class Seasons:
 					self.append((url_params, listitem, False))
 				except: pass
 		meta = tv_meta_function('tmdb_id', params['tmdb_id'], self.meta_user_info, self.current_date)
+		if not meta: return self.items
 		meta_get = meta.get
 		tmdb_id, tvdb_id, imdb_id = meta_get('tmdb_id'), meta_get('tvdb_id'), meta_get('imdb_id')
 		rootname, show_status = meta_get('rootname'), meta_get('status')
