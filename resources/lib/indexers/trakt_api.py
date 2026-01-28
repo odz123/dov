@@ -10,8 +10,11 @@ from modules.cache import check_databases
 from modules.utils import sort_list, sort_for_article, make_thread_list, jsondate_to_datetime, paginate_list, get_datetime, TaskPool
 
 ls, logger, js2date = kodi_utils.local_string, kodi_utils.logger, jsondate_to_datetime
-get_setting, set_setting = kodi_utils.get_setting, kodi_utils.set_setting
+get_setting, set_setting, notification = kodi_utils.get_setting, kodi_utils.set_setting, kodi_utils.notification
 EXPIRES_2_DAYS = 48
+# Rate limit tracking
+_rate_limit_remaining = {'get': 1000, 'post': 1}
+_rate_limit_reset = {'get': 0, 'post': 0}
 V2_API_KEY = get_setting('trakt.client_id')
 CLIENT_SECRET = get_setting('trakt.client_secret')
 REDIRECT_URI = 'urn:ietf:wg:oauth:2.0:oob'
@@ -21,10 +24,45 @@ session = requests.Session()
 retry = requests.adapters.Retry(total=None, status=1, status_forcelist=(429, 502, 503, 504))
 session.mount('https://api.trakt.tv', requests.adapters.HTTPAdapter(pool_maxsize=100, max_retries=retry))
 
+def _update_rate_limits(response, request_type):
+	"""Parse and store rate limit headers from Trakt API response."""
+	try:
+		if 'X-Ratelimit-Remaining' in response.headers:
+			_rate_limit_remaining[request_type] = int(response.headers['X-Ratelimit-Remaining'])
+		if 'X-Ratelimit-Reset' in response.headers:
+			_rate_limit_reset[request_type] = int(response.headers['X-Ratelimit-Reset'])
+	except (ValueError, KeyError):
+		pass
+
+def _handle_rate_limit_error(response):
+	"""Handle 420 (account limit) and 429 (rate limit) errors with user notification."""
+	if response.status_code == 420:
+		# Account limit exceeded - user needs Trakt VIP
+		upgrade_url = response.headers.get('X-Upgrade-URL', 'https://trakt.tv/vip')
+		notification(ls(32574))  # Error notification
+		logger('trakt account limit', 'Account limit exceeded. Upgrade to VIP: %s' % upgrade_url)
+		return True
+	elif response.status_code == 429:
+		# Rate limit exceeded - will be retried by session retry logic
+		retry_after = response.headers.get('Retry-After', 'unknown')
+		logger('trakt rate limit', 'Rate limit exceeded. Retry after: %s seconds' % retry_after)
+		return False  # Let retry logic handle it
+	return False
+
+def get_rate_limit_status():
+	"""Return current rate limit status for debugging/monitoring."""
+	return {
+		'get_remaining': _rate_limit_remaining.get('get', 1000),
+		'get_reset': _rate_limit_reset.get('get', 0),
+		'post_remaining': _rate_limit_remaining.get('post', 1),
+		'post_reset': _rate_limit_reset.get('post', 0)
+	}
+
 def call_trakt(path, params=None, data=None, with_auth=True, method=None, pagination=False, page=1):
 	headers = {'trakt-api-key': V2_API_KEY, 'trakt-api-version': '2', 'Content-Type': 'application/json'}
 	if with_auth is True and (token := settings.trakt_token()): headers['Authorization'] = 'Bearer %s' % token
 	if pagination: params['page'] = page
+	request_type = 'post' if data is not None or method in ('post', 'put', 'delete') else 'get'
 	try:
 		response = session.request(
 			'post' if data is not None else method or 'get',
@@ -34,6 +72,12 @@ def call_trakt(path, params=None, data=None, with_auth=True, method=None, pagina
 			headers=headers,
 			timeout=timeout
 		)
+		# Update rate limit tracking from response headers
+		_update_rate_limits(response, request_type)
+		# Handle account limit (420) before raise_for_status
+		if response.status_code == 420:
+			_handle_rate_limit_error(response)
+			return None
 		result = response.json() if 'json' in response.headers.get('Content-Type', '') else response.text
 		if not response.ok: response.raise_for_status()
 		if 'X-Sort-By' in response.headers and 'X-Sort-How' in response.headers:
