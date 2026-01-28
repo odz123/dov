@@ -73,6 +73,10 @@ retry = requests.adapters.Retry(
 )
 session.mount('https://api.themoviedb.org', requests.adapters.HTTPAdapter(pool_maxsize=100, max_retries=retry))
 
+# TMDB rate limit: ~50 requests/second per IP
+# Add small delays for bulk operations to stay within limits
+RATE_LIMIT_DELAY = 0.025  # 25ms delay = ~40 requests/second max
+
 def get_tmdb(url, errors=True):
 	try:
 		response = session.get(url, timeout=timeout)
@@ -384,7 +388,7 @@ def tvshow_external_id(external_source, external_id, tmdb_api=None):
 def movie_title_year(title, year, tmdb_api=None):
 	try:
 		string = 'movie_title_year_%s_%s' % (title, year)
-		url = '%s/search/movie?api_key=%s&query=%s&year=%s&page=%s' % (base_url, get_tmdb_api(tmdb_api), title, year)
+		url = '%s/search/movie?api_key=%s&query=%s&year=%s' % (base_url, get_tmdb_api(tmdb_api), title, year)
 		result = cache_function(get_tmdb, string, url, EXPIRES_1_MONTH)
 		result = result['results']
 		if result: return result[0]
@@ -487,6 +491,7 @@ def _account_id(func):
 
 def all_items(func, *args):
 	def _process(f, *a):
+		sleep(RATE_LIMIT_DELAY)  # Rate limit per TMDB spec
 		r = f(*a)
 		if not r: return 1
 		results[a[-1]] = r.get('results', [])
@@ -604,6 +609,9 @@ def recommendations(media_type, page=1, account_id=''):
 def tmdb_clean_watchlist(silent=False):
 	if not get_setting('tmdb.token'): return
 	if not silent and not kodi_utils.confirm_dialog(): return
+	def _remove_item(item, list_type):
+		sleep(RATE_LIMIT_DELAY)  # Rate limit per TMDB spec
+		return add_to_watchlist_favorite(item, list_type)
 	try:
 		from caches.watched_cache import get_watched_items, get_in_progress_tvshows
 		watchlist_ids = []
@@ -623,7 +631,7 @@ def tmdb_clean_watchlist(silent=False):
 			for i in t[0] + p[0] if i['media_id'] in watchlist_ids
 		]
 		if not items: return '0 items to remove.'
-		threads = TaskPool(40).tasks(add_to_watchlist_favorite, [(i, 'watchlist') for i in items], Thread)
+		threads = TaskPool(40).tasks(_remove_item, [(i, 'watchlist') for i in items], Thread)
 		for i in threads: i.join()
 		clear_tmdbl_cache()
 		if not silent: kodi_utils.notification(32576)
@@ -633,6 +641,7 @@ def tmdb_clean_watchlist(silent=False):
 def import_trakt_watchlist(*args):
 	if not kodi_utils.confirm_dialog(): return
 	def _process(group, count):
+		sleep(RATE_LIMIT_DELAY)  # Rate limit per TMDB spec
 		add_to_watchlist_favorite(group, 'watchlist')
 		progressBG.update(int(count / len_items * 100), send_str)
 	from indexers.trakt_api import trakt_fetch_collection_watchlist
