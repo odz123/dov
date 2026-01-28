@@ -54,7 +54,7 @@ class AllDebridAPI:
 		return days
 
 	def account_info(self):
-		response = self._get('v4/user')
+		response = self._get('v4.1/user')
 		return response
 
 	def list_transfer(self, transfer_id):
@@ -65,13 +65,13 @@ class AllDebridAPI:
 		return result
 
 	def delete_torrent(self, transfer_id):
-		url = 'v4/magnet/delete'
+		url = 'v4.1/magnet/delete'
 		params = {'id': transfer_id}
 		result = self._get(url, params)
 		return True if result is not None and 'error' not in result else False
 
 	def unrestrict_link(self, link):
-		url = 'v4/link/unlock'
+		url = 'v4.1/link/unlock'
 		params = {'link': link}
 		response = self._get(url, params)
 		try: return response['link']
@@ -84,12 +84,12 @@ class AllDebridAPI:
 		return magnets[0].get('instant', False)
 
 	def check_cache(self, hashes):
-		data = {'v4/magnets[]': hashes}
-		response = self._post('magnet/instant', data)
+		data = {'magnets[]': hashes}
+		response = self._post('v4.1/magnet/instant', data)
 		return response
 
 	def create_transfer(self, magnet):
-		url = 'v4/magnet/upload'
+		url = 'v4.1/magnet/upload'
 		params = {'magnet': magnet}
 		result = self._get(url, params)
 		magnets = result.get('magnets', []) if result else []
@@ -121,7 +121,7 @@ class AllDebridAPI:
 			if errors: raise
 
 	def downloads(self):
-		url = 'v4/user/history'
+		url = 'v4.1/user/history'
 		string = 'pov_ad_downloads'
 		return cache_object(self._get, string, url, False, 0.5)
 
