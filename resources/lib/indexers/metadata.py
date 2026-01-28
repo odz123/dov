@@ -445,8 +445,8 @@ def stremio_meta_enabled():
 	return get_setting('stremio.meta.enabled', 'false') == 'true'
 
 def stremio_meta_mode():
-	"""Get Stremio metadata mode: 0=Disabled, 1=Fallback, 2=Supplement, 3=Primary"""
-	return int(get_setting('stremio.meta.mode', '1'))
+	"""Get Stremio metadata mode: 0=Fallback, 1=Supplement, 2=Primary"""
+	return int(get_setting('stremio.meta.mode', '0'))
 
 def get_stremio_movie_meta(imdb_id):
 	"""Fetch movie metadata from Stremio addons"""
@@ -541,8 +541,8 @@ def movie_meta_with_stremio(id_type, media_id, user_info, current_date):
 	elif id_type == 'trakt_dict' and media_id.get('imdb'):
 		imdb_id = media_id['imdb']
 
-	# Mode 3: Primary - Try Stremio first
-	if mode == 3 and imdb_id:
+	# Mode 2: Primary - Try Stremio first
+	if mode == 2 and imdb_id:
 		stremio_meta = get_stremio_movie_meta(imdb_id)
 		if stremio_meta and not stremio_meta.get('blank_entry'):
 			return stremio_meta
@@ -550,15 +550,15 @@ def movie_meta_with_stremio(id_type, media_id, user_info, current_date):
 	# Get TMDB metadata
 	tmdb_meta = movie_meta(id_type, media_id, user_info, current_date)
 
-	# Mode 1: Fallback - Use Stremio only if TMDB failed
-	if mode == 1:
+	# Mode 0: Fallback - Use Stremio only if TMDB failed
+	if mode == 0:
 		if (not tmdb_meta or tmdb_meta.get('blank_entry')) and imdb_id:
 			stremio_meta = get_stremio_movie_meta(imdb_id)
 			if stremio_meta:
 				return stremio_meta
 
-	# Mode 2: Supplement - Merge Stremio data with TMDB
-	elif mode == 2 and imdb_id:
+	# Mode 1: Supplement - Merge Stremio data with TMDB
+	elif mode == 1 and imdb_id:
 		stremio_meta = get_stremio_movie_meta(imdb_id)
 		if stremio_meta:
 			return merge_stremio_meta(tmdb_meta, stremio_meta)
@@ -582,8 +582,8 @@ def tvshow_meta_with_stremio(id_type, media_id, user_info, current_date):
 	elif id_type == 'trakt_dict' and media_id.get('imdb'):
 		imdb_id = media_id['imdb']
 
-	# Mode 3: Primary - Try Stremio first
-	if mode == 3 and imdb_id:
+	# Mode 2: Primary - Try Stremio first
+	if mode == 2 and imdb_id:
 		stremio_meta = get_stremio_tvshow_meta(imdb_id)
 		if stremio_meta and not stremio_meta.get('blank_entry'):
 			return stremio_meta
@@ -591,15 +591,15 @@ def tvshow_meta_with_stremio(id_type, media_id, user_info, current_date):
 	# Get TMDB metadata
 	tmdb_meta = tvshow_meta(id_type, media_id, user_info, current_date)
 
-	# Mode 1: Fallback - Use Stremio only if TMDB failed
-	if mode == 1:
+	# Mode 0: Fallback - Use Stremio only if TMDB failed
+	if mode == 0:
 		if (not tmdb_meta or tmdb_meta.get('blank_entry')) and imdb_id:
 			stremio_meta = get_stremio_tvshow_meta(imdb_id)
 			if stremio_meta:
 				return stremio_meta
 
-	# Mode 2: Supplement - Merge Stremio data with TMDB
-	elif mode == 2 and imdb_id:
+	# Mode 1: Supplement - Merge Stremio data with TMDB
+	elif mode == 1 and imdb_id:
 		stremio_meta = get_stremio_tvshow_meta(imdb_id)
 		if stremio_meta:
 			return merge_stremio_meta(tmdb_meta, stremio_meta)
@@ -617,7 +617,7 @@ def season_episodes_meta_with_stremio(season, meta, user_info):
 		return tmdb_data
 
 	# Fallback to Stremio if enabled and TMDB failed
-	if stremio_meta_enabled() and stremio_meta_mode() >= 1:
+	if stremio_meta_enabled() and stremio_meta_mode() >= 0:
 		imdb_id = meta.get('imdb_id')
 		if imdb_id:
 			return get_stremio_season_meta(imdb_id, season)
