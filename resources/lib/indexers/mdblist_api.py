@@ -78,13 +78,15 @@ def mdblist_collection(media_type, page_no, letter):
 	original_list = mdbl_cache.cache_mdbl_object(mdbl_collection_watchlist_items, string, url)
 	if media_type == 'all':
 		original_list = original_list['movies'] + original_list['shows']
-		for i in original_list: i.update({'imdb_id': i['movie' if 'movie' in i else 'show']['ids']['imdb']})
+		for i in original_list:
+			key = 'movie' if 'movie' in i else 'show'
+			i.update({'imdb_id': i.get(key, {}).get('ids', {}).get('imdb')})
 		return original_list
 	original_list = original_list[media_type]
 	key = 'movie' if media_type == 'movies' else 'show'
 	for i in original_list: i.update({
-		'id': i[key]['ids']['tmdb'], 'imdb_id': i[key]['ids']['imdb'],
-		'title': i[key]['title'], 'release_year': i[key]['year']
+		'id': i.get(key, {}).get('ids', {}).get('tmdb'), 'imdb_id': i.get(key, {}).get('ids', {}).get('imdb'),
+		'title': i.get(key, {}).get('title', ''), 'release_year': i.get(key, {}).get('year', '')
 	})
 	sort_key = settings.lists_sort_order('collection')
 	if   sort_key == 2: original_list.sort(key=lambda k: k['release_year'], reverse=True)
@@ -104,6 +106,11 @@ def mdblist_watchlist(media_type, page_no, letter):
 		original_list = original_list['movies'] + original_list['shows']
 		return original_list
 	original_list = original_list[media_type]
+	key = 'movie' if media_type == 'movies' else 'show'
+	for i in original_list: i.update({
+		'id': i.get(key, {}).get('ids', {}).get('tmdb'), 'imdb_id': i.get(key, {}).get('ids', {}).get('imdb'),
+		'title': i.get(key, {}).get('title', ''), 'release_year': i.get(key, {}).get('year', '')
+	})
 	sort_key = settings.lists_sort_order('watchlist')
 	if   sort_key == 2: original_list.sort(key=lambda k: k['release_year'], reverse=True)
 	elif sort_key == 1: original_list.sort(key=lambda k: k['watchlist_at'], reverse=True)
