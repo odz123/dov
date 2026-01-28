@@ -231,6 +231,10 @@ def clear_cache(cache_type, silent=False):
 	elif cache_type == 'folders':
 		from caches.main_cache import MainCache
 		MainCache().delete_all_folderscrapers()
+	elif cache_type == 'stremio_catalog':
+		if not _confirm(): return
+		from indexers.stremio_catalog import clear_stremio_catalog_cache
+		clear_stremio_catalog_cache()
 	else: # 'list'
 		if not _confirm(): return
 		from caches.main_cache import MainCache

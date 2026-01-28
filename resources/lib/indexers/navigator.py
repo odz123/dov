@@ -40,6 +40,17 @@ class Navigator:
 		self._add_item({'mode': 'discover.help',                            'name': help_str}, 'discover.png', n_ins, False)
 		self._end_directory()
 
+	def stremio_catalogs(self):
+		"""Stremio addon catalog browsing menu"""
+		stremio_str = 'Stremio Catalogs'
+		n_ins = _in_str % (stremio_str.upper(), '')
+		self._add_item({'mode': 'stremio_catalog', 'stremio_mode': 'list_addons',      'name': 'Browse Addon Catalogs'}, 'lists.png', n_ins)
+		self._add_item({'mode': 'stremio_catalog', 'stremio_mode': 'search',           'name': 'Search Catalogs'      }, 'search.png', n_ins)
+		self._add_item({'mode': 'stremio_catalog', 'stremio_mode': 'all_catalogs',     'name': 'All Catalogs'         }, 'lists.png', n_ins)
+		self._add_item({'mode': 'stremio_addon_manager',                               'name': 'Manage Addons'        }, 'tools.png', n_ins, False)
+		self._add_item({'mode': 'clear_cache', 'cache': 'stremio_catalog',             'name': 'Clear Catalog Cache'  }, 'tools.png', n_ins, False)
+		self._end_directory()
+
 	def premium(self):
 		from modules.debrid import debrid_enabled
 		easynews, debrids = ks.easynews_active(), debrid_enabled()
