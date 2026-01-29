@@ -29,6 +29,16 @@ class POVPlayer(kodi_utils.xbmc_player):
 		self.stinger_check = int(get_setting('stingers.threshold', '30'))
 		self.volume_check = get_setting('volumecheck.enabled', 'false') == 'true'
 		self.watched_indicators = settings.watched_indicators()
+		self._threads = []
+
+	def _safe_thread(self, target, *args):
+		def _wrapper():
+			try: target(*args)
+			except Exception as e: kodi_utils.logger('POVPlayer.%s' % target.__name__, str(e))
+		t = Thread(target=_wrapper, daemon=True)
+		t.start()
+		self._threads.append(t)
+		return t
 
 	def run(self, url=None, meta=None, progress_media=None):
 		if not url: return
@@ -188,7 +198,7 @@ class POVPlayer(kodi_utils.xbmc_player):
 					'mode': 'mark_as_watched_unwatched_episode', 'action': 'mark_as_watched', 'refresh': 'false', 'from_playback': 'true',
 					'tmdb_id': self.tmdb_id, 'title': self.title, 'year': self.year, 'tvdb_id': self.tvdb_id, 'season': self.season, 'episode': self.episode
 				}
-				Thread(target=self.run_media_watched, args=(watched_function, watched_params)).start()
+				self._safe_thread(self.run_media_watched, watched_function, watched_params)
 			else:
 				kodi_utils.clear_property('pov_total_autoplays')
 				if not self.current_point >= self.set_resume: return
@@ -210,14 +220,14 @@ class POVPlayer(kodi_utils.xbmc_player):
 		self.nextep_started = True
 		try:
 			from modules.episode_tools import execute_nextep
-			Thread(target=execute_nextep, args=(self.meta, self.nextep_settings)).start()
+			self._safe_thread(execute_nextep, self.meta, self.nextep_settings)
 		except Exception: pass
 
 	def run_random_continual(self):
 		self.nextep_started = True
 		try:
 			from modules.episode_tools import execute_nextep
-			Thread(target=execute_nextep, args=(self.meta, self.nextep_settings)).start()
+			self._safe_thread(execute_nextep, self.meta, self.nextep_settings)
 		except Exception: pass
 
 	def run_subtitles(self):
@@ -226,7 +236,7 @@ class POVPlayer(kodi_utils.xbmc_player):
 			poster = self.meta.get('poster') or poster_empty
 			season = self.season if self.media_type == 'episode' else None
 			episode = self.episode if self.media_type == 'episode' else None
-			Thread(target=Subtitles().get, args=(self.title, self.imdb_id, season, episode, poster)).start()
+			self._safe_thread(Subtitles().get, self.title, self.imdb_id, season, episode, poster)
 		except Exception: pass
 
 	def run_stingers(self):
@@ -234,7 +244,7 @@ class POVPlayer(kodi_utils.xbmc_player):
 		try:
 			poster = self.meta.get('poster') or poster_empty
 			tmdb_id = self.tmdb_id if self.media_type == 'movie' and self.stinger_enabled else None
-			Thread(target=self.getStingers, args=(tmdb_id, poster)).start()
+			self._safe_thread(self.getStingers, tmdb_id, poster)
 		except Exception: pass
 
 	def run_scrobble_start(self):
@@ -242,7 +252,7 @@ class POVPlayer(kodi_utils.xbmc_player):
 		self.scrobble_started = True
 		try:
 			from indexers.mdblist_api import mdbl_scrobble
-			Thread(target=mdbl_scrobble, args=('start', self.media_type, self.tmdb_id, 0, self.season, self.episode)).start()
+			self._safe_thread(mdbl_scrobble, 'start', self.media_type, self.tmdb_id, 0, self.season, self.episode)
 		except Exception: pass
 
 	def run_scrobble_stop(self):
@@ -250,7 +260,7 @@ class POVPlayer(kodi_utils.xbmc_player):
 		try:
 			from indexers.mdblist_api import mdbl_scrobble
 			progress = getattr(self, 'current_point', 0)
-			Thread(target=mdbl_scrobble, args=('stop', self.media_type, self.tmdb_id, progress, self.season, self.episode)).start()
+			self._safe_thread(mdbl_scrobble, 'stop', self.media_type, self.tmdb_id, progress, self.season, self.episode)
 		except Exception: pass
 
 	def info_next_ep(self):
