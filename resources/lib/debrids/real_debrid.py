@@ -52,7 +52,7 @@ class Indexer(Debrid):
 				listitem.addContextMenuItems(cm)
 				listitem.setArt(default_art)
 				yield (url, listitem, True)
-			except: pass
+			except Exception: pass
 
 	def browse_cloud(self, items):
 		for count, item in enumerate(items, 1):
@@ -76,7 +76,7 @@ class Indexer(Debrid):
 				listitem.setArt(default_art)
 				listitem.setInfo('video', {})
 				yield (url, listitem, False)
-			except: pass
+			except Exception: pass
 
 	def browse_downloads(self, items):
 		for count, item in enumerate(items, 1):
@@ -101,7 +101,7 @@ class Indexer(Debrid):
 				listitem.addContextMenuItems(cm)
 				listitem.setArt(default_art)
 				yield (url, listitem, False)
-			except: pass
+			except Exception: pass
 
 	def cloud_delete(self, file_id, cache_type):
 		if not kodi_utils.confirm_dialog(): return
@@ -129,7 +129,7 @@ class Indexer(Debrid):
 			append(ls(32759) % account_info['points'])
 			kodi_utils.hide_busy_dialog()
 			return kodi_utils.show_text(ls(32054).upper(), '\n\n'.join(body), font_size='large')
-		except: kodi_utils.hide_busy_dialog()
+		except Exception: kodi_utils.hide_busy_dialog()
 
 def resolve_rd(params):
 	url = params['url']

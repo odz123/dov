@@ -30,7 +30,7 @@ def get(function, duration, *args):
 			if not fresh_result: invalid = True
 			elif fresh_result == 'None' or fresh_result == '' or fresh_result == '[]' or fresh_result == '{}': invalid = True
 			elif len(fresh_result) == 0: invalid = True
-		except: pass
+		except Exception: pass
 
 		if invalid: # If the cache is old, but we didn't get "fresh_result", return the old cache
 			if cache_result: return result
@@ -38,7 +38,7 @@ def get(function, duration, *args):
 		else:
 			cache_insert(key, fresh_result)
 			return literal_eval(fresh_result)
-	except:
+	except Exception:
 		from fenom import log_utils
 		log_utils.error()
 		return None
@@ -56,7 +56,7 @@ def cache_get(key):
 		if not ck_table: return None
 		results = dbcur.execute('''SELECT * FROM cache WHERE key=?''', (key,)).fetchone()
 		return results
-	except:
+	except Exception:
 		from fenom import log_utils
 		log_utils.error()
 		return None
@@ -73,7 +73,7 @@ def cache_insert(key, value):
 		if update_result.rowcount == 0:
 			dbcur.execute('''INSERT INTO cache Values (?, ?, ?)''', (key, value, now))
 		dbcur.connection.commit()
-	except:
+	except Exception:
 		from fenom import log_utils
 		log_utils.error()
 	finally:

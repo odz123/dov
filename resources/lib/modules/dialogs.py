@@ -13,7 +13,7 @@ get_setting, set_setting = kodi_utils.get_setting, kodi_utils.set_setting
 
 def imdb_videos_choice(videos, poster):
 	try: videos = json.loads(videos)
-	except: pass
+	except Exception: pass
 	videos.sort(key=lambda x: x['quality_rank'])
 	list_items = [{'line1': i['quality'], 'icon': poster} for i in videos]
 	kwargs = {'items': json.dumps(list_items), 'heading': ls(32241)}
@@ -42,7 +42,7 @@ def trailer_choice(media_type, poster, tmdb_id, trailer_url, all_trailers=None):
 	if settings.get_language() != 'en' and not trailer_url and not all_trailers:
 		from indexers.tmdb_api import tmdb_media_videos
 		try: all_trailers = tmdb_media_videos(media_type, tmdb_id)['results']
-		except: pass
+		except Exception: pass
 	if not all_trailers: return trailer_url
 	if len(all_trailers) > 1:
 		all_trailers.sort(key=lambda k: k.get('published_at'))
@@ -282,7 +282,7 @@ def set_quality_choice(quality_setting):
 	fl = ['SD', '720p', '1080p', '4K']
 	fl_idx = {item: idx for idx, item in enumerate(fl)}  # O(1) lookup
 	try: preselect = [fl_idx[i] for i in get_setting(quality_setting).split(', ') if i in fl_idx]
-	except: preselect = []
+	except Exception: preselect = []
 	list_items = [{'line1': item} for item in dl]
 	kwargs = {'items': json.dumps(list_items), 'heading': 'POV', 'multi_choice': 'true', 'preselect': preselect}
 	choice = select_dialog(fl, **kwargs)
@@ -301,7 +301,7 @@ def extras_lists_choice():
 	]
 	fl_idx = {item: idx for idx, item in enumerate(fl)}  # O(1) lookup
 	try: preselect = [fl_idx[i] for i in settings.extras_enabled_menus() if i in fl_idx]
-	except: preselect = []
+	except Exception: preselect = []
 	list_items = [{'line1': item} for item in dl]
 	kwargs = {'items': json.dumps(list_items), 'heading': 'POV', 'multi_choice': 'true', 'preselect': preselect}
 	selection = select_dialog(fl, **kwargs)
@@ -318,7 +318,7 @@ def set_language_filter_choice(filter_setting):
 	fl = list(lang_choices.values())
 	fl_idx = {item: idx for idx, item in enumerate(fl)}  # O(1) lookup
 	try: preselect = [fl_idx[i] for i in get_setting(filter_setting).split(', ') if i in fl_idx]
-	except: preselect = []
+	except Exception: preselect = []
 	list_items = [{'line1': item} for item in dl]
 	kwargs = {'items': json.dumps(list_items), 'heading': 'POV', 'multi_choice': 'true', 'preselect': preselect}
 	choice = select_dialog(fl, **kwargs)
@@ -599,7 +599,7 @@ def refresh_cached_meta(meta):
 		if media_type == 'tvshow': MetaCache().delete_all_seasons_memory_cache(tmdb_id)
 		notification(32576, 1500)
 		container_refresh()
-	except: notification(32574)
+	except Exception: notification(32574)
 
 def build_navigate_to_page(params):
 	use_alphabet = settings.nav_jump_use_alphabet() == 2

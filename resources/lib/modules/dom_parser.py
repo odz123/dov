@@ -11,7 +11,7 @@ def parseDOM(html, name='', attrs=None, ret=False):
 		results = parse_dom(html, name, attrs, ret)
 		if ret: results = [result.attrs[ret.lower()] for result in results]
 		else: results = [result.content for result in results]
-	except: pass
+	except Exception: pass
 	return results
 
 def __get_dom_content(html, name, match):
@@ -36,7 +36,7 @@ def __get_dom_content(html, name, match):
 		elif start > -1: result = html[start + len(match):]
 		else: result = ''
 		return result
-	except: pass
+	except Exception: pass
 	return result
 
 def __get_dom_elements(item, name, attrs):
@@ -71,7 +71,7 @@ def __get_dom_elements(item, name, attrs):
 				else:
 					last_list = [item for item in this_list if item in last_list]
 			this_list = last_list
-	except: pass
+	except Exception: pass
 	return this_list
 
 def __get_attribs(element):
@@ -84,7 +84,7 @@ def __get_attribs(element):
 			value = value1 if value1 is not None else value2
 			if value is None: continue
 			attribs[match['key'].lower().strip()] = value
-	except: pass
+	except Exception: pass
 	return attribs
 
 def parse_dom(html, name='', attrs=None, req=False, exclude_comments=False):
@@ -110,6 +110,6 @@ def parse_dom(html, name='', attrs=None, req=False, exclude_comments=False):
 				results.append(DomMatch(attribs, temp))
 				item = item[item.find(temp, item.find(element)):]
 			all_results += results
-	except: pass
+	except Exception: pass
 	return all_results
 

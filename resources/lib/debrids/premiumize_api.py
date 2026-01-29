@@ -1,4 +1,6 @@
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 from caches.main_cache import cache_object
 from modules import kodi_utils
 # logger = kodi_utils.logger
@@ -8,8 +10,9 @@ user_agent = 'POV/%s' % kodi_utils.get_addoninfo('version')
 client_id = '663882072'
 base_url = 'https://www.premiumize.me/api/'
 timeout = 10.0
+_retry = Retry(total=3, backoff_factor=0.5, status_forcelist=(502, 503, 504))
 session = requests.Session()
-session.mount('https://www.premiumize.me', requests.adapters.HTTPAdapter(max_retries=1))
+session.mount('https://www.premiumize.me', HTTPAdapter(max_retries=_retry))
 
 class PremiumizeAPI:
 	icon = 'premiumize.png'

@@ -1,5 +1,7 @@
 import requests
 from threading import Thread
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 from caches.main_cache import cache_object
 from modules import kodi_utils
 # logger = kodi_utils.logger
@@ -9,8 +11,9 @@ user_agent = 'POV/%s' % kodi_utils.get_addoninfo('version')
 ip_url = 'https://api.ipify.org'
 base_url = 'https://api.torbox.app/v1/api'
 timeout = 20.0
+_retry = Retry(total=3, backoff_factor=0.5, status_forcelist=(502, 503, 504))
 session = requests.Session()
-session.mount('https://api.torbox.app', requests.adapters.HTTPAdapter(max_retries=1))
+session.mount('https://api.torbox.app', HTTPAdapter(max_retries=_retry))
 
 class TorBoxAPI:
 	icon = 'torbox.png'
@@ -47,9 +50,9 @@ class TorBoxAPI:
 			account_info = self.account_info()
 			FormatDateTime = '%Y-%m-%dT%H:%M:%SZ'
 			try: expires = datetime.datetime.strptime(account_info['premium_expires_at'], FormatDateTime)
-			except: expires = datetime.datetime(*(time.strptime(account_info['premium_expires_at'], FormatDateTime)[0:6]))
+			except Exception: expires = datetime.datetime(*(time.strptime(account_info['premium_expires_at'], FormatDateTime)[0:6]))
 			days = (expires - datetime.datetime.today()).days
-		except: days = None
+		except Exception: days = None
 		return days
 
 	def account_info(self):
@@ -84,7 +87,7 @@ class TorBoxAPI:
 
 	def unrestrict_link(self, file_id):
 		try: user_ip = requests.get(ip_url, timeout=2.0).text
-		except: user_ip = ''
+		except Exception: user_ip = ''
 		params = {'user_ip': user_ip} if user_ip else {}
 		torrent_id, file_id = file_id.split(',')
 		params.update({'token': self.token, 'torrent_id': torrent_id, 'file_id': file_id})
@@ -93,7 +96,7 @@ class TorBoxAPI:
 
 	def unrestrict_usenet(self, file_id):
 		try: user_ip = requests.get(ip_url, timeout=2.0).text
-		except: user_ip = ''
+		except Exception: user_ip = ''
 		params = {'user_ip': user_ip} if user_ip else {}
 		usenet_id, file_id = file_id.split(',')
 		params.update({'token': self.token, 'usenet_id': usenet_id, 'file_id': file_id})
@@ -102,7 +105,7 @@ class TorBoxAPI:
 
 	def unrestrict_webdl(self, file_id):
 		try: user_ip = requests.get(ip_url, timeout=2.0).text
-		except: user_ip = ''
+		except Exception: user_ip = ''
 		params = {'user_ip': user_ip} if user_ip else {}
 		webdl_id, file_id = file_id.split(',')
 		params.update({'token': self.token, 'web_id': webdl_id, 'file_id': file_id})
@@ -221,7 +224,7 @@ class TorBoxAPI:
 				clear_property('torbox_usenet_queries')
 				dbcon.commit()
 				usenet_queries_success = True
-			except: usenet_queries_success = False
+			except Exception: usenet_queries_success = False
 			# USER CLOUD
 			try:
 				dbcur.execute("""SELECT id FROM maincache WHERE id LIKE ?""", ('pov_tb_user_cloud%',))
@@ -231,15 +234,15 @@ class TorBoxAPI:
 					for i in user_cloud_cache: clear_property(i)
 					dbcon.commit()
 				user_cloud_success = True
-			except: user_cloud_success = False
-		except: return False
+			except Exception: user_cloud_success = False
+		except Exception: return False
 		finally:
 			dbcon.close()
 		# HASH CACHED STATUS
 		try:
 			DebridCache().clear_debrid_results('tb')
 			hash_cache_status_success = True
-		except: hash_cache_status_success = False
+		except Exception: hash_cache_status_success = False
 		if False in (usenet_queries_success, user_cloud_success, hash_cache_status_success): return False
 		return True
 

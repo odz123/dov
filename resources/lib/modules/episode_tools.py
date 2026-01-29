@@ -19,7 +19,7 @@ def get_random_episode(tmdb_id, continual=False):
 	try:
 		episodes_data = [i for i in all_episodes_meta(meta, meta_user_info, Thread) if i['premiered']]
 		episodes_data = [i for i in episodes_data if not i['season'] == 0 and adjust_premiered_date(i['premiered'], adjust_hours)[0] <= current_date]
-	except: episodes_data = []
+	except Exception: episodes_data = []
 	if not episodes_data: return None
 	if continual:
 		episode_history = {}
@@ -29,7 +29,7 @@ def get_random_episode(tmdb_id, continual=False):
 		try:
 			episode_history = json.loads(kodi_utils.get_property('pov_random_episode_history'))
 			if tmdb_key in episode_history: episode_list = episode_history[tmdb_key]
-		except: pass
+		except Exception: pass
 		episodes_data = [i for i in episodes_data if not i in episode_list] or episodes_data
 	chosen_episode = choice(episodes_data)
 	if continual:
@@ -50,7 +50,7 @@ def get_random_episode(tmdb_id, continual=False):
 	display_name = '%s - %dx%.2d' % (title, season, episode)
 	ep_name, plot = chosen_episode['title'], chosen_episode['plot']
 	try: premiered = adjust_premiered_date(chosen_episode['premiered'], adjust_hours)[1]
-	except: premiered = chosen_episode['premiered']
+	except Exception: premiered = chosen_episode['premiered']
 	meta.update({
 		'media_type': 'episode', 'rootname': display_name, 'season': season, 'episode': episode,
 		'premiered': premiered, 'ep_name': ep_name, 'plot': plot
@@ -98,7 +98,7 @@ def nextep_playback_info(meta):
 		season = current_season if current_episode < curr_season_data['episode_count'] else current_season + 1
 		episode = current_episode + 1 if current_episode < curr_season_data['episode_count'] else 1
 		nextep_info = _build_next_episode_play()
-	except: nextep_info = 'error'
+	except Exception: nextep_info = 'error'
 	return meta, nextep_info
 
 def execute_scrape_nextep(meta):
@@ -122,7 +122,7 @@ def execute_nextep(meta, nextep_settings):
 		nextep_threshold = nextep_settings['threshold']
 		if nextep_threshold == 0: return True
 		try: current_number = int(kodi_utils.get_property('pov_total_autoplays'))
-		except: current_number = 1
+		except Exception: current_number = 1
 		if current_number < nextep_threshold:
 			current_number += 1
 			kodi_utils.set_property('pov_total_autoplays', str(current_number))
@@ -154,7 +154,7 @@ def execute_nextep(meta, nextep_settings):
 					final_action = _continue_action()
 					break
 				kodi_utils.sleep(200)
-			except: pass
+			except Exception: pass
 		return final_action
 	player = kodi_utils.player
 	run_popup, display_nextep_popup = nextep_settings['run_popup'], nextep_settings['window_time']

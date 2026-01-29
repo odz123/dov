@@ -37,7 +37,7 @@ def search_mdbl_lists(params):
 				listitem.setInfo('video', {'plot': plot}) if KODI_VERSION < 20 else listitem.getVideoInfoTag().setPlot(plot)
 				listitem.addContextMenuItems(cm)
 				yield (url, listitem, True)
-			except: pass
+			except Exception: pass
 	page = params.get('new_page', '1')
 	search_title = params.get('search_title') or kodi_utils.dialog.input('POV')
 	if search_title: lists, pages = mdblist_api.mdbl_searchlists(search_title) or [], '1'
@@ -76,7 +76,7 @@ def get_mdbl_lists(params):
 				listitem.setInfo('video', {'plot': plot}) if KODI_VERSION < 20 else listitem.getVideoInfoTag().setPlot(plot)
 				listitem.addContextMenuItems(cm, replaceItems=False)
 				yield (url, listitem, True)
-			except: pass
+			except Exception: pass
 	lists = []
 	lists += mdblist_api.mdbl_userlists() or []
 	lists += mdblist_api.mdbl_externallists() or []
@@ -108,7 +108,7 @@ def get_mdbl_toplists(params):
 				listitem.setInfo('video', {'plot': plot}) if KODI_VERSION < 20 else listitem.getVideoInfoTag().setPlot(plot)
 				listitem.addContextMenuItems(cm)
 				yield (url, listitem, True)
-			except: pass
+			except Exception: pass
 	lists = mdblist_api.mdbl_toplists() or []
 	__handle__ = int(sys.argv[1])
 	kodi_utils.add_items(__handle__, list(_process()))
@@ -121,7 +121,7 @@ def build_mdb_list(params):
 	def _thread_target(q):
 		while not q.empty():
 			try: target, *args = q.get()
-			except: pass
+			except Exception: pass
 			else: target(*args)
 	__handle__, _queue, is_widget = int(sys.argv[1]), SimpleQueue(), kodi_utils.external_browse()
 	max_threads = int(kodi_utils.get_setting('pov.max_threads', '100'))
@@ -181,5 +181,5 @@ def mdbl_account_info():
 		append('  Remaining: %s / %s' % (rate_limit['remaining'], rate_limit['limit']))
 		kodi_utils.hide_busy_dialog()
 		return kodi_utils.show_text(mdblist_str.upper(), '\n\n'.join(body), font_size='large')
-	except: kodi_utils.hide_busy_dialog()
+	except Exception: kodi_utils.hide_busy_dialog()
 

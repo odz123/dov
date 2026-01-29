@@ -48,7 +48,7 @@ def request(url, close=True, redirect=True, error=False, proxy=None, post=None, 
 				handlers += [urllib2.HTTPSHandler(context=ssl_context)]
 				opener = urllib2.build_opener(*handlers)
 				urllib2.install_opener(opener)
-			except:
+			except Exception:
 				from fenom import log_utils
 				log_utils.error()
 
@@ -66,12 +66,12 @@ def request(url, close=True, redirect=True, error=False, proxy=None, post=None, 
 				handlers += [urllib2.HTTPSHandler(context=ssl_context)]
 				opener = urllib2.build_opener(*handlers)
 				urllib2.install_opener(opener)
-			except:
+			except Exception:
 				from fenom import log_utils
 				log_utils.error()
 
 		try: headers.update(headers)
-		except: headers = {}
+		except Exception: headers = {}
 		if 'User-Agent' in headers: pass
 		elif mobile is not True: headers['User-Agent'] = cache.get(randomagent, 12)
 		else: headers['User-Agent'] = 'Apple-iPhone/701.341'
@@ -100,7 +100,7 @@ def request(url, close=True, redirect=True, error=False, proxy=None, post=None, 
 			opener = urllib2.build_opener(NoRedirectHandler())
 			urllib2.install_opener(opener)
 			try: del headers['Referer']
-			except: pass
+			except Exception: pass
 
 		req = urllib2.Request(url, data=post)
 		_add_request_header(req, headers)
@@ -109,13 +109,13 @@ def request(url, close=True, redirect=True, error=False, proxy=None, post=None, 
 		except HTTPError as error_response:# if HTTPError, using "as response" will be reset after entire Exception code runs and throws error around line 247 as "local variable 'response' referenced before assignment", re-assign it
 			response = error_response
 			try: ignore = ignoreErrors and (int(response.code) == ignoreErrors or int(response.code) in ignoreErrors)
-			except: ignore = False
+			except Exception: ignore = False
 
 			if not ignore:
 				if response.code in (301, 307, 308, 503, 403): # 403:Forbidden added 3/3/21 for cloudflare, fails on bad User-Agent
 					cf_result = response.read(5242880)
 					try: encoding = response.headers["Content-Encoding"]
-					except: encoding = None
+					except Exception: encoding = None
 					if encoding == 'gzip': cf_result = gzip.GzipFile(fileobj=BytesIO(cf_result)).read()
 
 					if flare and 'cloudflare' in str(response.info()).lower():
@@ -126,7 +126,7 @@ def request(url, close=True, redirect=True, error=False, proxy=None, post=None, 
 							if isinstance(post, dict): data = post
 							else:
 								try: data = parse_qs(post)
-								except: data = None
+								except Exception: data = None
 							scraper = cfscrape.CloudScraper()
 							if response.code == 403: # possible bad User-Agent in headers, let cfscrape assign
 								response = scraper.request(method='GET' if post is None else 'POST', url=url, data=data, timeout=int(timeout))
@@ -134,11 +134,11 @@ def request(url, close=True, redirect=True, error=False, proxy=None, post=None, 
 							result = response.content
 							flare = 'cloudflare' # Used below
 							try: cookies = response.request._cookies
-							except: log_utils.error()
+							except Exception: log_utils.error()
 							if response.status_code == 403: # if cfscrape server still responds with 403
 								log_utils.log('cfscrape-Error url=(%s): %s' % (url, 'HTTP Error 403: Forbidden'), __name__, level=log_utils.LOGDEBUG)
 								return None
-						except:
+						except Exception:
 							log_utils.error()
 					elif 'cf-browser-verification' in str(cf_result):
 						netloc = '%s://%s' % (urlparse(url).scheme, urlparse(url).netloc)
@@ -160,7 +160,7 @@ def request(url, close=True, redirect=True, error=False, proxy=None, post=None, 
 						return None
 					elif error is True and response.code in (401, 404, 405): # no point in continuing after this exception runs with these response.code's
 						try: response_headers = dict([(item[0].title(), item[1]) for item in list(response.info().items())]) # behaves differently 18 to 19. 18 I had 3 "Set-Cookie:" it combined all 3 values into 1 key. In 19 only the last keys value was present.
-						except:
+						except Exception:
 							from fenom import log_utils
 							log_utils.error()
 							response_headers = response.headers
@@ -169,9 +169,9 @@ def request(url, close=True, redirect=True, error=False, proxy=None, post=None, 
 		if output == 'cookie':
 			result = None
 			try: result = '; '.join(['%s=%s' % (i.name, i.value) for i in cookies])
-			except: pass
+			except Exception: pass
 			try: result = cf
-			except: pass
+			except Exception: pass
 			if close == True: response.close()
 			return result
 		elif output == 'geturl':
@@ -184,15 +184,15 @@ def request(url, close=True, redirect=True, error=False, proxy=None, post=None, 
 			return result
 		elif output == 'chunk':
 			try: content = int(response.headers['Content-Length'])
-			except: content = (2049 * 1024)
+			except Exception: content = (2049 * 1024)
 			if content < (2048 * 1024): return
 			try: result = response.read(16 * 1024)
-			except: result = response # testing
+			except Exception: result = response # testing
 			if close is True: response.close()
 			return result
 		elif output == 'file_size':
 			try: content = int(response.headers['Content-Length'])
-			except: content = 0
+			except Exception: content = 0
 			if close == True: response.close()
 			return content
 		if flare != 'cloudflare':
@@ -201,7 +201,7 @@ def request(url, close=True, redirect=True, error=False, proxy=None, post=None, 
 			else: result = response.read(5242880)
 
 		try: encoding = response.headers["Content-Encoding"]
-		except: encoding = None
+		except Exception: encoding = None
 
 		if encoding == 'gzip': result = gzip.GzipFile(fileobj=BytesIO(result)).read()
 		if not as_bytes:
@@ -218,7 +218,7 @@ def request(url, close=True, redirect=True, error=False, proxy=None, post=None, 
 			elif limit is not None: result = response.read(int(limit) * 1024)
 			else: result = response.read(5242880)
 			try: encoding = response.headers["Content-Encoding"]
-			except: encoding = None
+			except Exception: encoding = None
 			if encoding == 'gzip': result = gzip.GzipFile(fileobj=BytesIO(result)).read()
 
 		if not as_bytes and 'Blazingfast.io' in result and 'xhr.open' in result: # who da fuck?
@@ -230,22 +230,22 @@ def request(url, close=True, redirect=True, error=False, proxy=None, post=None, 
 		if output == 'extended':
 			try:
 				response_headers = dict([(item[0].title(), item[1]) for item in list(response.info().items())]) # behaves differently 18 to 19. 18 I had 3 "Set-Cookie:" it combined all 3 values into 1 key. In 19 only the last keys value was present.
-			except:
+			except Exception:
 				from fenom import log_utils
 				log_utils.error()
 				response_headers = response.headers
 			try: response_code = str(response.code)
-			except: response_code = str(response.status_code) # object from CFScrape Requests object.
+			except Exception: response_code = str(response.status_code) # object from CFScrape Requests object.
 			try: cookie = '; '.join(['%s=%s' % (i.name, i.value) for i in cookies])
-			except: pass
+			except Exception: pass
 			try: cookie = cf
-			except: pass
+			except Exception: pass
 			if close is True: response.close()
 			return (result, response_code, response_headers, headers, cookie)
 		else:
 			if close is True: response.close()
 			return result
-	except:
+	except Exception:
 		from fenom import log_utils
 		log_utils.error('Request-Error url=(%s)' % url)
 		return None
@@ -253,12 +253,12 @@ def request(url, close=True, redirect=True, error=False, proxy=None, post=None, 
 def _basic_request(url, headers=None, post=None, method='GET', timeout='30', limit=None, ret_code=None):
 	try:
 		try: headers.update(headers)
-		except: headers = {}
+		except Exception: headers = {}
 		req = urllib2.Request(url, data=post, method=method)
 		_add_request_header(req, headers)
 		response = urllib2.urlopen(req, timeout=int(timeout))
 		return _get_result(response, limit, ret_code)
-	except:
+	except Exception:
 		from fenom import log_utils
 		log_utils.error()
 
@@ -272,7 +272,7 @@ def _add_request_header(_request, headers):
 		_request.add_unredirected_header('Referer', referer)
 		for key in headers:
 			_request.add_header(key, headers[key])
-	except:
+	except Exception:
 		from fenom import log_utils
 		log_utils.error()
 
@@ -283,10 +283,10 @@ def _get_result(response, limit=None, ret_code=None):
 		elif limit: result = response.read(int(limit) * 1024)
 		else: result = response.read(5242880)
 		try: encoding = response.headers["Content-Encoding"]
-		except: encoding = None
+		except Exception: encoding = None
 		if encoding == 'gzip': result = gzip.GzipFile(fileobj=BytesIO(result)).read()
 		return result
-	except:
+	except Exception:
 		from fenom import log_utils
 		log_utils.error()
 
@@ -298,7 +298,7 @@ def parseDOM(html, name='', attrs=None, ret=False):
 		if ret: results = [result.attrs[ret.lower()] for result in results]
 		else: results = [result.content for result in results]
 		return results
-	except:
+	except Exception:
 		from fenom import log_utils
 		log_utils.error()
 
@@ -323,7 +323,7 @@ def _replaceHTMLCodes(txt):
 		txt = txt.replace("&#8211;", "-")
 		txt = txt.strip()
 		return txt
-	except:
+	except Exception:
 		from fenom import log_utils
 		log_utils.error()
 		return txt
@@ -382,7 +382,7 @@ class cfcookie:
 			except HTTPError as response:
 				result = response.read(5242880)
 				try: encoding = response.headers["Content-Encoding"]
-				except: encoding = None
+				except Exception: encoding = None
 				if encoding == 'gzip': result = gzip.GzipFile(fileobj=BytesIO(result)).read()
 
 			jschl_match = re.findall(r'name\s*=\s*["\']jschl_vc["\']\s*value\s*=\s*["\'](.+?)["\']/>', result, re.I)
@@ -432,7 +432,7 @@ class cfcookie:
 				req = urllib2.Request(query)
 				_add_request_header(req, headers)
 				response = urllib2.urlopen(req, timeout=int(timeout))
-			except: pass
+			except Exception: pass
 			cookie = '; '.join(['%s=%s' % (i.name, i.value) for i in cookies])
 			if 'cf_clearance' in cookie:
 				if self._lock:
@@ -440,7 +440,7 @@ class cfcookie:
 						self.cookie = cookie
 				else:
 					self.cookie = cookie
-		except:
+		except Exception:
 			from fenom import log_utils
 			log_utils.error()
 
@@ -454,7 +454,7 @@ class cfcookie:
 			parsed = ''.join(c for c in parsed if c.isdigit())
 			val = int(parsed) if parsed else 0
 			return val
-		except:
+		except Exception:
 			from fenom import log_utils
 			log_utils.error()
 			return 0
@@ -478,7 +478,7 @@ class bfcookie:
 			headers['Cookie'] = 'rcksid=%s' % match[0]
 			result = _basic_request(url, headers=headers, timeout=timeout)
 			return self.getCookieString(result, headers['Cookie'])
-		except:
+		except Exception:
 			from fenom import log_utils
 			log_utils.error()
 
@@ -533,7 +533,7 @@ class sucuri:
 			self.cookie = matches[0]
 			self.cookie = '%s=%s' % (self.cookie[0], self.cookie[1])
 			return self.cookie
-		except:
+		except Exception:
 			from fenom import log_utils
 			log_utils.error()
 

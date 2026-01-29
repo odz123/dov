@@ -72,13 +72,13 @@ class NextEpisode(BaseDialog):
 					current_point = (remaining / float(total_remaining)) * 100 if total_remaining > 0 else 0
 					progress_bar.setPercent(current_point)
 					self.sleep(1000)
-				except: pass
+				except Exception: pass
 		else:
 			for current_point in range(100, 0, -5):
 				try:
 					if self.closed: break
 					progress_bar.setPercent(current_point)
 					self.sleep(1000)
-				except: pass
+				except Exception: pass
 		self.close()
 

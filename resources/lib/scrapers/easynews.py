@@ -38,7 +38,7 @@ class source(Debrid):
 						'scrape_provider': self.scrape_provider, 'id': url_dl, 'url_dl': url_dl, 'name': normalized, 'title': normalized,
 						'URLName': URLName, 'extraInfo': details, 'quality': video_quality, 'size': size, 'size_label': '%.2f GB' % size
 					})
-				except: pass
+				except Exception: pass
 		except Exception as e:
 			from modules.kodi_utils import logger
 			logger(f"POV {self.scrape_provider} Exception", e)

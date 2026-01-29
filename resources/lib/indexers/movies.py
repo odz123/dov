@@ -139,7 +139,7 @@ class Movies:
 				videoinfo.setWriters(meta_get('writer').split(', '))
 				videoinfo.setYear(int(year))
 			self.append((url_params, listitem, False))
-		except: pass
+		except Exception: pass
 
 	def worker(self):
 		for i in TaskPool().tasks_enumerate(self.build_movie_content, self.list, Thread): i.join()
@@ -179,7 +179,7 @@ class Indexer(Movies):
 			if self.action in Indexer.personal_dict: var_module, import_function = Indexer.personal_dict[self.action]
 			else: var_module, import_function = 'indexers.%s_api' % self.action.split('_')[0], self.action
 			try: function = manual_function_import(var_module, import_function)
-			except: function = None
+			except Exception: function = None
 			if not function: return
 			if self.action in Indexer.tmdb_main:
 				data = function(page_no)
@@ -212,7 +212,7 @@ class Indexer(Movies):
 				if total_pages > 2: self.total_pages = total_pages
 				try:
 					if total_pages > page_no: self.new_page = {'new_page': string(page_no + 1), 'new_letter': letter}
-				except: pass
+				except Exception: pass
 			elif self.action in Indexer.mdblist_personal:
 				self.id_type = 'trakt_dict'
 				data, total_pages = function('movies', page_no, letter)
@@ -221,7 +221,7 @@ class Indexer(Movies):
 				if total_pages > 2: self.total_pages = total_pages
 				try:
 					if total_pages > page_no: self.new_page = {'new_page': string(page_no + 1), 'new_letter': letter}
-				except: pass
+				except Exception: pass
 			elif self.action in Indexer.imdb_personal:
 				self.id_type = 'imdb_id'
 				list_id = params_get('list_id')
@@ -307,7 +307,7 @@ class Indexer(Movies):
 			if self.new_page:
 				self.new_page.update({'mode': mode, 'action': self.action, 'exit_list_params': self.exit_list_params, 'name': ls(params_get('name'))})
 				kodi_utils.add_dir(self.handle, self.new_page, nextpage_str, item_next)
-		except: pass
+		except Exception: pass
 		kodi_utils.set_category(self.handle, ls(params_get('name')))
 		kodi_utils.set_sort_method(self.handle, content_type)
 		kodi_utils.set_content(self.handle, content_type)

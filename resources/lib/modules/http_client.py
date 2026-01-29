@@ -94,7 +94,7 @@ def get_headers_for_url(base_url, extra_headers=None):
 		from urllib.parse import urlparse
 		parsed = urlparse(base_url)
 		origin = f"{parsed.scheme}://{parsed.netloc}"
-	except:
+	except Exception:
 		origin = base_url
 
 	headers = BROWSER_HEADERS.copy()

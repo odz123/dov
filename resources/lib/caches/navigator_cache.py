@@ -21,7 +21,7 @@ class NavigatorCache(BaseCache):
 				self.rebuild_database()
 				return self.get_main_lists(list_name)
 			try: edited_contents = self.get_list(list_name, 'edited')
-			except: edited_contents = None
+			except Exception: edited_contents = None
 		else: edited_contents = self.get_memory_cache(list_name, 'edited')
 		return default_contents, edited_contents
 
@@ -30,7 +30,7 @@ class NavigatorCache(BaseCache):
 		try:
 			result = self.dbcur.execute(GET_LIST, (list_name, list_type)).fetchone()
 			if result: contents = literal_eval(result[0])
-		except: pass
+		except Exception: pass
 		return contents
 
 	def set_list(self, list_name, list_type, list_contents):
@@ -44,7 +44,7 @@ class NavigatorCache(BaseCache):
 
 	def get_memory_cache(self, list_name, list_type):
 		try: return literal_eval(get_property(self._get_list_prop(list_type) % list_name))
-		except: return None
+		except Exception: return None
 
 	def set_memory_cache(self, list_name, list_type, list_contents):
 		set_property(self._get_list_prop(list_type) % list_name, repr(list_contents))
@@ -56,7 +56,7 @@ class NavigatorCache(BaseCache):
 		try:
 			folders = self.dbcur.execute(GET_FOLDERS, ('shortcut_folder',)).fetchall()
 			folders = sorted([(str(i[0]), i[1]) for i in folders], key=lambda s: s[0].lower())
-		except: folders = []
+		except Exception: folders = []
 		return folders
 
 	def get_shortcut_folder_contents(self, list_name):
@@ -64,7 +64,7 @@ class NavigatorCache(BaseCache):
 		try:
 			result = self.dbcur.execute(GET_FOLDER_CONTENTS, (list_name, 'shortcut_folder')).fetchone()
 			if result: contents = literal_eval(result[0])
-		except: pass
+		except Exception: pass
 		return contents
 
 	def currently_used_list(self, list_name):

@@ -20,30 +20,30 @@ class ExternalProvidersCache(BaseCache):
 			if cache_data:
 				if cache_data[1] > self._get_timestamp(datetime.now()): result = literal_eval(cache_data[0])
 				else: self.delete(source, media_type, tmdb_id, title, year, season, episode)
-		except: pass
+		except Exception: pass
 		return result
 
 	def set(self, source, media_type, tmdb_id, title, year, season, episode, results, expire_time):
 		try:
 			expires = self._get_timestamp(datetime.now() + timedelta(hours=expire_time))
 			self.dbcur.execute(INSERT_RESULTS, (source, media_type, tmdb_id, title, year, season, episode, repr(results), int(expires)))
-		except: pass
+		except Exception: pass
 
 	def delete(self, source, media_type, tmdb_id, title, year, season, episode):
 		try: self.dbcur.execute(DELETE_RESULTS, (source, media_type, tmdb_id, title, year, season, episode))
-		except: pass
+		except Exception: pass
 
 	def delete_cache(self):
 		try:
 			self.dbcur.execute(FULL_DELETE, ())
 			self.dbcur.execute("""VACUUM""")
 			return 'success'
-		except: return 'failure'
+		except Exception: return 'failure'
 
 	def delete_cache_single(self, media_type, tmdb_id):
 		try:
 			self.dbcur.execute(SINGLE_DELETE, (media_type, tmdb_id))
 			# VACUUM removed - should be run during bulk operations only
 			return True
-		except: return False
+		except Exception: return False
 

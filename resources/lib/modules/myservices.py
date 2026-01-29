@@ -89,7 +89,7 @@ class RealDebrid:
 		data = {'code': result['device_code'], 'grant_type': 'http://oauth.net/grant_type/device/1.0'}
 		expires_in, expires_at = result['expires_in'], result['expires_in'] + time.monotonic()
 		try: qr_icon = qr_str % '&data=%s' % quote(result['direct_verification_url'])
-		except: qr_icon = ''
+		except Exception: qr_icon = ''
 		meta = {**dict.fromkeys(meta_keys.split(), ''), 'poster': qr_icon}
 		detail = code_str % result['user_code'], nav2_str % result['verification_url']
 		progress_dialog = _make_progress_dialog(meta=meta)
@@ -151,7 +151,7 @@ class Premiumize:
 		data = {'client_id': self.client_id, 'code': result['device_code'], 'grant_type': 'device_code'}
 		expires_in, expires_at = result['expires_in'], result['expires_in'] + time.monotonic()
 		try: qr_icon = qr_str % '&data=%s' % quote(result['verification_uri'])
-		except: qr_icon = ''
+		except Exception: qr_icon = ''
 		meta = {**dict.fromkeys(meta_keys.split(), ''), 'poster': qr_icon}
 		detail = code_str % result['user_code'], nav2_str % result['verification_uri']
 		progress_dialog = _make_progress_dialog(meta=meta)
@@ -203,7 +203,7 @@ class AllDebrid:
 		result = response.json()['data']
 		expires_in, expires_at = result['expires_in'], result['expires_in'] + time.monotonic()
 		try: qr_icon = qr_str % '&bgcolor=ffd700&data=%s' % quote(result['user_url'])
-		except: qr_icon = ''
+		except Exception: qr_icon = ''
 		meta = {**dict.fromkeys(meta_keys.split(), ''), 'poster': qr_icon}
 		detail = code_str % result['pin'], nav2_str % result['base_url']
 		progress_dialog = _make_progress_dialog(meta=meta)
@@ -258,7 +258,7 @@ class TorBox:
 		data = {'device_code': result['device_code']}
 		expires_in, expires_at = 600, 600 + time.monotonic()
 		try: qr_icon = qr_str % '&bgcolor=04bf8a&data=%s' % quote(result['verification_url'])
-		except: qr_icon = ''
+		except Exception: qr_icon = ''
 		meta = {**dict.fromkeys(meta_keys.split(), ''), 'poster': qr_icon}
 		detail = code_str % result['code'], nav2_str % result['friendly_verification_url']
 		progress_dialog = _make_progress_dialog(meta=meta)
@@ -413,7 +413,7 @@ class Trakt:
 		data['code'] = result['device_code']
 		expires_in, expires_at = result['expires_in'], result['expires_in'] + time.monotonic()
 		try: qr_icon = qr_str % '&color=f00&data=%s' % quote('%s/%s' % (result['verification_url'], result['user_code']))
-		except: qr_icon = ''
+		except Exception: qr_icon = ''
 		meta = {**dict.fromkeys(meta_keys.split(), ''), 'poster': qr_icon}
 		detail = code_str % result['user_code'], nav2_str % result['verification_url']
 		progress_dialog = _make_progress_dialog(meta=meta)
@@ -529,7 +529,7 @@ class TMDbList:
 		url = 'https://www.themoviedb.org/auth/access?request_token=%s' % result['request_token']
 		tiny_url = 'http://tinyurl.com/api-create.php'
 		try: tiny_url = requests.get(tiny_url, params={'url': url}, timeout=timeout).text
-		except: tiny_url = url
+		except Exception: tiny_url = url
 		qr_icon = qr_str % '&data=%s' % quote(tiny_url)
 		kodi_utils.logger('tmdblist', '%s\n%s' % (tiny_url, url))
 		meta = {**dict.fromkeys(meta_keys.split(), ''), 'poster': qr_icon}
@@ -573,7 +573,7 @@ def refer_link(service):
 	url = {'realdebrid': 'https://tinyurl.com/2db65q28', 'torbox': 'https://tinyurl.com/2d2ra6jq'}[service]
 	expires_in, expires_at = 20, 20 + time.monotonic()
 	try: qr_icon = qr_str % '&data=%s' % quote(url)
-	except: qr_icon = kodi_utils.media_path('%s.png' % service)
+	except Exception: qr_icon = kodi_utils.media_path('%s.png' % service)
 	meta = {**dict.fromkeys(meta_keys.split(), ''), 'poster': qr_icon}
 	detail = nav2_str % url, ''
 	progress_dialog = _make_progress_dialog(meta=meta)

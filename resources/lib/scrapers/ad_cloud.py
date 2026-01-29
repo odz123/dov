@@ -48,7 +48,7 @@ class source(Debrid):
 						'scrape_provider': self.scrape_provider, 'id': file_dl, 'url_dl': file_dl, 'name': normalized, 'title': normalized,
 						'URLName': URLName, 'extraInfo': details, 'quality': video_quality, 'size': size, 'size_label': '%.2f GB' % size
 					})
-				except: pass
+				except Exception: pass
 		except Exception as e:
 			from modules.kodi_utils import logger
 			logger(f"POV {self.scrape_provider} Exception", e)
@@ -70,7 +70,7 @@ class source(Debrid):
 				i.start()
 			self._scrape_downloads()
 			for i in threads: i.join()
-		except: pass
+		except Exception: pass
 
 	def _scrape_folders(self, folder_id, filename):
 		try:
@@ -84,8 +84,8 @@ class source(Debrid):
 						'filename': item['n'], 'folder_name': filename, 'size': item['s'], 'link': item['l']
 					})
 					results_append(item)
-				except: pass
-		except: pass
+				except Exception: pass
+		except Exception: pass
 
 	def _scrape_downloads(self):
 		try:
@@ -96,6 +96,6 @@ class source(Debrid):
 				try:
 					item.update({'folder_name': item['filename'], 'downloads': True})
 					results_append(item)
-				except: pass
-		except: pass
+				except Exception: pass
+		except Exception: pass
 

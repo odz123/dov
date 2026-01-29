@@ -78,7 +78,7 @@ class Episodes:
 				else: orig_episode, new_season = orig_episode + 1, False
 			episodes_data = season_meta_function(orig_season, meta, self.meta_user_info)
 			try: item = [i for i in episodes_data if i['episode'] == orig_episode][0]
-			except: return
+			except Exception: return
 			item_get = item.get
 			season, episode, ep_name = item_get('season'), item_get('episode'), item_get('title')
 			str_season_zfill2, str_episode_zfill2 = string(season).zfill(1), string(episode).zfill(2)
@@ -197,7 +197,7 @@ class Episodes:
 				videoinfo.setWriters(item_get('writer').split(', '))
 				videoinfo.setYear(int(year))
 			self.append((url_params, listitem, False))
-		except: pass
+		except Exception: pass
 
 	def worker(self):
 		if self.list_type.startswith('next_episode'):
@@ -208,7 +208,7 @@ class Episodes:
 				try:
 					hidden_data = trakt_get_hidden_items('dropped')
 					self.list = [i for i in self.list if not i['media_ids']['tmdb'] in hidden_data]
-				except: pass
+				except Exception: pass
 				resformat, self.resinsert = '%Y-%m-%dT%H:%M:%S.%fZ', '2000-01-01T00:00:00.000Z'
 			elif self.watched_indicators == 2:
 				resformat, self.resinsert = '%Y-%m-%dT%H:%M:%SZ', '2000-01-01T00:00:00Z'
@@ -265,7 +265,7 @@ class Indexer(Episodes):
 				self.list_type = 'trakt_calendar'
 				self.list = sorted(self.list, key=lambda k: k.get('sort_title', ''))
 			kodi_utils.add_items(__handle__, self.worker())
-		except: pass
+		except Exception: pass
 		kodi_utils.set_category(__handle__, category)
 		kodi_utils.set_sort_method(__handle__, sort_type)
 		kodi_utils.set_content(__handle__, content_type)
@@ -275,6 +275,6 @@ class Indexer(Episodes):
 			today = '[%s]' % ls(32849).upper()
 			labels = enumerate([i[1].getLabel() for i in self.items], 1)
 			try: index = max([i for i, x in labels if today in x])
-			except: return
+			except Exception: return
 			kodi_utils.focus_index(index)
 

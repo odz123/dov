@@ -132,9 +132,9 @@ def make_listitem():
 
 def local_string(string):
 	try: _string = int(string)
-	except: return string
+	except Exception: return string
 	try: _string = str(Addon().getLocalizedString(_string))
-	except: _string = Addon().getLocalizedString(_string)
+	except Exception: _string = Addon().getLocalizedString(_string)
 	return _string or string
 
 def translate_path(path):
@@ -279,7 +279,7 @@ def set_view_mode(view_type, content='files'):
 			row = dbcur.fetchone()
 			if not row: return
 			view_id = row[0]
-		except: return
+		except Exception: return
 		finally:
 			if dbcon: dbcon.close()
 	try:
@@ -289,28 +289,33 @@ def set_view_mode(view_type, content='files'):
 			if hold < 5000: sleep(1)
 			else: return
 		if view_id: execute_builtin('Container.SetViewMode(%s)' % view_id)
-	except: return
+	except Exception: return
 
 def clear_view(view_type):
 	if not confirm_dialog(): return
 	try:
 		dbcon = database_connect(views_db, isolation_level=None)
-		dbcur = dbcon.cursor()
-		dbcur.execute("""PRAGMA synchronous = OFF""")
-		dbcur.execute("""PRAGMA journal_mode = OFF""")
-		# Get view_types for property clearing, then delete all in one query
-		dbcur.execute("""SELECT view_type FROM views""")
-		view_types = [item[0] for item in dbcur.fetchall()]
-		for vt in view_types:
-			clear_property('pov_%s' % vt)
-		# Single DELETE instead of N DELETE queries
-		dbcur.execute("""DELETE FROM views""")
-		dbcon = database_connect('special://profile/Database/ViewModes6.db')
-		dbcur = dbcon.cursor()
-		dbcur.execute("""DELETE FROM view WHERE path LIKE 'plugin://plugin.video.pov/%'""")
-		dbcon.commit()
-		dbcon.close()
-	except: return notification(32574, 1500)
+		try:
+			dbcur = dbcon.cursor()
+			dbcur.execute("""PRAGMA synchronous = OFF""")
+			dbcur.execute("""PRAGMA journal_mode = OFF""")
+			# Get view_types for property clearing, then delete all in one query
+			dbcur.execute("""SELECT view_type FROM views""")
+			view_types = [item[0] for item in dbcur.fetchall()]
+			for vt in view_types:
+				clear_property('pov_%s' % vt)
+			# Single DELETE instead of N DELETE queries
+			dbcur.execute("""DELETE FROM views""")
+		finally:
+			dbcon.close()
+		dbcon2 = database_connect('special://profile/Database/ViewModes6.db')
+		try:
+			dbcur2 = dbcon2.cursor()
+			dbcur2.execute("""DELETE FROM view WHERE path LIKE ?""", ('plugin://plugin.video.pov/%',))
+			dbcon2.commit()
+		finally:
+			dbcon2.close()
+	except Exception: return notification(32574, 1500)
 	notification(32576, 1500)
 
 def build_url(url_params):
@@ -339,14 +344,14 @@ def volume_checker(volume_setting):
 		current_volume_db = int(string_alphanum_to_num(get_infolabel('Player.Volume').split('.')[0]))
 		current_volume_percent = int(100 - ((float(current_volume_db)/60)*100))
 		if current_volume_percent > max_volume: execute_builtin('SetVolume(%d)' % int(max_volume))
-	except: pass
+	except Exception: pass
 
 def focus_index(index, sleep_time=100):
 	sleep(sleep_time)
 	current_window = current_window_id()
 	focus_id = current_window.getFocusId()
 	try: current_window.getControl(focus_id).selectItem(index)
-	except: pass
+	except Exception: pass
 
 def clean_settings_window_properties():
 	clear_property('pov_settings')
@@ -360,7 +365,7 @@ def fetch_kodi_imagecache(image):
 		dbcur.execute("""SELECT cachedurl FROM texture WHERE url = ?""", (image,))
 		row = dbcur.fetchone()
 		if row: result = row[0]
-	except: pass
+	except Exception: pass
 	return result
 
 def set_setting(setting_id, value):
@@ -368,7 +373,7 @@ def set_setting(setting_id, value):
 
 def get_setting(setting_id, fallback=None):
 	try: settings_dict = json.loads(get_property('pov_settings'))
-	except: settings_dict = make_settings_dict()
+	except Exception: settings_dict = make_settings_dict()
 	if settings_dict is None: settings_dict = get_setting_fallback(setting_id)
 	value = settings_dict.get(setting_id, '')
 	if fallback is None: return value
@@ -395,7 +400,7 @@ def make_settings_dict():
 			if item.get('id')
 		}
 		set_property('pov_settings', json.dumps(settings_dict))
-	except: pass
+	except Exception: pass
 	return settings_dict
 
 def open_settings(query, addon='plugin.video.pov'):
@@ -407,7 +412,7 @@ def open_settings(query, addon='plugin.video.pov'):
 			execute_builtin('Addon.OpenSettings(%s)' % addon)
 			execute_builtin('SetFocus(%i)' % (int(menu) - button))
 			execute_builtin('SetFocus(%i)' % (int(function) - control))
-		except: execute_builtin('Addon.OpenSettings(%s)' % addon)
+		except Exception: execute_builtin('Addon.OpenSettings(%s)' % addon)
 	else: execute_builtin('Addon.OpenSettings(%s)' % addon)
 
 def clean_settings():
@@ -428,7 +433,7 @@ def clean_settings():
 		with open_file(profile_xml, 'w') as xml_file: xml_file.write(ET.tostring(root))
 		text = local_string(32813) % len(removed_settings) if removed_settings else 32576
 		notification(text, 1500)
-	except: notification(32574, 1500)
+	except Exception: notification(32574, 1500)
 
 def toggle_language_invoker():
 	import xml.etree.ElementTree as ET
@@ -461,7 +466,7 @@ def upload_logfile():
 		response = requests.post('%s%s' % (url, 'documents'), data=text, timeout=10.0).json()
 		if 'key' in response: ok_dialog(text=url + response['key'], top_space=True)
 		else: ok_dialog(text='Error. Log Upload Failed', top_space=True)
-	except: notification(32574, 1500)
+	except Exception: notification(32574, 1500)
 	hide_busy_dialog()
 
 def timeIt(func):

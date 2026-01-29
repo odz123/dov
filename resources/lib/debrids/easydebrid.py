@@ -29,5 +29,5 @@ class Indexer(Debrid):
 			append(ls(32751) % days_remaining)
 			kodi_utils.hide_busy_dialog()
 			return kodi_utils.show_text('EasyDebrid'.upper(), '\n\n'.join(body), font_size='large')
-		except: kodi_utils.hide_busy_dialog()
+		except Exception: kodi_utils.hide_busy_dialog()
 

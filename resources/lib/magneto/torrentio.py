@@ -110,7 +110,7 @@ class source:
 					# if index == 1: combo = file_title[0].replace(' ', '.')
 					# else: combo = ''.join(file_title[0:2]).replace(' ', '.')
 					# if '🇷🇺' in file_title[index+1] and not any(value in combo for value in ('.en.', '.eng.', 'english')): continue
-				# except: pass
+				# except Exception: pass
 
 				name = source_utils.clean_name(file_title[0]) if file_title else ''
 
@@ -163,14 +163,14 @@ class source:
 					seeders = int(re.search(r'(\d+)', file_info).group(1))
 					# Only apply seeder filter to torrents, not direct links
 					if hash and self.min_seeders > seeders: continue
-				except: seeders = 0
+				except Exception: seeders = 0
 
 				quality, info = source_utils.get_release_quality(name_info, url)
 				try:
 					size = re.search(r'((?:\d+\,\d+\.\d+|\d+\.\d+|\d+\,\d+|\d+)\s*(?:GB|GiB|Gb|MB|MiB|Mb))', file_info).group(0)
 					dsize, isize = source_utils._size(size)
 					info.insert(0, isize)
-				except: dsize = 0
+				except Exception: dsize = 0
 				info = ' | '.join(info)
 
 				# Build item based on stream type
@@ -190,7 +190,7 @@ class source:
 				if package == 'show': item.update({'last_season': last_season})
 				if episode_start: item.update({'episode_start': episode_start, 'episode_end': episode_end}) # for partial season packs
 				sources_append(item)
-			except:
+			except Exception:
 				source_utils.scraper_error('TORRENTIO')
 		return sources
 

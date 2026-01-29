@@ -33,7 +33,7 @@ class ThumbImageViewer(BaseDialog):
 		try:
 			position = self.get_position(self.window_id)
 			chosen_listitem = self.get_listitem(self.window_id)
-		except: return
+		except Exception: return
 		if action in self.selection_actions:
 			if chosen_listitem.getProperty('tikiskins.next_page_item') == 'true': self.new_page()
 			else:
@@ -58,7 +58,7 @@ class ThumbImageViewer(BaseDialog):
 			self.win = self.getControl(self.window_id)
 			self.win.addItems(self.list_items)
 			self.setFocusId(self.window_id)
-		except: pass
+		except Exception: pass
 
 	def new_page(self):
 		try:
@@ -69,7 +69,7 @@ class ThumbImageViewer(BaseDialog):
 			self.list_items, self.next_page_params = self.ImagesInstance.run(self.next_page_params)
 			hide_busy_dialog()
 			self.make_page()
-		except: self.close()
+		except Exception: self.close()
 
 	def previous_page(self):
 		try:
@@ -80,7 +80,7 @@ class ThumbImageViewer(BaseDialog):
 			self.next_page_params['in_progress'] = 'true'
 			self.list_items, self.next_page_params = self.ImagesInstance.run(self.next_page_params)
 			self.make_page()
-		except: self.close()
+		except Exception: self.close()
 
 	def make_next_page(self):
 		try:
@@ -89,7 +89,7 @@ class ThumbImageViewer(BaseDialog):
 			listitem.setProperty('tikiskins.thumb', next_icon)
 			listitem.setProperty('tikiskins.next_page_item', 'true')
 			self.list_items.append(listitem)
-		except: pass
+		except Exception: pass
 
 	def reset_after_delete(self, choice, position):
 		self.set_home_property('delete_image_finished', 'false')
@@ -182,7 +182,7 @@ class SlideShow(BaseDialog):
 					listitem.setProperty('tikiskins.slideshow.image', item[0])
 					listitem.setProperty('tikiskins.slideshow.title', item[1])
 					yield listitem
-				except: pass
+				except Exception: pass
 		self.item_list = list(builder())
 
 	def set_properties(self):

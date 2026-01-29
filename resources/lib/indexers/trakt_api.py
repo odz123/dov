@@ -102,7 +102,7 @@ def get_trakt(params):
 	if params.get('pagination', True):
 		if params.get('with_page_data'):
 			try: return result[0], int(result[1])
-			except: return result, 1
+			except Exception: return result, 1
 		return result[0]
 	return result
 
@@ -242,7 +242,7 @@ def trakt_collection_lists(media_type, param1, param2):
 	string_insert = 'movie' if media_type in ('movie', 'movies') else 'tvshow'
 	window_property_name = 'pov_trakt_collection_%s' % string_insert
 	try: data = json.loads(kodi_utils.get_property(window_property_name))
-	except: data = trakt_fetch_collection_watchlist('collection', media_type)
+	except Exception: data = trakt_fetch_collection_watchlist('collection', media_type)
 	if param1 == 'recent':
 		data.sort(key=lambda k: k['collected_at'], reverse=True)
 	elif param1 == 'random':
@@ -347,7 +347,7 @@ def hide_unhide_trakt_items(action, media_type, media_id, list_type):
 		try:
 			hidden_data = set(map(str, trakt_get_hidden_items('dropped')))
 			action = 'unhide' if action in hidden_data else 'hide'
-		except: return kodi_utils.notification(32574)
+		except Exception: return kodi_utils.notification(32574)
 	media_type = 'movies' if media_type in ['movie', 'movies'] else 'shows'
 	key = 'tmdb' if media_type == 'movies' else 'imdb'
 	url = 'users/hidden/%s' % list_type if action == 'hide' else 'users/hidden/%s/remove' % list_type
@@ -473,7 +473,7 @@ def trakt_like_a_list(params):
 		call_trakt('users/%s/lists/%s/like' % (user, list_slug), method='post')
 		kodi_utils.notification(32576)
 		trakt_sync_activities()
-	except: kodi_utils.notification(32574)
+	except Exception: kodi_utils.notification(32574)
 
 def trakt_unlike_a_list(params):
 	user = params['user']
@@ -483,7 +483,7 @@ def trakt_unlike_a_list(params):
 		kodi_utils.notification(32576)
 		trakt_sync_activities()
 		kodi_utils.container_refresh()
-	except: kodi_utils.notification(32574)
+	except Exception: kodi_utils.notification(32574)
 
 def get_trakt_movie_id(item):
 	if item['tmdb']: return item['tmdb']
@@ -492,7 +492,7 @@ def get_trakt_movie_id(item):
 		try:
 			meta = movie_external_id('imdb_id', item['imdb'])
 			tmdb_id = meta['id']
-		except: pass
+		except Exception: pass
 	return tmdb_id
 
 def get_trakt_tvshow_id(item):
@@ -502,13 +502,13 @@ def get_trakt_tvshow_id(item):
 		try:
 			meta = tvshow_external_id('imdb_id', item['imdb'])
 			tmdb_id = meta['id']
-		except: tmdb_id = None
+		except Exception: tmdb_id = None
 	if not tmdb_id:
 		if item['tvdb']:
 			try:
 				meta = tvshow_external_id('tvdb_id', item['tvdb'])
 				tmdb_id = meta['id']
-			except: tmdb_id = None
+			except Exception: tmdb_id = None
 	return tmdb_id
 
 def trakt_indicators_movies():
@@ -581,7 +581,7 @@ def trakt_progress_tv(progress_info):
 						'episode', str(tmdb_id), season, episode, str(round(p_item['progress'], 1)),
 						0, p_item['paused_at'], p_item['id'], p_item['show']['title']
 					)
-			except: pass
+			except Exception: pass
 	tmdb_list = []
 	tmdb_list_append = tmdb_list.append
 	progress_items = [i for i in progress_info if i['type'] == 'episode' and i['progress'] > 1]
@@ -599,14 +599,14 @@ def trakt_official_status(media_type):
 	if not kodi_utils.addon_installed('script.trakt'): return True
 	trakt_addon = kodi_utils.addon('script.trakt')
 	try: authorization = trakt_addon.getSetting('authorization')
-	except: authorization = ''
+	except Exception: authorization = ''
 	if authorization == '': return True
 	try: exclude_http = trakt_addon.getSetting('ExcludeHTTP')
-	except: exclude_http = ''
+	except Exception: exclude_http = ''
 	if exclude_http in ('true', ''): return True
 	media_setting = 'scrobble_movie' if media_type in ('movie', 'movies') else 'scrobble_episode'
 	try: scrobble = trakt_addon.getSetting(media_setting)
-	except: scrobble = ''
+	except Exception: scrobble = ''
 	if scrobble in ('false', ''): return True
 	return False
 
@@ -687,7 +687,7 @@ def trakt_sync_activities(force_update=False):
 		return int(time.mktime(date_time.timetuple()))
 	def _compare(latest, cached, res_format='%Y-%m-%dT%H:%M:%S.%fZ'):
 		try: result = _get_timestamp(js2date(latest, res_format)) > _get_timestamp(js2date(cached, res_format))
-		except: result = True
+		except Exception: result = True
 		return result
 	if not get_setting('trakt_user', ''): return 'no account'
 	if force_update:

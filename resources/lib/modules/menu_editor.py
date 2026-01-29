@@ -57,7 +57,7 @@ class MenuEditor:
 		active_list = self.params_get('active_list')
 		list_name =  main_list_name_dict[active_list]
 		try: choice_items = self._get_removed_items(active_list)
-		except: return kodi_utils.notification(32760, 1500)
+		except Exception: return kodi_utils.notification(32760, 1500)
 		browse_item = self._menu_select(choice_items, list_name)
 		if browse_item is None: return
 		browse_item = choice_items[browse_item]
@@ -86,7 +86,7 @@ class MenuEditor:
 	def add_original(self):
 		active_list = self.params_get('active_list')
 		try: choice_items = self._get_removed_items(active_list)
-		except: return kodi_utils.notification(32760, 1500)
+		except Exception: return kodi_utils.notification(32760, 1500)
 		menu_name_translated = self.params_get('menu_name_translated')
 		choice = self._menu_select(choice_items, menu_name_translated)
 		if choice is None: return kodi_utils.notification(32736, 1500)
@@ -226,7 +226,7 @@ class MenuEditor:
 				match = [i for i in x[1] if str(i['name']) == str(folder_name)][0]
 				new_list = [i for i in x[1] if i != match]
 				self._db_execute('set', x[0], new_list, refresh=False)
-			except: pass
+			except Exception: pass
 
 	def _db_execute(self, db_action, list_name, list_contents=None, list_type='edited', refresh=True):
 		if list_contents is None: list_contents = []

@@ -29,7 +29,7 @@ def search_easynews(params):
 				listitem.addContextMenuItems(cm)
 				listitem.setArt({'icon': thumbnail, 'poster': thumbnail, 'thumb': thumbnail, 'fanart': fanart, 'banner': default_icon})
 				yield (url, listitem, False)
-			except: pass
+			except Exception: pass
 	search_name = clean_file_name(unquote(params.get('query')))
 	files = EasyNews().search(search_name) or []
 	__handle__ = int(sys.argv[1])
@@ -104,5 +104,5 @@ def account_info(params):
 		append(ls(32762) % usage_info[1].replace('Gigs', 'GB'))
 		kodi_utils.hide_busy_dialog()
 		return kodi_utils.show_text(ls(32070).upper(), '\n\n'.join(body), font_size='large')
-	except: kodi_utils.hide_busy_dialog()
+	except Exception: kodi_utils.hide_busy_dialog()
 

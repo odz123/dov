@@ -31,7 +31,7 @@ def sources(specified_folders=None, ret_all=False):
 							from fenom import log_utils
 							log_utils.log('Error: Loading module: "%s": %s' % (module_name, e), level=log_utils.LOGWARNING)
 		return sourceDict
-	except:
+	except Exception:
 		from fenom import log_utils
 		log_utils.error()
 		return []
@@ -40,7 +40,7 @@ def enabledCheck(module_name):
 	try:
 		if getSetting('provider.' + module_name) == 'true': return True
 		else: return False
-	except:
+	except Exception:
 		from fenom import log_utils
 		log_utils.error()
 		return True

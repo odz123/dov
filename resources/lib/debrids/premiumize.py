@@ -75,7 +75,7 @@ class Indexer(Debrid):
 				listitem.addContextMenuItems(cm)
 				listitem.setArt(default_art)
 				yield (url, listitem, is_folder)
-			except: pass
+			except Exception: pass
 
 	def browse_downloads(self, items):
 		KODI_VERSION = kodi_utils.get_kodi_version()
@@ -111,7 +111,7 @@ class Indexer(Debrid):
 				listitem.setArt(default_art)
 				if not status == 'finished': listitem.setInfo('video', {'plot': message}) if KODI_VERSION < 20 else listitem.getVideoInfoTag().setPlot(message)
 				yield (url, listitem, is_folder)
-			except: pass
+			except Exception: pass
 
 	def cloud_delete(self, file_type, file_id):
 		if not kodi_utils.confirm_dialog(): return
@@ -152,5 +152,5 @@ class Indexer(Debrid):
 			append(ls(32754) % (percentage_used + '%'))
 			kodi_utils.hide_busy_dialog()
 			return kodi_utils.show_text(ls(32061).upper(), '\n\n'.join(body), font_size='large')
-		except: kodi_utils.hide_busy_dialog()
+		except Exception: kodi_utils.hide_busy_dialog()
 

@@ -56,7 +56,7 @@ class source(Debrid):
 						'scrape_provider': self.scrape_provider, 'id': file_dl, 'url_dl': file_dl, 'name': normalized, 'title': normalized,
 						'URLName': URLName, 'extraInfo': details, 'quality': video_quality, 'size': size, 'size_label': '%.2f GB' % size
 					})
-				except: pass
+				except Exception: pass
 		except Exception as e:
 			from modules.kodi_utils import logger
 			logger(f"POV {self.scrape_provider} Exception", e)
@@ -72,7 +72,7 @@ class source(Debrid):
 				Thread(target=self._scrape_folders, args=(self.user_cloud_webdl, 'webdl'))
 			)): i.start()
 			for i in threads: i.join()
-		except: pass
+		except Exception: pass
 
 	def _scrape_folders(self, function, media_type):
 		try:
@@ -86,6 +86,6 @@ class source(Debrid):
 							'media_type': media_type, 'link': '%d,%d' % (file['id'], item['id'])
 						})
 						results_append(item)
-					except: pass
-		except: pass
+					except Exception: pass
+		except Exception: pass
 

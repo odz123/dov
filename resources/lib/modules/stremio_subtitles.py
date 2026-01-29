@@ -59,7 +59,7 @@ def _get_scraper(force_new=False):
 				browser={'browser': 'chrome', 'platform': 'windows', 'desktop': True}
 			)
 			_scraper_fail_count = 0
-		except:
+		except Exception:
 			_scraper_session = None
 	return _scraper_session
 
@@ -73,7 +73,7 @@ def _fetch_url(url, timeout=8):
 		from urllib.parse import urlparse
 		parsed = urlparse(url)
 		origin = f"{parsed.scheme}://{parsed.netloc}"
-	except:
+	except Exception:
 		origin = url.rsplit('/', 1)[0]
 
 	headers = BROWSER_HEADERS.copy()
@@ -92,12 +92,12 @@ def _fetch_url(url, timeout=8):
 						time.sleep(0.3)
 						continue
 					break
-				except:
+				except Exception:
 					if attempt == 0:
 						time.sleep(0.3)
 						continue
 					break
-		except:
+		except Exception:
 			pass
 
 	# Method 2: cloudscraper
@@ -115,13 +115,13 @@ def _fetch_url(url, timeout=8):
 							time.sleep(0.3)
 							continue
 					break
-				except:
+				except Exception:
 					_scraper_fail_count += 1
 					if attempt == 0:
 						time.sleep(0.3)
 						continue
 					break
-		except:
+		except Exception:
 			pass
 
 	# Method 3: Regular requests fallback
@@ -135,12 +135,12 @@ def _fetch_url(url, timeout=8):
 					time.sleep(0.3)
 					continue
 				break
-			except:
+			except Exception:
 				if attempt == 0:
 					time.sleep(0.3)
 					continue
 				break
-	except:
+	except Exception:
 		pass
 
 	return None
@@ -202,7 +202,7 @@ def get_stremio_addons_with_subtitles():
 		if addons_str:
 			addons = ast.literal_eval(addons_str)
 			return [a for a in addons if a.get('supports_subtitles', False)]
-	except:
+	except Exception:
 		pass
 	return []
 
@@ -238,7 +238,7 @@ def fetch_subtitles_from_addon(addon_url, media_type, media_id, video_hash=None,
 		if response and response.status_code == 200:
 			data = response.json()
 			subtitles = data.get('subtitles', [])
-	except:
+	except Exception:
 		pass
 
 	return subtitles
@@ -287,7 +287,7 @@ def fetch_all_stremio_subtitles(imdb_id, media_type='movie', season=None, episod
 			for sub in subtitles:
 				sub['addon'] = addon_name
 				all_subtitles.append(sub)
-		except:
+		except Exception:
 			continue
 
 	return all_subtitles
@@ -528,7 +528,7 @@ def clear_subtitle_cache():
 				try:
 					if os.path.isfile(filepath):
 						os.unlink(filepath)
-				except:
+				except Exception:
 					pass
 		notification('Subtitle cache cleared', 2000)
 	except Exception as e:
@@ -573,5 +573,5 @@ def get_stremio_subtitle_for_player(meta):
 			episode,
 			auto_select
 		)
-	except:
+	except Exception:
 		return None

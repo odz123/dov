@@ -55,7 +55,7 @@ class Indexer(Debrid):
 				listitem.addContextMenuItems(cm)
 				listitem.setArt(default_art)
 				yield (url, listitem, is_folder)
-			except: pass
+			except Exception: pass
 
 	def browse_cloud(self, items):
 		for count, item in enumerate(items, 1):
@@ -78,7 +78,7 @@ class Indexer(Debrid):
 				listitem.setArt(default_art)
 				listitem.setInfo('video', {})
 				yield (url, listitem, False)
-			except: pass
+			except Exception: pass
 
 	def cloud_delete(self, folder_id):
 		if not kodi_utils.confirm_dialog(): return
@@ -101,9 +101,9 @@ class Indexer(Debrid):
 				req.start()
 				progressBG.update(int(count / len_files * 100), '%s: %s...' % (ls(32785), req.name))
 				req.join(1)
-			except: pass
+			except Exception: pass
 		try: progressBG.close()
-		except: pass
+		except Exception: pass
 		self.clear_cache()
 
 	def show_account_info(self):
@@ -119,5 +119,5 @@ class Indexer(Debrid):
 			append('[B]Cloud Limit[/B]: {:,}'.format(account_info['limits']['cloud']))
 			kodi_utils.hide_busy_dialog()
 			return kodi_utils.show_text('Offcloud'.upper(), '\n\n'.join(body), font_size='large')
-		except: kodi_utils.hide_busy_dialog()
+		except Exception: kodi_utils.hide_busy_dialog()
 

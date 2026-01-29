@@ -91,7 +91,7 @@ class People(BaseDialog):
 	def make_person_data(self):
 		if self.kwargs['query']:
 			try: self.person_id = tmdb_people_info(self.kwargs['query'])[0]['id']
-			except:
+			except Exception:
 				notification(32760)
 				raise
 		else: self.person_id = self.kwargs['actor_id']
@@ -102,7 +102,7 @@ class People(BaseDialog):
 		if image_path: self.person_image = tmdb_image_base % ('h632', image_path)
 		else: self.person_image = backup_cast_thumbnail
 		try: self.person_gender = gender_dict[person_info.get('gender')]
-		except: self.person_gender = ''
+		except Exception: self.person_gender = ''
 		place_of_birth = person_info.get('place_of_birth')
 		if place_of_birth: self.person_place_of_birth = place_of_birth
 		else: self.person_place_of_birth = ''
@@ -134,14 +134,14 @@ class People(BaseDialog):
 				data = self.movie_data
 				if self.exclude_non_acting:
 					try: data = [i for i in data if not 99 in i['genre_ids'] and not i['character'].lower() in roles_exclude]
-					except: pass
+					except Exception: pass
 			elif media_type == 'tvshow':
 				list_type = media_type
 				_id = more_from_tvshows_id
 				data = self.tvshow_data
 				if self.exclude_non_acting:
 					try: data = [i for i in data if not any(x in genres_exclude for x in i['genre_ids']) and not i['character'].lower() in roles_exclude]
-					except: pass
+					except Exception: pass
 			else:#director
 				list_type = 'movie'
 				_id = more_from_director_id
@@ -151,7 +151,7 @@ class People(BaseDialog):
 			self.item_action_dict[_id] = 'tikiskins.person.tmdb_id'
 			control = self.getControl(_id)
 			control.addItems(item_list)
-		except: pass
+		except Exception: pass
 
 	def make_imdb_videos(self):
 		def builder():
@@ -162,7 +162,7 @@ class People(BaseDialog):
 					listitem.setProperty('tikiskins.person.thumbnail', item['poster'])
 					listitem.setProperty('tikiskins.person.params', json.dumps({'videos': json.dumps(item['videos']), 'thumb': item['poster']}))
 					yield listitem
-				except: pass
+				except Exception: pass
 		try:
 			data = imdb_videos(self.imdb_id)
 			item_list = list(builder())
@@ -170,7 +170,7 @@ class People(BaseDialog):
 			self.item_action_dict[imdb_videos_id] = 'tikiskins.person.params'
 			control = self.getControl(imdb_videos_id)
 			control.addItems(item_list)
-		except: pass
+		except Exception: pass
 
 	def make_tmdb_listitems(self, data, media_type):
 		used_ids = []
@@ -189,7 +189,7 @@ class People(BaseDialog):
 				if year in (None, ''): year = 'N/A'
 				else:
 					try: year = year.split('-')[0]
-					except: pass
+					except Exception: pass
 				listitem.setProperty('tikiskins.person.name', item[name_key])
 				listitem.setProperty('tikiskins.person.release_date', year)
 				listitem.setProperty('tikiskins.person.vote_average', '%.1f' % item['vote_average'])
@@ -197,7 +197,7 @@ class People(BaseDialog):
 				listitem.setProperty('tikiskins.person.tmdb_id', str(tmdb_id))
 				append(tmdb_id)
 				yield listitem
-			except: pass
+			except Exception: pass
 
 	def set_starting_constants(self):
 		self.item_action_dict = {}

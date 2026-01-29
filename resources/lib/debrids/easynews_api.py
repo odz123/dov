@@ -1,6 +1,8 @@
 import re
 import json
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 from urllib.parse import urlencode, quote
 from caches.main_cache import cache_object
 from modules.kodi_utils import get_setting
@@ -13,8 +15,9 @@ video_extensions = (
 SEARCH_PARAMS = {'st': 'adv', 'sb': 1, 'fex': video_extensions, 'fty[]': 'VIDEO', 'spamf': 1, 'u': '1', 'gx': 1, 'pno': 1, 'sS': 3,
 				's1': 'relevance', 's1d': '-', 's2': 'dsize', 's2d': '-', 's3': 'dtime', 's3d': '-', 'pby': 350}
 timeout = 10.0
+_retry = Retry(total=3, backoff_factor=0.5, status_forcelist=(502, 503, 504))
 session = requests.Session()
-session.mount('https://', requests.adapters.HTTPAdapter(max_retries=1))
+session.mount('https://', HTTPAdapter(max_retries=_retry))
 
 class EasyNewsAPI:
 	def __init__(self):
@@ -38,14 +41,14 @@ class EasyNewsAPI:
 			account_html = self._get(self.account_link)
 			account_info = parseDOM(account_html, 'form', attrs={'id': 'accountForm'})
 			account_info = parseDOM(account_info, 'td')[0:11][1::3]
-		except: pass
+		except Exception: pass
 		try:
 			usage_html = self._get(self.usage_link)
 			usage_info = parseDOM(usage_html, 'div', attrs={'class': 'table-responsive'})
 			usage_info = parseDOM(usage_info, 'td')[0:11][1::3]
 			if len(usage_info) > 1:
 				usage_info[1] = re.sub(r'[</].+?>', '', usage_info[1])
-		except: pass
+		except Exception: pass
 		return account_info, usage_info
 
 	def _process_files(self, files):
@@ -88,7 +91,7 @@ class EasyNewsAPI:
 	def _get(self, url, params=None):
 		response = session.get(url, auth=(self.username, self.password), params=params, timeout=timeout).text
 		try: return json.loads(response)
-		except: return response
+		except Exception: return response
 
 	def unrestrict_link(self, url_dl, spool=False):
 		response = session.get(url_dl, auth=(self.username, self.password), stream=True, timeout=timeout*3)
@@ -106,14 +109,14 @@ def clear_media_results_database():
 		dbcur = dbcon.cursor()
 		dbcur.execute("""PRAGMA synchronous = OFF""")
 		dbcur.execute("""PRAGMA journal_mode = OFF""")
-		dbcur.execute("""SELECT id FROM maincache WHERE id LIKE 'pov_EASYNEWS_SEARCH_%'""")
+		dbcur.execute("""SELECT id FROM maincache WHERE id LIKE ?""", ('pov_EASYNEWS_SEARCH_%',))
 		easynews_results = [str(i[0]) for i in dbcur.fetchall()]
 		if not easynews_results: return 'success'
 		try:
-			dbcur.execute("""DELETE FROM maincache WHERE id LIKE 'pov_EASYNEWS_SEARCH_%'""")
+			dbcur.execute("""DELETE FROM maincache WHERE id LIKE ?""", ('pov_EASYNEWS_SEARCH_%',))
 			for i in easynews_results: clear_property(i)
 			return 'success'
-		except: return 'failed'
+		except Exception: return 'failed'
 	finally:
 		dbcon.close()
 
