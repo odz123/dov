@@ -10,10 +10,12 @@ def open_window(import_info, skin_xml, **kwargs):
 	'''
 	try:
 		xml_window = create_window(import_info, skin_xml, **kwargs)
+		if xml_window is None: return None
 		choice = xml_window.run()
 		del xml_window
 		return choice
-	except: pass
+	except Exception as e:
+		kodi_utils.logger('error in open_window', str(e))
 
 def create_window(import_info, skin_xml, **kwargs):
 	'''
@@ -24,8 +26,9 @@ def create_window(import_info, skin_xml, **kwargs):
 		xml_window = function(skin_xml, location, **kwargs)
 		return xml_window
 	except Exception as e:
-		kodi_utils.logger('error in open_window', str(e))
-		return kodi_utils.notification(32574)
+		kodi_utils.logger('error in create_window', str(e))
+		kodi_utils.notification(32574)
+		return None
 
 def videoplayer(url, close_action=None, callback=None):
 	def onAVStarted(self):

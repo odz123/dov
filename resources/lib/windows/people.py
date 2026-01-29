@@ -72,7 +72,7 @@ class People(BaseDialog):
 		else: self.control_id = controlID
 
 	def onAction(self, action):
-		if action in self.closing_actions: self.close()
+		if action in self.closing_actions: return self.close()
 		if not self.control_id: return
 		if action in self.selection_actions:
 			chosen_listitem = self.get_listitem(self.control_id)
@@ -91,7 +91,9 @@ class People(BaseDialog):
 	def make_person_data(self):
 		if self.kwargs['query']:
 			try: self.person_id = tmdb_people_info(self.kwargs['query'])[0]['id']
-			except: notification(32760)
+			except:
+				notification(32760)
+				raise
 		else: self.person_id = self.kwargs['actor_id']
 		person_info = tmdb_people_full_info(self.person_id)
 		if person_info.get('biography') in ('', None): person_info = tmdb_people_full_info(self.person_id, 'en')

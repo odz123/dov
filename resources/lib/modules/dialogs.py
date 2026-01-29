@@ -358,7 +358,7 @@ def folder_scraper_manager_choice(folder_info=None):
 				('[B]%s[/B]:  [I]%s[/I]' % (movie_dir_str, folder_info['movie_dir']), folder_info['movie_setting']),
 				('[B]%s[/B]:  [I]%s[/I]' % (tv_dir_str, folder_info['tvshow_dir']), folder_info['tvshow_setting'])]
 	def _process_setting():
-		if setting is None: _return(None)
+		if setting is None: return _return(None)
 		if 'display_name' in setting: _set_display()
 		else: _set_folder_path()
 	def _set_display():
@@ -372,7 +372,7 @@ def folder_scraper_manager_choice(folder_info=None):
 			list_items = [{'line1': item} for item in [ls(32682), ls(32683)]]
 			kwargs = {'items': json.dumps(list_items), 'heading': 'POV'}
 			action = select_dialog([1, 2], **kwargs)
-			if action is None: _return(folder_info)
+			if action is None: return _return(folder_info)
 			if action == 1:
 				_set_property(setting, 'None')
 				_return(folder_info)
@@ -403,7 +403,7 @@ def folder_scraper_manager_choice(folder_info=None):
 		kwargs = {'items': json.dumps(list_items), 'heading': 'POV'}
 		setting = select_dialog([i[1] for i in listing], **kwargs)
 		_process_setting()
-	except: pass
+	except Exception as e: kodi_utils.logger('folder_scraper_manager_choice error', str(e))
 
 def results_sorting_choice():
 	quality, provider, size = ls(32241), ls(32583), ls(32584)

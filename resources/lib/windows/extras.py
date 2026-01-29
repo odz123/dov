@@ -82,7 +82,7 @@ class Extras(BaseDialog):
 		self.control_id = controlID
 
 	def onAction(self, action):
-		if action in self.closing_actions: self.close()
+		if action in self.closing_actions: return self.close()
 		if action in self.context_actions:
 			focus_id = self.getFocusId()
 			if focus_id == actions_id and self.media_type == 'movie':

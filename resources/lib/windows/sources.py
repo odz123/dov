@@ -1,9 +1,8 @@
 import json
 from windows import BaseDialog
 from modules.debrid import Source
-from modules.kodi_utils import media_path, hide_busy_dialog, dialog, select_dialog, ok_dialog, local_string as ls
+from modules.kodi_utils import media_path, hide_busy_dialog, dialog, select_dialog, ok_dialog, local_string as ls, logger
 from modules.settings import get_art_provider, get_fanart_data, info_icons, provider_sort_ranks
-# from modules.kodi_utils import logger
 
 fanart_empty = BaseDialog.fanart
 poster_empty = media_path('box_office.png')
@@ -27,6 +26,9 @@ string, upper, lower = str, str.upper, str.lower
 class SourceResults(BaseDialog):
 	def __init__(self, *args, **kwargs):
 		BaseDialog.__init__(self, args)
+		self.selected = None
+		self.item_list = []
+		self.total_results = '0'
 		self.window_style = kwargs.get('window_style', 'list contrast details')
 		self.window_id = kwargs.get('window_id')
 		self.results = kwargs.get('results')
@@ -181,7 +183,8 @@ class SourceResults(BaseDialog):
 					set_property('tikiskins.hash', get('hash', 'N/A'))
 					set_property('source', json.dumps(item))
 					yield listitem
-				except: pass
+				except Exception as e:
+					logger('make_items builder error', str(e))
 		try:
 			highlight_type = self.info_highlights_dict['highlight_type']
 			self.item_list = list(builder())
@@ -192,7 +195,8 @@ class SourceResults(BaseDialog):
 			prescrape_listitem.setProperty('tikiskins.perform_full_search', 'true')
 			prescrape_listitem.setProperty('tikiskins.start_full_scrape', '[B]***%s***[/B]' % upper(start_full_scrape))
 			self.item_list.append(prescrape_listitem)
-		except: pass
+		except Exception as e:
+			logger('make_items error', str(e))
 
 	def set_properties(self):
 		self.poster_main, self.poster_backup, self.fanart_main, self.fanart_backup = get_art_provider()
@@ -382,6 +386,7 @@ class SourceResultsChooser(BaseDialog):
 	def __init__(self, *args, **kwargs):
 		BaseDialog.__init__(self, args)
 		self.window_id = 5001
+		self.choice = None
 		self.xml_choices = kwargs.get('xml_choices')
 		self.xml_items = []
 		self.make_items()
@@ -398,7 +403,7 @@ class SourceResultsChooser(BaseDialog):
 	def onAction(self, action):
 		if action in self.closing_actions:
 			self.choice = None
-			self.close()
+			return self.close()
 		if action in self.selection_actions:
 			chosen_listitem = self.get_listitem(self.window_id)
 			self.choice = chosen_listitem.getProperty('tikiskins.window.name')
