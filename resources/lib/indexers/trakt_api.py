@@ -98,7 +98,13 @@ def get_trakt(params):
 		pagination=params.get('pagination', True),
 		page=params.get('page')
 	)
-	return result[0] if params.get('pagination', True) else result
+	if result is None: return None
+	if params.get('pagination', True):
+		if params.get('with_page_data'):
+			try: return result[0], int(result[1])
+			except: return result, 1
+		return result[0]
+	return result
 
 def trakt_refresh():
 	try:
@@ -131,56 +137,56 @@ def trakt_recommendations(media_type):
 
 def trakt_movies_trending(page_no):
 	string = 'trakt_movies_trending_%s' % page_no
-	url = {'path': 'movies/trending/%s', 'params': {'limit': 20}, 'page': page_no}
+	url = {'path': 'movies/trending/%s', 'params': {'limit': 20}, 'page': page_no, 'with_page_data': True}
 	return cache_object(get_trakt, string, url, json=False, expiration=EXPIRES_2_DAYS)
 
 def trakt_movies_trending_recent(page_no):
 	year = get_datetime().year
 	years = '%s-%s' % (year-1, year)
 	string = 'trakt_movies_trending_recent_%s' % page_no
-	url = {'path': 'movies/trending/%s', 'params': {'years': years, 'limit': 20}, 'page': page_no}
+	url = {'path': 'movies/trending/%s', 'params': {'years': years, 'limit': 20}, 'page': page_no, 'with_page_data': True}
 	return cache_object(get_trakt, string, url, json=False, expiration=EXPIRES_2_DAYS)
 
 def trakt_movies_most_watched(page_no):
 	string = 'trakt_movies_most_watched_%s' % page_no
-	url = {'path': 'movies/watched/weekly/%s', 'params': {'limit': 20}, 'page': page_no}
+	url = {'path': 'movies/watched/weekly/%s', 'params': {'limit': 20}, 'page': page_no, 'with_page_data': True}
 	return cache_object(get_trakt, string, url, json=False, expiration=EXPIRES_2_DAYS)
 
 def trakt_tv_trending(page_no):
 	string = 'trakt_tv_trending_%s' % page_no
-	url = {'path': 'shows/trending/%s', 'params': {'limit': 20}, 'page': page_no}
+	url = {'path': 'shows/trending/%s', 'params': {'limit': 20}, 'page': page_no, 'with_page_data': True}
 	return cache_object(get_trakt, string, url, json=False, expiration=EXPIRES_2_DAYS)
 
 def trakt_tv_trending_recent(page_no):
 	year = get_datetime().year
 	years = '%s-%s' % (year-1, year)
 	string = 'trakt_tv_trending_recent_%s' % page_no
-	url = {'path': 'shows/trending/%s', 'params': {'years': years, 'limit': 20}, 'page': page_no}
+	url = {'path': 'shows/trending/%s', 'params': {'years': years, 'limit': 20}, 'page': page_no, 'with_page_data': True}
 	return cache_object(get_trakt, string, url, json=False, expiration=EXPIRES_2_DAYS)
 
 def trakt_tv_most_watched(page_no):
 	string = 'trakt_tv_most_watched_%s' % page_no
-	url = {'path': 'shows/watched/weekly/%s', 'params': {'limit': 20}, 'page': page_no}
+	url = {'path': 'shows/watched/weekly/%s', 'params': {'limit': 20}, 'page': page_no, 'with_page_data': True}
 	return cache_object(get_trakt, string, url, json=False, expiration=EXPIRES_2_DAYS)
 
 def trakt_moviesanime_trending(page_no):
 	string = 'trakt_moviesanime_trending_%s' % page_no
-	url = {'path': 'movies/trending/%s', 'params': {'limit': 100, 'genres': 'anime'}, 'page': page_no}
+	url = {'path': 'movies/trending/%s', 'params': {'limit': 100, 'genres': 'anime'}, 'page': page_no, 'with_page_data': True}
 	return cache_object(get_trakt, string, url, json=False, expiration=EXPIRES_2_DAYS)
 
 def trakt_moviesanime_most_watched(page_no):
 	string = 'trakt_moviesanime_most_watched_%s' % page_no
-	url = {'path': 'movies/watched/all/%s', 'params': {'limit': 20, 'genres': 'anime'}, 'page': page_no}
+	url = {'path': 'movies/watched/all/%s', 'params': {'limit': 20, 'genres': 'anime'}, 'page': page_no, 'with_page_data': True}
 	return cache_object(get_trakt, string, url, json=False, expiration=EXPIRES_2_DAYS)
 
 def trakt_tvanime_trending(page_no):
 	string = 'trakt_tvanime_trending_%s' % page_no
-	url = {'path': 'shows/trending/%s', 'params': {'limit': 20, 'genres': 'anime'}, 'page': page_no}
+	url = {'path': 'shows/trending/%s', 'params': {'limit': 20, 'genres': 'anime'}, 'page': page_no, 'with_page_data': True}
 	return cache_object(get_trakt, string, url, json=False, expiration=EXPIRES_2_DAYS)
 
 def trakt_tvanime_most_watched(page_no):
 	string = 'trakt_tvanime_most_watched_%s' % page_no
-	url = {'path': 'shows/watched/all/%s', 'params': {'limit': 20, 'genres': 'anime'}, 'page': page_no}
+	url = {'path': 'shows/watched/all/%s', 'params': {'limit': 20, 'genres': 'anime'}, 'page': page_no, 'with_page_data': True}
 	return cache_object(get_trakt, string, url, json=False, expiration=EXPIRES_2_DAYS)
 
 def trakt_get_hidden_items(list_type):
