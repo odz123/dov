@@ -62,7 +62,7 @@ class Indexer(Debrid):
 				name = item['path'].lstrip('/')
 				name = clean_file_name(name).upper()
 				url_link = item['url_link']
-				if url_link.startswith('/'): url_link = 'http' + url_link
+				if url_link.startswith('/'): url_link = 'https:' + url_link
 				size = float(int(item['bytes']))/1073741824
 				display = '%02d | [B]%s[/B] | %.2f GB | [I]%s [/I]' % (count, file_str, size, name)
 				params = {'name': name, 'url': url_link, 'image': default_icon}

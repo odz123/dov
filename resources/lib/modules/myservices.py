@@ -241,7 +241,7 @@ class TorBox:
 		response = requests.post(self.base_url('user/auth/device/token'), json=data, timeout=timeout)
 		if not response.ok: return
 		data.update(response.json())
-		self.token = data
+		self.token = data.get('data', {}).get('access_token', '')
 
 	def set(self):
 		cls_name = self.__class__.__name__

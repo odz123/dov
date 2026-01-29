@@ -171,12 +171,11 @@ def batch_erase_bookmark(watched_indicators, insert_list, action):
 			process_list = []
 			process_list_append = process_list.append
 			media_type = insert_list[0][0]
-			tmdb_id = insert_list[0][1]
 			# Use dict for O(1) lookups instead of O(n) list scans
 			bookmarks = get_bookmarks_dict(watched_indicators, media_type)
 			for i in insert_list:
 				try:
-					resume_point, curr_time, resume_id = detect_bookmark(bookmarks, tmdb_id, i[2], i[3])
+					resume_point, curr_time, resume_id = detect_bookmark(bookmarks, i[1], i[2], i[3])
 				except (IndexError, TypeError): continue
 				process_list_append(('clear_progress', i[0], i[1], 0, i[2], i[3], resume_id))
 			if process_list: threads = list(make_thread_list(_process, process_list, Thread))

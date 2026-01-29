@@ -255,8 +255,6 @@ class Downloader:
 							f.write(c)
 							del c
 						f.close()
-						try: progressDialog.close()
-						except: pass
 						return self.finish_download(self.final_name, self.media_type, True, self.image)
 			except Exception as e:
 				error = True
@@ -287,8 +285,6 @@ class Downloader:
 			if (self.resumable and errors > 0) or errors >= 10:
 				if (not self.resumable and resume >= 50) or resume >= 500:
 					try: f.close()
-					except: pass
-					try: progressDialog.close()
 					except: pass
 					return self.finish_download(self.final_name, self.media_type, False, self.image)
 				resume += 1

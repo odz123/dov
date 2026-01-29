@@ -30,6 +30,7 @@ class source:
 			title = data['tvshowtitle'] if 'tvshowtitle' in data else data['title']
 			title = title.replace('&', 'and').replace('Special Victims Unit', 'SVU').replace('/', ' ')
 			aliases = data['aliases']
+			episode_title = data['title'] if 'tvshowtitle' in data else None
 			year = data['year']
 			hdlr = 'S%02dE%02d' % (int(data['season']), int(data['episode'])) if 'tvshowtitle' in data else year
 			hdlr2 = 'S%d - %d' % (int(data['season']), int(data['episode'])) if 'tvshowtitle' in data else year
@@ -78,8 +79,9 @@ class source:
 						name = source_utils.clean_name(dn_parts[1])
 
 						if hdlr not in name and hdlr2 not in name: continue
-						if source_utils.remove_lang(name, check_foreign_audio): continue
-						# if undesirables and source_utils.remove_undesirables(name_info, undesirables): continue
+						name_info = source_utils.info_from_name(name, title, year, hdlr, episode_title)
+						if source_utils.remove_lang(name_info, check_foreign_audio): continue
+						if undesirables and source_utils.remove_undesirables(name_info, undesirables): continue
 
 						if hdlr in name:
 							t = name.split(hdlr)[0].replace(year, '').replace('(', '').replace(')', '').replace('&', 'and').replace('.US.', '.').replace('.us.', '.')
@@ -91,7 +93,7 @@ class source:
 							if self.min_seeders > seeders: continue
 						except: seeders = 0
 
-						quality, info = source_utils.get_release_quality(name, url)
+						quality, info = source_utils.get_release_quality(name_info, url)
 						try:
 							size = link[1]
 							dsize, isize = source_utils._size(size)
@@ -99,8 +101,8 @@ class source:
 						except: dsize = 0
 						info = ' | '.join(info)
 
-						sources_append({'provider': 'nyaa', 'source': 'torrent', 'seeders': seeders, 'hash': hash, 'name': name, 'quality': quality,
-										'language': 'en', 'url': url, 'info': info, 'direct': False, 'debridonly': True, 'size': dsize})
+						sources_append({'provider': 'nyaa', 'source': 'torrent', 'seeders': seeders, 'hash': hash, 'name': name, 'name_info': name_info,
+										'quality': quality, 'language': 'en', 'url': url, 'info': info, 'direct': False, 'debridonly': True, 'size': dsize})
 			except:
 				source_utils.scraper_error('NYAA')
 				return sources
