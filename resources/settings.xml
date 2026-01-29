@@ -391,8 +391,8 @@
 		<setting label="Stremio Metadata" type="lsep" />
 		<setting id="stremio.meta.enabled" label="Enable Stremio Metadata" type="bool" default="false" />
 		<setting id="stremio.meta.mode" label="Mode" type="enum" default="0" values="Fallback|Supplement|Primary" subsetting="true" visible="eq(-1,true)" />
-		<setting id="stremio.meta.mode.help" label="Fallback: Use when TMDB fails | Supplement: Merge with TMDB | Primary: Prefer Stremio" type="text" enable="false" subsetting="true" visible="eq(-2,true)" />
-		<setting id="stremio.meta.clear" label="Clear Stremio Metadata Cache" type="action" subsetting="true" visible="eq(-3,true)" action="RunPlugin(plugin://plugin.video.pov/?mode=clear_cache&amp;cache=stremio_meta)" />
+		<setting id="stremio.meta.mode.help" label="Fallback: Use when TMDB fails / Supplement: Merge with TMDB / Primary: Prefer Stremio" type="text" default="" enable="false" subsetting="true" visible="eq(-2,true)" />
+		<setting label="Clear Stremio Metadata Cache" type="action" subsetting="true" visible="eq(-3,true)" action="RunPlugin(plugin://plugin.video.pov/?mode=clear_cache&amp;cache=stremio_meta)" />
 		<!-- RPDB -->
 		<setting label="Rating Poster Database" type="lsep" />
 		<setting id="rpdb_api_key" label="API Key" type="text" default="" />
