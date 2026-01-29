@@ -1,9 +1,8 @@
 import json
 from windows import BaseDialog
 from modules.debrid import Source
-from modules.kodi_utils import media_path, hide_busy_dialog, dialog, select_dialog, ok_dialog, local_string as ls
+from modules.kodi_utils import media_path, hide_busy_dialog, dialog, select_dialog, ok_dialog, local_string as ls, logger
 from modules.settings import get_art_provider, get_fanart_data, info_icons, provider_sort_ranks
-# from modules.kodi_utils import logger
 
 fanart_empty = BaseDialog.fanart
 poster_empty = media_path('box_office.png')
@@ -181,7 +180,8 @@ class SourceResults(BaseDialog):
 					set_property('tikiskins.hash', get('hash', 'N/A'))
 					set_property('source', json.dumps(item))
 					yield listitem
-				except: pass
+				except Exception as e:
+					logger('make_items builder error', str(e))
 		try:
 			highlight_type = self.info_highlights_dict['highlight_type']
 			self.item_list = list(builder())
@@ -192,7 +192,8 @@ class SourceResults(BaseDialog):
 			prescrape_listitem.setProperty('tikiskins.perform_full_search', 'true')
 			prescrape_listitem.setProperty('tikiskins.start_full_scrape', '[B]***%s***[/B]' % upper(start_full_scrape))
 			self.item_list.append(prescrape_listitem)
-		except: pass
+		except Exception as e:
+			logger('make_items error', str(e))
 
 	def set_properties(self):
 		self.poster_main, self.poster_backup, self.fanart_main, self.fanart_backup = get_art_provider()

@@ -77,7 +77,6 @@ class NextEpisode(BaseDialog):
 			for current_point in range(100, 0, -5):
 				try:
 					if self.closed: break
-					if current_point == 0: break
 					progress_bar.setPercent(current_point)
 					self.sleep(1000)
 				except: pass
