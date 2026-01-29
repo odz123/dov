@@ -193,7 +193,7 @@ class Indexer(TVShows):
 				if not data: return
 				self.list = [i['id'] for i in data.get('results', []) if 'id' in i]
 				total_pages = data.get('total_pages', 0)
-				if total_pages > page_no: self.new_page = {'new_page': string(data.get('page', 0) + 1)}
+				if total_pages > page_no: self.new_page = {'new_page': string(page_no + 1)}
 			elif self.action in Indexer.trakt_main:
 				self.id_type = 'trakt_dict'
 				data = function(page_no)
@@ -253,7 +253,7 @@ class Indexer(TVShows):
 				data = function(tmdb_id, page_no)
 				if not data: return
 				self.list = [i['id'] for i in data.get('results', []) if 'id' in i]
-				if data.get('page', 0) < data.get('total_pages', 0): self.new_page = {'new_page': string(data.get('page', 0) + 1), 'tmdb_id': tmdb_id}
+				if page_no < data.get('total_pages', 0): self.new_page = {'new_page': string(page_no + 1), 'tmdb_id': tmdb_id}
 			elif self.action in Indexer.tmdb_special_key_dict:
 				key = Indexer.tmdb_special_key_dict[self.action]
 				function_var = params_get(key)
@@ -261,7 +261,7 @@ class Indexer(TVShows):
 				data = function(function_var, page_no)
 				if not data: return
 				self.list = [i['id'] for i in data.get('results', []) if 'id' in i]
-				if data.get('page', 0) < data.get('total_pages', 0): self.new_page = {'new_page': string(data.get('page', 0) + 1), key: function_var}
+				if page_no < data.get('total_pages', 0): self.new_page = {'new_page': string(page_no + 1), key: function_var}
 			elif self.action == 'tmdb_tv_discover':
 				from indexers.discover import set_history
 				name, query = params_get('name'), params_get('query')
@@ -269,14 +269,14 @@ class Indexer(TVShows):
 				data = function(query, page_no)
 				if not data: return
 				self.list = [i['id'] for i in data.get('results', []) if 'id' in i]
-				if data.get('page', 0) < data.get('total_pages', 0): self.new_page = {'query': query, 'name': name, 'new_page': string(data.get('page', 0) + 1)}
+				if page_no < data.get('total_pages', 0): self.new_page = {'query': query, 'name': name, 'new_page': string(page_no + 1)}
 			elif self.action in ('tmdb_tv_genres', 'tmdb_tvanime_genres'):
 				genre_id = params_get('genre_id')
 				if not genre_id: return
 				data = function(genre_id, page_no)
 				if not data: return
 				self.list = [i['id'] for i in data.get('results', []) if 'id' in i]
-				if data.get('page', 0) < data.get('total_pages', 0): self.new_page = {'new_page': string(data.get('page', 0) + 1), 'genre_id': genre_id}
+				if page_no < data.get('total_pages', 0): self.new_page = {'new_page': string(page_no + 1), 'genre_id': genre_id}
 			elif self.action == 'tmdb_tv_search':
 				query = params_get('query')
 				data = function(query, page_no)
