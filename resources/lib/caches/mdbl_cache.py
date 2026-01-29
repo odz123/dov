@@ -90,7 +90,7 @@ def reset_activity(latest_activities):
 			if cached_data: cached_data = literal_eval(cached_data[0])
 			else: cached_data = default_activities()
 			cache.dbcur.execute(MC_BASE_SET, (string, repr(latest_activities)))
-	except: pass
+	except Exception: pass
 	return cached_data
 
 def clear_mdbl_collection_watchlist_data(list_type):
@@ -98,21 +98,21 @@ def clear_mdbl_collection_watchlist_data(list_type):
 	try:
 		with MDBLCache() as cache:
 			cache.dbcur.execute(DELETE, (string,))
-	except: pass
+	except Exception: pass
 
 def clear_mdbl_list_contents_data(list_type):
 	string = 'mdbl_list_contents_' + list_type + '_%'
 	try:
 		with MDBLCache() as cache:
 			cache.dbcur.execute(DELETE_LIKE, (string,))
-	except: pass
+	except Exception: pass
 
 def clear_mdbl_list_data(list_type):
 	string = 'mdbl_%s' % list_type
 	try:
 		with MDBLCache() as cache:
 			cache.dbcur.execute(DELETE, (string,))
-	except: pass
+	except Exception: pass
 
 def clear_all_mdbl_cache_data(refresh=True):
 	try:
@@ -126,7 +126,7 @@ def clear_all_mdbl_cache_data(refresh=True):
 		from indexers.mdblist_api import mdbl_sync_activities_thread
 		mdbl_sync_activities_thread()
 		return True
-	except: return False
+	except Exception: return False
 
 def default_activities():
 	return {

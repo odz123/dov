@@ -46,7 +46,7 @@ def search_trakt_lists(params):
 				listitem.setInfo('video', {'plot': plot}) if KODI_VERSION < 20 else listitem.getVideoInfoTag().setPlot(plot)
 				listitem.addContextMenuItems(cm)
 				yield (url, listitem, True)
-			except: pass
+			except Exception: pass
 	page = params.get('new_page', '1')
 	search_title = params.get('search_title') or kodi_utils.dialog.input('POV')
 	if search_title: lists, pages = trakt_api.trakt_search_lists(search_title, page)
@@ -87,7 +87,7 @@ def get_trakt_lists(params):
 				listitem.setArt({'icon': default_icon, 'poster': default_icon, 'thumb': default_icon, 'fanart': fanart, 'banner': default_icon})
 				listitem.addContextMenuItems(cm, replaceItems=False)
 				yield (url, listitem, True)
-			except: pass
+			except Exception: pass
 	list_type = params['list_type']
 	lists = trakt_api.trakt_get_lists(list_type) or []
 	__handle__ = int(sys.argv[1])
@@ -121,7 +121,7 @@ def get_trakt_trending_popular_lists(params):
 				listitem.setInfo('video', {'plot': plot}) if KODI_VERSION < 20 else listitem.getVideoInfoTag().setPlot(plot)
 				listitem.addContextMenuItems(cm)
 				yield (url, listitem, True)
-			except: pass
+			except Exception: pass
 	list_type = params['list_type']
 	lists = trakt_api.trakt_trending_popular_lists(list_type) or []
 	__handle__ = int(sys.argv[1])
@@ -135,7 +135,7 @@ def build_trakt_list(params):
 	def _thread_target(q):
 		while not q.empty():
 			try: target, *args = q.get()
-			except: pass
+			except Exception: pass
 			else: target(*args)
 	__handle__, _queue, is_widget = int(sys.argv[1]), SimpleQueue(), kodi_utils.external_browse()
 	max_threads = int(kodi_utils.get_setting('pov.max_threads', '100'))
@@ -232,5 +232,5 @@ def trakt_account_info():
 		append('[B]API Rate Limits:[/B] GET: %s remaining, POST: %s remaining' % (rate_limits['get_remaining'], rate_limits['post_remaining']))
 		kodi_utils.hide_busy_dialog()
 		return kodi_utils.show_text(ls(32037).upper(), '\n\n'.join(body), font_size='large')
-	except: kodi_utils.hide_busy_dialog()
+	except Exception: kodi_utils.hide_busy_dialog()
 

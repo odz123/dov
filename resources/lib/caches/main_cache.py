@@ -27,7 +27,7 @@ class MainCache(BaseCache):
 						self.set_memory_cache(result, string, cache_data[0])
 					else:
 						self.delete(string, dbcon=None)
-		except: pass
+		except Exception: pass
 		return result
 
 	def set(self, string, data, expiration=timedelta(days=30)):
@@ -35,7 +35,7 @@ class MainCache(BaseCache):
 			expires = self._get_timestamp(datetime.now() + expiration)
 			self.dbcur.execute(BASE_SET, (string, repr(data), int(expires)))
 			self.set_memory_cache(data, string, int(expires))
-		except: pass
+		except Exception: pass
 
 	def get_memory_cache(self, string, current_time):
 		result = None
@@ -44,7 +44,7 @@ class MainCache(BaseCache):
 			if cachedata:
 				cachedata = literal_eval(cachedata)
 				if cachedata[0] > current_time: result = cachedata[1]
-		except: pass
+		except Exception: pass
 		return result
 
 	def set_memory_cache(self, data, string, expires):
@@ -52,13 +52,13 @@ class MainCache(BaseCache):
 			cachedata = (expires, data)
 			cachedata = repr(cachedata)
 			set_property(string, cachedata)
-		except: pass
+		except Exception: pass
 
 	def delete(self, string, dbcon=None):
 		try:
 			self.dbcur.execute(BASE_DELETE, (string,))
 			self.delete_memory_cache(string)
-		except: pass
+		except Exception: pass
 
 	def delete_memory_cache(self, string):
 		clear_property(string)
@@ -75,7 +75,7 @@ class MainCache(BaseCache):
 				for item in results:
 					self.delete_memory_cache(str(item[0]))
 			# VACUUM removed - should be run during maintenance only
-		except: pass
+		except Exception: pass
 
 	def delete_all_folderscrapers(self):
 		self.dbcur.execute(LIKE_SELECT % "'pov_FOLDERSCRAPER_%'")
@@ -85,7 +85,7 @@ class MainCache(BaseCache):
 			self.dbcur.execute(LIKE_DELETE % "'pov_FOLDERSCRAPER_%'")
 			# VACUUM removed - should be run during maintenance only
 			for item in remove_list: self.delete_memory_cache(str(item))
-		except: pass
+		except Exception: pass
 
 def cache_object(function, string, url, json=False, expiration=24):
 	maincache = MainCache()

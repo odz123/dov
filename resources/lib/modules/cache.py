@@ -57,7 +57,7 @@ def check_databases():
 			truncate = row and row[0].lower() == 'wal'
 		if not truncate: raise Exception
 		with open(meta_file, 'w') as file: pass
-	except: pass
+	except Exception: pass
 	dbcon = database_connect(metacache_db) # Meta Cache
 	dbcon.execute("""CREATE TABLE IF NOT EXISTS metadata
 					(db_type text not null, tmdb_id text not null, imdb_id text, tvdb_id text, meta text, expires integer, unique (db_type, tmdb_id))""")
@@ -108,14 +108,14 @@ def remove_old_databases():
 	for item in files:
 		if item not in current_dbs:
 			try: kodi_utils.delete_file(databases_path + item)
-			except: pass
+			except Exception: pass
 
 def remove_old_packages():
 	files = kodi_utils.list_dirs(packages_path)[1]
 	for item in files:
 		if '.pov' in item and item.endswith('zip'):
 			try: kodi_utils.delete_file(packages_path + item)
-			except: pass
+			except Exception: pass
 
 def clean_databases(current_time=None, database_check=True, silent=False):
 	remove_old_packages()
@@ -160,9 +160,9 @@ def limit_metacache_database(max_size=50):
 		dbcur = dbcon.cursor()
 		dbcur.execute("""PRAGMA synchronous = OFF""")
 		dbcur.execute("""PRAGMA journal_mode = OFF""")
-		dbcur.execute("""DELETE FROM metadata WHERE ROWID IN (SELECT ROWID FROM metadata ORDER BY ROWID DESC LIMIT -1 OFFSET %d)""" % METADATA_ROW_LIMIT)
-		dbcur.execute("""DELETE FROM function_cache WHERE ROWID IN (SELECT ROWID FROM function_cache ORDER BY ROWID DESC LIMIT -1 OFFSET %d)""" % FUNCTION_CACHE_ROW_LIMIT)
-		dbcur.execute("""DELETE FROM season_metadata WHERE ROWID IN (SELECT ROWID FROM season_metadata ORDER BY ROWID DESC LIMIT -1 OFFSET %d)""" % SEASON_METADATA_ROW_LIMIT)
+		dbcur.execute("""DELETE FROM metadata WHERE ROWID IN (SELECT ROWID FROM metadata ORDER BY ROWID DESC LIMIT -1 OFFSET ?)""", (METADATA_ROW_LIMIT,))
+		dbcur.execute("""DELETE FROM function_cache WHERE ROWID IN (SELECT ROWID FROM function_cache ORDER BY ROWID DESC LIMIT -1 OFFSET ?)""", (FUNCTION_CACHE_ROW_LIMIT,))
+		dbcur.execute("""DELETE FROM season_metadata WHERE ROWID IN (SELECT ROWID FROM season_metadata ORDER BY ROWID DESC LIMIT -1 OFFSET ?)""", (SEASON_METADATA_ROW_LIMIT,))
 		dbcon.commit()
 		dbcur.execute("""VACUUM""")
 	finally:
@@ -268,6 +268,6 @@ def clear_all_cache():
 			kodi_utils.progressDialog.update(int(count / len(caches) * 100), line % (ls(32816), cache_label))
 			clear_cache(cache_type, silent=True)
 			kodi_utils.sleep(200)
-		except: kodi_utils.notification(32574, 1500)
+		except Exception: kodi_utils.notification(32574, 1500)
 	kodi_utils.progressDialog.close()
 

@@ -28,7 +28,7 @@ class Discover:
 		self.media_type, self.key = params.get('media_type'), params.get('key')
 		self.window_id = 'POV_%s_discover_params' % self.media_type.upper() if self.media_type else ''
 		try: self.discover_params = json.loads(kodi_utils.get_property(self.window_id))
-		except: self.discover_params = {}
+		except Exception: self.discover_params = {}
 		self.tmdb_api = tmdb_api_key()
 
 	def movie(self):
@@ -102,7 +102,7 @@ class Discover:
 		for item in results:
 			title = item['title'] if self.media_type == 'movie' else item['name']
 			try: year = item['release_date'].split('-')[0] if self.media_type == 'movie' else item['first_air_date'].split('-')[0]
-			except: year = ''
+			except Exception: year = ''
 			if year: rootname = '%s (%s)' % (title, year)
 			else: rootname = title
 			if item.get('poster_path'): icon = poster_url % item['poster_path']
@@ -136,7 +136,7 @@ class Discover:
 						for i in keywords_choice:
 							key_ids_append(str(i['id']))
 							key_words_append(i['name'].upper())
-			except: pass
+			except Exception: pass
 			values = ('&with_keywords=%s' % ','.join([i for i in current_key_ids]), ', '.join([i for i in current_keywords]))
 			self._process(key, values)
 
@@ -162,7 +162,7 @@ class Discover:
 						for i in keywords_choice:
 							key_ids_append(str(i['id']))
 							key_words_append(i['name'].upper())
-			except: pass
+			except Exception: pass
 			values = ('&without_keywords=%s' % ','.join([i for i in current_key_ids]), ', '.join([i for i in current_keywords]))
 			self._process(key, values)
 
@@ -281,7 +281,7 @@ class Discover:
 		query = kodi_utils.dialog.input(heading_base % ls(32664))
 		if not query: return
 		try: actors = tmdb_people_info(query)
-		except: actors = None
+		except Exception: actors = None
 		if not actors: return
 		for item in actors:
 			known_for_list = [i.get('title', 'NA') for i in item['known_for']]
@@ -344,7 +344,7 @@ class Discover:
 						company_append(i['name'].upper())
 				values = ('&with_companies=%s' % '|'.join([i for i in current_company_ids]), ', '.join([i for i in current_companies]))
 				self._process(key, values)
-			except: pass
+			except Exception: pass
 
 	def sort_by(self):
 		key = 'sort_by'
@@ -380,7 +380,7 @@ class Discover:
 			else: mode = 'menu_editor.add_external'
 			url_params = {'mode': mode, 'name': name, 'menu_item': json.dumps(final_params), 'iconImage': 'discover.png'}
 			kodi_utils.execute_builtin('RunPlugin(%s)' % build_url(url_params))
-		except:
+		except Exception:
 			kodi_utils.notification(32574)
 
 	def history(self):
@@ -405,7 +405,7 @@ class Discover:
 					listitem.addContextMenuItems(cm)
 					listitem.setArt({'icon': default_icon, 'poster': default_icon, 'thumb': default_icon, 'fanart': fanart, 'banner': default_icon})
 					yield (url, listitem, True)
-				except: pass
+				except Exception: pass
 		__handle__ = int(sys.argv[1])
 		media_type = self.media_type
 		data = get_history(media_type)
@@ -577,7 +577,7 @@ class Discover:
 	def _listitem_position(self, key):
 		if self.media_type == 'movie' and key in ('rating', 'rating_votes', 'sort_by'): key = '%s_movie' % key
 		try: return listitem_position[key]
-		except: return None
+		except Exception: return None
 
 	def _movies_sort(self):
 		pop_str, rel_str, rev_str, tit_str, rat_str, asc_str, desc_str = ls(32218), ls(32221), ls(32626), ls(32228), ls(32621), ls(32224), ls(32225)

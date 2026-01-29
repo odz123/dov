@@ -121,7 +121,7 @@ class Source:
 			if self.debrid in default_hosters_providers and not self.source.lower() == 'torrent':
 				return import_debrid(self.debrid).unrestrict_link(self.url)
 			return self.url
-		except: pass
+		except Exception: pass
 
 	def resolve_external_sources(self, api, title, season, episode):
 		from modules.source_utils import supported_video_extensions, seas_ep_filter, extras_filter
@@ -314,7 +314,7 @@ class DebridCheck:
 						cached = 'True'
 					else: cached = 'False'
 					process_append((h, cached))
-			except:
+			except Exception:
 				for i in unchecked_hashes: process_append((i, 'False'))
 			if hashes_to_cache: Thread(target=self.cache_write, args=(hashes_to_cache,)).start()
 		finally: return self.cached_list

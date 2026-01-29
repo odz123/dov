@@ -47,7 +47,7 @@ def get_tmdb_lists(params):
 #				listitem.setInfo('video', {'plot': plot}) if KODI_VERSION < 20 else listitem.getVideoInfoTag().setPlot(plot)
 				listitem.addContextMenuItems(cm, replaceItems=False)
 				yield (url, listitem, True)
-			except: pass
+			except Exception: pass
 	image_resolution = get_resolution()
 	lists = tmdb_api.user_lists_all() or []
 	__handle__ = int(sys.argv[1])
@@ -62,7 +62,7 @@ def build_tmdb_list(params):
 	def _thread_target(q):
 		while not q.empty():
 			try: target, *args = q.get()
-			except: pass
+			except Exception: pass
 			else: target(*args)
 	__handle__, _queue, is_widget = int(sys.argv[1]), SimpleQueue(), kodi_utils.external_browse()
 	max_threads = int(kodi_utils.get_setting('pov.max_threads', '100'))

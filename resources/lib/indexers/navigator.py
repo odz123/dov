@@ -435,7 +435,7 @@ class Navigator:
 					listitem.setLabel(clean_file_name(normalize(item)))
 					listitem.setArt({'fanart': fanart})
 					yield (url, listitem, isFolder)
-				except: pass
+				except Exception: pass
 		handle, fanart = self.params_get('handle'), self.params_get('fanart')
 		folder_path = self.params_get('folder_path')
 		sources_folders = self.params_get('sources_folders')
@@ -472,7 +472,7 @@ class Navigator:
 					listitem.addContextMenuItems(cm)
 					listitem.setArt({'icon': icon, 'poster': icon, 'thumb': icon, 'fanart': fanart, 'banner': icon})
 					yield (url, listitem, True)
-				except: pass
+				except Exception: pass
 		handle, fanart, icon_path = self.params_get('handle'), self.params_get('fanart'), media_path()
 		short_str, delete_str, new_folder_str = ls(32514), ls(32703), '[B]%s...[/B]' % ls(32702)
 		add_dir(handle, {'mode': 'menu_editor.shortcut_folder_make'}, new_folder_str, media_path('new.png'), isFolder=False)
@@ -498,7 +498,7 @@ class Navigator:
 					listitem.addContextMenuItems(cm)
 					listitem.setArt({'icon': icon, 'poster': icon, 'thumb': icon, 'fanart': fanart, 'banner': icon})
 					yield (url, listitem, isFolder)
-				except: pass
+				except Exception: pass
 		handle, fanart, icon_path = self.params_get('handle'), self.params_get('fanart'), media_path()
 		list_name = self.params_get('name')
 		contents = nc.get_shortcut_folder_contents(list_name)
@@ -524,7 +524,7 @@ class Navigator:
 					listitem.addContextMenuItems(cm)
 					listitem.setArt({'icon': icon, 'poster': icon, 'thumb': icon, 'fanart': fanart, 'banner': icon})
 					yield (build_url(item), listitem, isFolder)
-				except: pass
+				except Exception: pass
 		handle, fanart, icon_path = self.params_get('handle'), self.params_get('fanart'), media_path()
 		contents = nc.currently_used_list(self.list_name)
 		add_items(handle, list(build_main_lists()))

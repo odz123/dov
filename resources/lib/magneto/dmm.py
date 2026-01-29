@@ -50,7 +50,7 @@ class source:
 				i.start()
 			for i in threads: i.join()
 			return self.sources
-		except:
+		except Exception:
 			source_utils.scraper_error('DMM')
 			return self.sources
 
@@ -62,7 +62,7 @@ class source:
 			results = requests.get(url, params=params, headers=headers, timeout=self.timeout)
 			response_json = results.json()
 			files = response_json.get('results', [])
-		except:
+		except Exception:
 			source_utils.scraper_error('DMM')
 			return
 
@@ -92,7 +92,7 @@ class source:
 					size = f"{float(file['fileSize']) / 1024:.2f} GB"
 					dsize, isize = source_utils._size(size)
 					info.insert(0, isize)
-				except: dsize = 0
+				except Exception: dsize = 0
 				info = ' | '.join(info)
 
 				item = {
@@ -104,7 +104,7 @@ class source:
 				if package == 'show': item.update({'last_season': last_season})
 				if episode_start: item.update({'episode_start': episode_start, 'episode_end': episode_end}) # for partial season packs
 				self.sources_append(item)
-			except:
+			except Exception:
 				source_utils.scraper_error('DMM')
 
 

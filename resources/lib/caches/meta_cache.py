@@ -130,8 +130,8 @@ class MetaCache(BaseCache):
 			self.dbcur.execute(SET_FUNCTION, (prop_string, repr(result), expires))
 		except (TypeError, ValueError): return
 
-	def delete_all_seasons_memory_cache(self, media_id):
-		for item in range(1, 51): clear_property('pov_meta_season_%s_%s' % (string(media_id), string(item)))
+	def delete_all_seasons_memory_cache(self, media_id, max_seasons=100):
+		for item in range(1, max_seasons + 1): clear_property('pov_meta_season_%s_%s' % (string(media_id), string(item)))
 
 	def delete_all(self):
 		try:

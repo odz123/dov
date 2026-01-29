@@ -124,7 +124,7 @@ class SourceResults(BaseDialog):
 					quality = get('quality', 'SD')
 					basic_quality, quality_icon = self.get_quality_and_path(lower(quality))
 					try: name = upper(get('URLName', 'N/A'))
-					except: name = 'N/A'
+					except Exception: name = 'N/A'
 					pack = get('package', 'false') in pack_check
 #					if pack: extra_info = '[B]PACK[/B] | %s' % get('extraInfo', '')
 #					else: extra_info = get('extraInfo', 'N/A')
@@ -479,5 +479,5 @@ class ProgressMedia(BaseDialog):
 		try:
 			self.getControl(2000).setText(content)
 			self.getControl(5000).setPercent(percent)
-		except: pass
+		except Exception: pass
 

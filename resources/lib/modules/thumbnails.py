@@ -66,6 +66,6 @@ def thumb_cleaner():
 	dbcur.execute("VACUUM")
 	xbmc.sleep(1500)
 	try: progress_dialog.close()
-	except: pass
+	except Exception: pass
 	return notification('Success')
 

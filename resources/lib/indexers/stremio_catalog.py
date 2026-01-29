@@ -63,7 +63,7 @@ def _get_scraper():
 			_scraper_session = cloudscraper.create_scraper(
 				browser={'browser': 'chrome', 'platform': 'windows', 'desktop': True}
 			)
-		except:
+		except Exception:
 			pass
 	return _scraper_session
 
@@ -73,7 +73,7 @@ def _fetch_json(url, timeout=10):
 		from urllib.parse import urlparse
 		parsed = urlparse(url)
 		origin = f"{parsed.scheme}://{parsed.netloc}"
-	except:
+	except Exception:
 		origin = url.rsplit('/', 1)[0]
 
 	headers = BROWSER_HEADERS.copy()
@@ -86,7 +86,7 @@ def _fetch_json(url, timeout=10):
 			response = curl_requests.get(url, timeout=timeout, headers=headers, impersonate='chrome120')
 			if response.status_code == 200 and 'text/html' not in response.headers.get('content-type', ''):
 				return response.json()
-		except:
+		except Exception:
 			pass
 
 	# Try cloudscraper
@@ -96,7 +96,7 @@ def _fetch_json(url, timeout=10):
 			response = scraper.get(url, timeout=timeout, headers=headers)
 			if response.status_code == 200 and 'text/html' not in response.headers.get('content-type', ''):
 				return response.json()
-		except:
+		except Exception:
 			pass
 
 	# Fallback to regular requests
@@ -104,7 +104,7 @@ def _fetch_json(url, timeout=10):
 		response = requests.get(url, timeout=timeout, headers=headers)
 		if response.status_code == 200 and 'text/html' not in response.headers.get('content-type', ''):
 			return response.json()
-	except:
+	except Exception:
 		pass
 
 	return None
@@ -128,7 +128,7 @@ class StremioCache:
 				cachedata = literal_eval(cachedata)
 				if cachedata[0] > time.time():
 					return cachedata[1]
-		except:
+		except Exception:
 			pass
 		return None
 
@@ -139,7 +139,7 @@ class StremioCache:
 			expires = int(time.time() + (hours * 3600))
 			cachedata = repr((expires, data))
 			set_property(key, cachedata)
-		except:
+		except Exception:
 			pass
 
 	@staticmethod
@@ -193,7 +193,7 @@ class StremioIndexer:
 			if addons_str:
 				addons = literal_eval(addons_str)
 				return addons if isinstance(addons, list) else []
-		except:
+		except Exception:
 			pass
 		return []
 
@@ -221,7 +221,7 @@ class StremioIndexer:
 				self.cache.set(cache_key, manifest, hours=MANIFEST_CACHE_HOURS)
 
 			return manifest
-		except:
+		except Exception:
 			pass
 		return None
 
@@ -418,7 +418,7 @@ class StremioIndexer:
 
 		try:
 			options = json.loads(filter_options)
-		except:
+		except Exception:
 			options = []
 
 		if not options:
@@ -500,7 +500,7 @@ class StremioIndexer:
 				# Cache results
 				self.cache.set(cache_key, metas, hours=CATALOG_CACHE_HOURS)
 				return metas
-		except:
+		except Exception:
 			pass
 		return []
 
@@ -543,7 +543,7 @@ class StremioIndexer:
 					# Parse "120 min" format
 					try:
 						runtime = int(runtime.split()[0])
-					except:
+					except Exception:
 						runtime = 0
 				info_dict['duration'] = runtime * 60 if runtime else 0
 
@@ -552,7 +552,7 @@ class StremioIndexer:
 			if imdb_rating:
 				try:
 					info_dict['rating'] = float(imdb_rating)
-				except:
+				except Exception:
 					pass
 
 			listitem.setInfo('video', info_dict)
@@ -752,7 +752,7 @@ class StremioIndexer:
 				# Cache search results for shorter time
 				self.cache.set(cache_key, metas, hours=0.5)  # 30 minutes
 				return metas
-		except:
+		except Exception:
 			pass
 		return []
 
@@ -965,7 +965,7 @@ class StremioIndexer:
 
 			if pov_meta:
 				provider.cache.set(pov_type, imdb_id, pov_meta)
-		except:
+		except Exception:
 			pass
 
 	def fetch_meta(self, addon_url, meta_type, meta_id):
@@ -989,7 +989,7 @@ class StremioIndexer:
 				# Cache metadata
 				self.cache.set(cache_key, meta, hours=CATALOG_CACHE_HOURS)
 				return meta
-		except:
+		except Exception:
 			pass
 		return None
 

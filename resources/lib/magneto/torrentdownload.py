@@ -51,7 +51,7 @@ class source:
 			for i in threads: i.start()
 			for i in threads: i.join()
 			return self.sources
-		except:
+		except Exception:
 			source_utils.scraper_error('TORRENTDOWNLOAD')
 			return self.sources
 
@@ -60,7 +60,7 @@ class source:
 			results = client.request(url, timeout=self.timeout)
 			if not results: return
 			rows = client.parseDOM(results, 'tr')
-		except:
+		except Exception:
 			source_utils.scraper_error('TORRENTDOWNLOAD')
 			return
 
@@ -90,18 +90,18 @@ class source:
 				try:
 					seeders = int(columns[3].replace(',', ''))
 					if self.min_seeders > seeders: continue
-				except: seeders = 0
+				except Exception: seeders = 0
 
 				quality, info = source_utils.get_release_quality(name_info, url)
 				try:
 					dsize, isize = source_utils._size(columns[2])
 					info.insert(0, isize)
-				except: dsize = 0
+				except Exception: dsize = 0
 				info = ' | '.join(info)
 
 				self.sources_append({'provider': 'torrentdownload', 'source': 'torrent', 'seeders': seeders, 'hash': hash, 'name': name, 'name_info': name_info,
 													'quality': quality, 'language': 'en', 'url': url, 'info': info, 'direct': False, 'debridonly': True, 'size': dsize})
-			except:
+			except Exception:
 				source_utils.scraper_error('TORRENTDOWNLOAD')
 
 	def sources_packs(self, data, hostDict, search_series=False, total_seasons=None, bypass_filter=False):
@@ -140,7 +140,7 @@ class source:
 			for i in threads: i.start()
 			for i in threads: i.join()
 			return self.sources
-		except:
+		except Exception:
 			source_utils.scraper_error('TORRENTDOWNLOAD')
 			return self.sources
 
@@ -149,7 +149,7 @@ class source:
 			results = client.request(link, timeout=self.timeout)
 			if not results: return
 			rows = client.parseDOM(results, 'tr')
-		except:
+		except Exception:
 			source_utils.scraper_error('TORRENTDOWNLOAD')
 			return
 
@@ -187,13 +187,13 @@ class source:
 				try:
 					seeders = int(columns[3].replace(',', ''))
 					if self.min_seeders > seeders: continue
-				except: seeders = 0
+				except Exception: seeders = 0
 
 				quality, info = source_utils.get_release_quality(name_info, url)
 				try:
 					dsize, isize = source_utils._size(columns[2])
 					info.insert(0, isize)
-				except: dsize = 0
+				except Exception: dsize = 0
 				info = ' | '.join(info)
 
 				item = {'provider': 'torrentdownload', 'source': 'torrent', 'seeders': seeders, 'hash': hash, 'name': name, 'name_info': name_info, 'quality': quality,
@@ -201,6 +201,6 @@ class source:
 				if self.search_series: item.update({'last_season': last_season})
 				elif episode_start: item.update({'episode_start': episode_start, 'episode_end': episode_end}) # for partial season packs
 				self.sources_append(item)
-			except:
+			except Exception:
 				source_utils.scraper_error('TORRENTDOWNLOAD')
 

@@ -77,7 +77,7 @@ def _fetch_url(url, timeout=10):
 		from urllib.parse import urlparse
 		parsed = urlparse(url)
 		origin = f"{parsed.scheme}://{parsed.netloc}"
-	except:
+	except Exception:
 		origin = url.rsplit('/', 1)[0] if '/' in url else url
 
 	headers = BROWSER_HEADERS.copy()
@@ -297,7 +297,7 @@ def get_stremio_addons():
 		if addons_str:
 			addons = ast.literal_eval(addons_str)
 			return addons if isinstance(addons, list) else []
-	except:
+	except Exception:
 		pass
 	return []
 

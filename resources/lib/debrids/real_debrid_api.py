@@ -1,4 +1,6 @@
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 from caches.main_cache import cache_object
 from modules import kodi_utils
 
@@ -6,8 +8,9 @@ ls, get_setting, set_setting = kodi_utils.local_string, kodi_utils.get_setting, 
 auth_url = 'https://app.real-debrid.com/oauth/v2/'
 base_url = 'https://app.real-debrid.com/rest/1.0/'
 timeout = 10.0
+_retry = Retry(total=3, backoff_factor=0.5, status_forcelist=(502, 503, 504))
 session = requests.Session()
-session.mount('https://app.real-debrid.com', requests.adapters.HTTPAdapter(max_retries=1))
+session.mount('https://app.real-debrid.com', HTTPAdapter(max_retries=_retry))
 
 class RealDebridAPI:
 	icon = 'realdebrid.png'

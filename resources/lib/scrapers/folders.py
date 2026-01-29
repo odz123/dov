@@ -38,13 +38,13 @@ class source:
 						file_dl = item[1]
 						URLName = clean_file_name(file_name).replace('html', ' ').replace('+', ' ').replace('-', ' ')
 						try: size = item[2]
-						except: size = self._get_size(file_dl)
+						except Exception: size = self._get_size(file_dl)
 						video_quality, details = get_file_info(name_info=release_info_format(file_name))
 						source_item = {'name': file_name, 'title': file_name, 'URLName': URLName, 'quality': video_quality, 'size': size, 'size_label': '%.2f GB' % size,
 									'extraInfo': details, 'url_dl': file_dl, 'id': file_dl, self.scrape_provider : True, 'direct': True, 'source': self.scraper_name,
 									'scrape_provider': 'folders'}
 						yield source_item
-					except: pass
+					except Exception: pass
 			self.sources = list(_process())
 		except Exception as e:
 			from modules.kodi_utils import logger

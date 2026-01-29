@@ -141,7 +141,7 @@ def subtract_dates(date1, date2):
 
 def datetime_workaround(data, str_format):
 	try: datetime_object = datetime.strptime(data, str_format)
-	except: datetime_object = datetime(*(time.strptime(data, str_format)[0:6]))
+	except Exception: datetime_object = datetime(*(time.strptime(data, str_format)[0:6]))
 	return datetime_object
 
 def date_difference(current_date, compare_date, difference_tolerance, allow_postive_difference=False):
@@ -151,7 +151,7 @@ def date_difference(current_date, compare_date, difference_tolerance, allow_post
 		else: difference = abs(difference)
 		if difference > difference_tolerance: return False
 		return True
-	except: return True
+	except Exception: return True
 
 def calculate_age(born, str_format, died=None):
 	''' born and died are str objects e.g. '1972-05-28' '''
@@ -184,7 +184,7 @@ def clean_file_name(s, use_encoding=False, use_blanks=True):
 		if use_encoding: s = batch_replace(s, special_encoded)
 		if use_blanks: s = batch_replace(s, special_blanks)
 		s = s.strip()
-	except: pass
+	except Exception: pass
 	return s
 
 def clean_title(title):
@@ -196,7 +196,7 @@ def clean_title(title):
 		title = re.sub(r'(&#[0-9]+)([^;^0-9]+)', '\\1;\\2', title)
 		title = title.replace('&quot;', '\"').replace('&amp;', '&')
 		title = re.sub(r'\n|([\[({].+?[})\]])|([:;–\-"\',!_.?~$@])|\s', '', title)
-	except: pass
+	except Exception: pass
 	return title
 
 def byteify(data, ignore_dicts=False):
@@ -205,7 +205,7 @@ def byteify(data, ignore_dicts=False):
 		if isinstance(data, list): return [byteify(item, ignore_dicts=True) for item in data]
 		if isinstance(data, dict) and not ignore_dicts:
 			return dict([(byteify(key, ignore_dicts=True), byteify(value, ignore_dicts=True)) for key, value in data.iteritems()])
-	except: pass
+	except Exception: pass
 	return data
 
 def normalize(txt):
@@ -216,15 +216,15 @@ def safe_string(obj):
 	try:
 		try: return str(obj)
 		except UnicodeEncodeError: return obj.encode('utf-8', 'ignore').decode('ascii', 'ignore')
-		except: return ""
-	except: return obj
+		except Exception: return ""
+	except Exception: return obj
 
 def remove_accents(obj):
 	try:
 		try: obj = u'%s' % obj
-		except: pass
+		except Exception: pass
 		obj = ''.join(c for c in unicodedata.normalize('NFD', obj) if unicodedata.category(c) != 'Mn')
-	except: pass
+	except Exception: pass
 	return obj
 
 def regex_from_to(text, from_string, to_string, excluding=True):
@@ -254,7 +254,7 @@ def gen_file_hash(file):
 			buf = afile.read()
 			md5_hash.update(buf)
 			return md5_hash.hexdigest()
-	except: pass
+	except Exception: pass
 
 def sec2time(sec, n_msec=3):
 	''' Convert seconds to 'D days, HH:MM:SS.FFF' '''
@@ -281,7 +281,7 @@ def title_key(title, ignore_articles):
 		if match and match.group(2) in articles: offset = len(match.group(1))
 		else: offset = 0
 		return title[offset:]
-	except: return title
+	except Exception: return title
 
 def sort_for_article(_list, _key, ignore_articles):
 	if not ignore_articles: _list.sort(key=lambda k: k[_key])
@@ -302,7 +302,7 @@ def sort_list(sort_key, sort_direction, list_data, ignore_articles):
 		elif sort_key == 'votes': return sorted(list_data, key=lambda x: x[x['type']].get('votes', 0), reverse=reverse)
 		elif sort_key == 'random': return sorted(list_data, key=lambda k: random.random())
 		else: return list_data
-	except: return list_data
+	except Exception: return list_data
 
 def paginate_list(item_list, page, letter, limit=20):
 	def _get_start_index(letter):
@@ -311,11 +311,11 @@ def paginate_list(item_list, page, letter, limit=20):
 				beginswith_tuple = ('s', 'the s', 'a s', 'an s')
 				indexes = [i for i, v in enumerate(title_list) if v.startswith(beginswith_tuple)]
 				start_index = indexes[-1] + 1 if indexes else None
-			except: start_index = None
+			except Exception: start_index = None
 		else:
 			beginswith_tuple = (letter, 'the %s' % letter, 'a %s' % letter, 'an %s' % letter)
 			try: start_index = next(i for i, v in enumerate(title_list) if v.startswith(beginswith_tuple))
-			except: start_index = None
+			except Exception: start_index = None
 		return start_index
 	if letter != 'None':
 		from itertools import chain, zip_longest

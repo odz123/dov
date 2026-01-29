@@ -45,7 +45,7 @@ def search_history(params):
 				listitem.setArt({'icon': search_icon, 'poster': search_icon, 'thumb': search_icon, 'fanart': fanart, 'banner': search_icon})
 				listitem.addContextMenuItems(cm)
 				yield (url, listitem, False)
-			except: pass
+			except Exception: pass
 	__handle__, fanart = int(sys.argv[1]), settings.addon_fanart()
 	setting_id, action_dict = mode_dict[params['action']]
 	url_params = dict(action_dict)
@@ -94,7 +94,7 @@ def add_to_search_history(search_name, search_list):
 		result.insert(0, search_name)
 		result = result[:50]
 		maincache.set(search_list, result, expiration=timedelta(days=365))
-	except: pass
+	except Exception: pass
 
 def remove_from_search_history(params):
 	try:
@@ -104,7 +104,7 @@ def remove_from_search_history(params):
 		maincache.set(params['setting_id'], result, expiration=timedelta(days=365))
 		kodi_utils.notification(32576)
 		kodi_utils.container_refresh()
-	except: pass
+	except Exception: pass
 
 def clear_search_history():
 	try:
@@ -114,5 +114,5 @@ def clear_search_history():
 		if setting is None: return
 		MainCache().delete(setting)
 		kodi_utils.notification(32576)
-	except: pass
+	except Exception: pass
 

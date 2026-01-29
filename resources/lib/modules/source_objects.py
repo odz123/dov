@@ -31,7 +31,7 @@ def get_source_meta(params):
 					'mediatype': 'episode', 'season': ep_data['season'], 'episode': ep_data['episode'],
 					'premiered': ep_data['premiered'], 'ep_name': ep_data['title'], 'plot': ep_data['plot']
 				})
-			except: pass
+			except Exception: pass
 		else: meta = movie_meta('tmdb_id', tmdb_id, meta_user_info, current_date)
 	meta.update({'background': background, 'media_type': media_type, 'season': season, 'episode': episode})
 	if custom_title: meta['custom_title'] = custom_title
@@ -72,14 +72,14 @@ def _get_search_year(meta):
 	if get_setting('search.enable.yearcheck', 'false') == 'true':
 		from indexers.imdb_api import imdb_movie_year
 		try: year = str(imdb_movie_year(meta.get('imdb_id')) or year)
-		except: pass
+		except Exception: pass
 	return year
 
 def _get_ep_name(meta):
 	if meta.get('media_type') == 'episode':
 		ep_name = meta.get('ep_name')
 		try: ep_name = safe_string(remove_accents(ep_name))
-		except: ep_name = safe_string(ep_name)
+		except Exception: ep_name = safe_string(ep_name)
 	else: ep_name = None
 	return ep_name
 
@@ -113,7 +113,7 @@ class ExternalSource:
 					'title': self.title, 'year': self.year
 				}
 				self.get_movie_source(*self.args)
-		except: pass
+		except Exception: pass
 		return self.sources
 
 	def get_movie_source(self, provider, module):
@@ -167,7 +167,7 @@ class ExternalSource:
 							size = float(size) / divider
 							size_label = '%.2f GB' % size
 						else: size_label = '%.2f GB' % size
-					except: pass
+					except Exception: pass
 					i.update({
 						'external': True, 'provider': provider, 'scrape_provider': self.scrape_provider, 'URLName': URLName,
 						'extraInfo': extraInfo, 'quality': quality, 'size_label': size_label, 'size': round(size, 2)
@@ -175,8 +175,8 @@ class ExternalSource:
 					if not quality in self.resolutions: self.resolutions['SD'] += 1
 					else: self.resolutions[quality] += 1
 					self.resolutions['total'] += 1
-				except: pass
-		except: pass
+				except Exception: pass
+		except Exception: pass
 		return sources
 
 	scrape_provider = 'external'

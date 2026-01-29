@@ -54,7 +54,7 @@ def _make_items(modules):
 			item = list_item(line1, line2, offscreen=True)
 			item.setArt({'icon': icon})
 			yield item
-		except: pass
+		except Exception: pass
 
 def magneto():
 	data = {'imdb': 'tt0448134', 'title': 'Sunshine', 'aliases': [], 'year': 2007}

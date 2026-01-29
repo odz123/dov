@@ -25,7 +25,7 @@ def person_data_dialog(params):
 
 def person_search(query=None):
 	try: actors = tmdb_people_info(query)
-	except: actors = None
+	except Exception: actors = None
 	if not actors: return notification(32760)
 	for item in actors:
 		known_for_list = [i['title'] for i in item['known_for'] if 'title' in i and i['title']]

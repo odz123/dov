@@ -34,7 +34,7 @@ def __get_dom_content(html, name, match):
 		elif start > -1: result = html[start + len(match):]
 		else: result = ''
 		return result
-	except:
+	except Exception:
 		from fenom import log_utils
 		log_utils.error()
 		return ''
@@ -73,7 +73,7 @@ def __get_dom_elements(item, name, attrs):
 				else: last_list = [item for item in this_list if item in last_list]
 			this_list = last_list
 		return this_list
-	except:
+	except Exception:
 		from fenom import log_utils
 		log_utils.error()
 		return this_list
@@ -89,7 +89,7 @@ def __get_attribs(element):
 			if value is None: continue
 			attribs[match['key'].lower().strip()] = value
 		return attribs
-	except:
+	except Exception:
 		from fenom import log_utils
 		log_utils.error()
 		return attribs
@@ -121,7 +121,7 @@ def parse_dom(html, name='', attrs=None, req=False, exclude_comments=False):
 				item = item[item.find(temp, item.find(element)):]
 			all_results += results
 		return all_results
-	except:
+	except Exception:
 		from fenom import log_utils
 		log_utils.error()
 		return ''

@@ -1,4 +1,6 @@
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 from caches.main_cache import cache_object
 from modules import kodi_utils
 # logger = kodi_utils.logger
@@ -6,8 +8,9 @@ from modules import kodi_utils
 ls, get_setting = kodi_utils.local_string, kodi_utils.get_setting
 base_url = 'https://api.alldebrid.com/'
 timeout = 10.0
+_retry = Retry(total=3, backoff_factor=0.5, status_forcelist=(502, 503, 504))
 session = requests.Session()
-session.mount('https://api.alldebrid.com', requests.adapters.HTTPAdapter(max_retries=1))
+session.mount('https://api.alldebrid.com', HTTPAdapter(max_retries=_retry))
 
 class AllDebridAPI:
 	icon = 'alldebrid.png'
@@ -50,7 +53,7 @@ class AllDebridAPI:
 			account_info = self.account_info()['user']
 			expires = datetime.datetime.fromtimestamp(account_info['premiumUntil'])
 			days = (expires - datetime.datetime.today()).days
-		except: days = None
+		except Exception: days = None
 		return days
 
 	def account_info(self):
@@ -76,7 +79,7 @@ class AllDebridAPI:
 		params = {'link': link}
 		response = self._get(url, params)
 		try: return response['link']
-		except: return None
+		except Exception: return None
 
 	def check_single_magnet(self, hash_string):
 		cache_result = self.check_cache(hash_string)
@@ -147,29 +150,29 @@ class AllDebridAPI:
 				clear_property('pov_ad_user_cloud')
 				dbcon.commit()
 				user_cloud_success = True
-			except: user_cloud_success = False
+			except Exception: user_cloud_success = False
 			# DOWNLOAD LINKS
 			try:
 				dbcur.execute("""DELETE FROM maincache WHERE id = ?""", ('pov_ad_downloads',))
 				clear_property('pov_ad_downloads')
 				dbcon.commit()
 				download_links_success = True
-			except: download_links_success = False
+			except Exception: download_links_success = False
 			# HOSTERS
 			try:
 				dbcur.execute("""DELETE FROM maincache WHERE id = ?""", ('pov_ad_valid_hosts',))
 				clear_property('pov_ad_valid_hosts')
 				dbcon.commit()
 				hoster_links_success = True
-			except: hoster_links_success = False
-		except: return False
+			except Exception: hoster_links_success = False
+		except Exception: return False
 		finally:
 			dbcon.close()
 		# HASH CACHED STATUS
 		try:
 			DebridCache().clear_debrid_results('ad')
 			hash_cache_status_success = True
-		except: hash_cache_status_success = False
+		except Exception: hash_cache_status_success = False
 		if False in (user_cloud_success, download_links_success, hoster_links_success, hash_cache_status_success): return False
 		return True
 

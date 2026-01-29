@@ -351,19 +351,19 @@ def movie_details(tmdb_id, language, tmdb_api=None):
 	try:
 		url = '%s/movie/%s?api_key=%s&language=%s&append_to_response=%s' % (base_url, tmdb_id, get_tmdb_api(tmdb_api), language, movies_append)
 		return get_tmdb(url)
-	except: return None
+	except Exception: return None
 
 def tvshow_details(tmdb_id, language, tmdb_api=None):
 	try:
 		url = '%s/tv/%s?api_key=%s&language=%s&append_to_response=%s' % (base_url, tmdb_id, get_tmdb_api(tmdb_api), language, tvshows_append)
 		return get_tmdb(url)
-	except: return None
+	except Exception: return None
 
 def season_episodes_details(tmdb_id, season_no, language, tmdb_api=None):
 	try:
 		url = '%s/tv/%s/season/%s?api_key=%s&language=%s&append_to_response=credits' % (base_url, tmdb_id, season_no, get_tmdb_api(tmdb_api), language)
 		return get_tmdb(url, False)
-	except: return None
+	except Exception: return None
 
 def movie_external_id(external_source, external_id, tmdb_api=None):
 	try:
@@ -373,7 +373,7 @@ def movie_external_id(external_source, external_id, tmdb_api=None):
 		result = result['movie_results']
 		if result: return result[0]
 		else: return None
-	except: return None
+	except Exception: return None
 
 def tvshow_external_id(external_source, external_id, tmdb_api=None):
 	try:
@@ -383,7 +383,7 @@ def tvshow_external_id(external_source, external_id, tmdb_api=None):
 		result = result['tv_results']
 		if result: return result[0]
 		else: return None
-	except: return None
+	except Exception: return None
 
 def movie_title_year(title, year, tmdb_api=None):
 	try:
@@ -393,7 +393,7 @@ def movie_title_year(title, year, tmdb_api=None):
 		result = result['results']
 		if result: return result[0]
 		else: return None
-	except: return None
+	except Exception: return None
 
 def tvshow_title_year(title, year, tmdb_api=None):
 	try:
@@ -403,7 +403,7 @@ def tvshow_title_year(title, year, tmdb_api=None):
 		result = result['results']
 		if result: return result[0]
 		else: return None
-	except: return None
+	except Exception: return None
 
 def movie_keywords(tmdb_id, tmdb_api=None):
 	try:
@@ -411,7 +411,7 @@ def movie_keywords(tmdb_id, tmdb_api=None):
 		result = get_tmdb(url)
 		result = result['keywords']
 		return result
-	except: return None
+	except Exception: return None
 
 def english_translation(media_type, tmdb_id, tmdb_api=None):
 	try:
@@ -419,9 +419,9 @@ def english_translation(media_type, tmdb_id, tmdb_api=None):
 		url = '%s/%s/%s/translations?api_key=%s' % (base_url, media_type, tmdb_id, get_tmdb_api(tmdb_api))
 		result = cache_function(get_tmdb, string, url, EXPIRES_1_WEEK * 52)
 		try: result = result['translations']
-		except: result = None
+		except Exception: result = None
 		return result
-	except: return None
+	except Exception: return None
 
 def get_tmdb_api(tmdb_api):
 	return tmdb_api or tmdb_api_key()
@@ -442,7 +442,7 @@ def episode_group_details(group_id, tmdb_api=None):
 		result = cache_function(get_tmdb, string, url, EXPIRES_1_WEEK)
 		result = sorted(result['groups'], key=lambda k: k['order'])
 		return result
-	except: return []
+	except Exception: return []
 
 def tmdb_watchlist(media_type, page, letter):
 	title, premiered = ('name', 'first_air_date') if media_type == 'tv' else ('title', 'release_date')
@@ -510,7 +510,7 @@ def user_lists_all():
 		if   sort == 2: results.sort(key=lambda k: k['updated_at'], reverse=True)
 		elif sort == 1: results.sort(key=lambda k: k['number_of_items'], reverse=True)
 		else: results.sort(key=lambda k: k['name'].lower(), reverse=False)
-	except: pass
+	except Exception: pass
 	return results
 
 list_obj = {'description': '', 'name': '', 'iso_3166_1': 'US', 'iso_639_1': 'en', 'public': True}
@@ -636,7 +636,7 @@ def tmdb_clean_watchlist(silent=False):
 		clear_tmdbl_cache()
 		if not silent: kodi_utils.notification(32576)
 		return '%d items removed.' % len(items)
-	except: pass
+	except Exception: pass
 
 def import_trakt_watchlist(*args):
 	if not kodi_utils.confirm_dialog(): return
@@ -655,17 +655,17 @@ def import_trakt_watchlist(*args):
 				{'collected_at': item['collected_at'], 'watchlist': True, 'media_type': i[1], 'media_id': item['media_ids']['tmdb']}
 				for item in trakt_fetch_collection_watchlist('watchlist', i[0]) if 'tmdb' in item['media_ids']
 			]
-			except: pass
+			except Exception: pass
 		if not items: return kodi_utils.notification(32760)
 		try: items.sort(key=lambda k: k['collected_at'], reverse=False)
-		except: pass
+		except Exception: pass
 		len_items = len(items)
 		threads = TaskPool(40).tasks(_process, [(i[1], i[0]) for i in enumerate(items, 1)], Thread)
 		for t in threads:
 			t.join(3/4)
 		clear_tmdbl_cache()
 		kodi_utils.notification('List sent to TMDB')
-	except: kodi_utils.notification(32574)
+	except Exception: kodi_utils.notification(32574)
 	finally: progressBG.close()
 
 def import_trakt_list(params):
@@ -686,7 +686,7 @@ def import_trakt_list(params):
 		items = {'items': [i['export'] for i in items if i['export']]}
 		Thread(target=list_add_items, args=(params['list_id'], items)).start()
 		clear_tmdbl_cache()
-	except: kodi_utils.notification(32574)
+	except Exception: kodi_utils.notification(32574)
 	else: kodi_utils.notification('List sent to TMDB')
 	finally: progressBG.close()
 
@@ -707,7 +707,7 @@ def import_mdbl_list(params):
 		items = {'items': [i['export'] for i in items if i['export']]}
 		Thread(target=list_add_items, args=(params['list_id'], items)).start()
 		clear_tmdbl_cache()
-	except: kodi_utils.notification(32574)
+	except Exception: kodi_utils.notification(32574)
 	else: kodi_utils.notification('List sent to TMDB')
 	finally: progressBG.close()
 
@@ -725,7 +725,7 @@ def clear_tmdbl_cache(silent=False):
 		dbcur.execute("""DELETE FROM maincache WHERE id LIKE ?""", ('tmdblist_%',))
 		for i in tmdb_results: clear_property(i)
 		return True
-	except: return False
+	except Exception: return False
 	finally:
 		dbcon.close()
 

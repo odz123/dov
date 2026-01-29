@@ -70,7 +70,7 @@ class Seasons:
 						running_ep_count -= episode_count
 						if running_ep_count < 0: episode_count = running_ep_count + episode_count
 					try: year = air_date.split('-')[0]
-					except: year = show_year
+					except Exception: year = show_year
 					plot = overview or show_plot
 					title = name if use_season_title and name else ' '.join([season_str, string(season_number)])
 					if 'season' in params: title = '%s: %s' % (show_title, title)
@@ -130,7 +130,7 @@ class Seasons:
 						videoinfo.setVotes(votes)
 						videoinfo.setYear(int(year))
 					self.append((url_params, listitem, True))
-				except: pass
+				except Exception: pass
 		def _process_episode_list():
 			thumb_fanart = settings.thumb_fanart()
 			adjust_hours = settings.date_offset()
@@ -169,7 +169,7 @@ class Seasons:
 							item['title'] = display
 					if self.widget_hide_watched and playcount and not unaired: continue
 					try: year = premiered.split('-')[0]
-					except: year = show_year
+					except Exception: year = show_year
 					cm_append((options_str, run_plugin % options_params))
 					cm_append((extras_str, run_plugin % extras_params))
 					clearprog_params, unwatched_params, watched_params = '', '', ''
@@ -226,7 +226,7 @@ class Seasons:
 						videoinfo.setWriters(item_get('writer').split(', '))
 						videoinfo.setYear(int(year))
 					self.append((url_params, listitem, False))
-				except: pass
+				except Exception: pass
 		meta = tv_meta_function('tmdb_id', params['tmdb_id'], self.meta_user_info, self.current_date)
 		if not meta: return self.items
 		meta_get = meta.get

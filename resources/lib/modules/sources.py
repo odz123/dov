@@ -12,6 +12,10 @@ from modules.source_utils import external_sources, internal_sources, internal_fo
 from modules.source_utils import pack_enable_check, sources_quality_count, scraper_names, stremio_has_debrid_addons, stremio_is_configured
 from modules.utils import string_to_float
 
+def _safe_int(value, default=0):
+	try: return int(value)
+	except (ValueError, TypeError): return default
+
 POVPlayer, progressDialogBG, notification = player.POVPlayer, kodi_utils.progressDialogBG, kodi_utils.notification
 show_busy_dialog, hide_busy_dialog, close_all_dialog = kodi_utils.show_busy_dialog, kodi_utils.hide_busy_dialog, kodi_utils.close_all_dialog
 get_property, set_property, clear_property = kodi_utils.get_property, kodi_utils.set_property, kodi_utils.clear_property
@@ -55,12 +59,12 @@ class SourceSelect:
 		self.ignore_scrape_filters = params_get('ignore_scrape_filters', 'false') == 'true'
 		self.media_type = params_get('media_type')
 		self.tmdb_id = params_get('tmdb_id')
-		self.season = int(params_get('season')) if 'season' in self.params else ''
-		self.episode = int(params_get('episode')) if 'episode' in self.params else ''
+		self.season = _safe_int(params_get('season')) if 'season' in self.params else ''
+		self.episode = _safe_int(params_get('episode')) if 'episode' in self.params else ''
 		self.custom_title = params_get('custom_title')
 		self.custom_year = params_get('custom_year')
-		self.custom_season = int(params_get('custom_season')) if 'custom_season' in self.params else None
-		self.custom_episode = int(params_get('custom_episode')) if 'custom_episode' in self.params else None
+		self.custom_season = _safe_int(params_get('custom_season')) if 'custom_season' in self.params else None
+		self.custom_episode = _safe_int(params_get('custom_episode')) if 'custom_episode' in self.params else None
 		self.active_internal_scrapers = settings.active_internal_scrapers()
 		self.active_external = 'external' in self.active_internal_scrapers
 		self.display_uncached_torrents = settings.display_uncached_torrents()
@@ -622,8 +626,9 @@ class Manager:
 		self.finish_early = get_setting('search.finish.early')
 		self.int_total = total_format % (self.int_dialog_highlight, '%s')
 		self.ext_total = total_format % (self.ext_dialog_highlight, '%s')
-		self.internal_resolutions = dict.fromkeys(resolutions.split(), 0)
-		self.resolutions = dict.fromkeys(resolutions.split(), 0)
+		_res_keys = resolutions.split()
+		self.internal_resolutions = dict.fromkeys(_res_keys, 0)
+		self.resolutions = dict.fromkeys(_res_keys, 0)
 
 	@dialog_hook
 	def results(self, info):
@@ -743,11 +748,10 @@ class Manager:
 		return [i for i in self.internal_scrapers if i not in processed_set]
 
 	def make_host_dict(self):
-		pr_list = []
-		pr_list_extend = pr_list.extend
+		pr_set = set()
 		for item in self.debrid_hosters:
-			for k, v in item.items(): pr_list_extend(v)
-		return list(set(pr_list))
+			for k, v in item.items(): pr_set.update(v)
+		return pr_set
 
 	def _make_progress_dialog(self):
 		if self.progress_dialog: return

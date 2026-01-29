@@ -90,7 +90,7 @@ def external_sources(ret_all=False):
 				_external_sources_cache_all[module_name] = (module_name, module)
 			else:
 				_external_sources_cache[module_name] = (module_name, module)
-		except: pass
+		except Exception: pass
 	return source_list
 
 def clear_external_sources_cache():
@@ -179,7 +179,7 @@ def internal_sources(active_sources, media_type, prescrape=False):
 					if module_name in ('__init__', 'external', 'folders'): continue
 					module = manual_function_import('scrapers.%s' % module_name, 'source')
 					_internal_sources_modules[module_name] = module
-				except: pass
+				except Exception: pass
 		# Build result from cached modules
 		active_set = set(active_sources)  # O(1) lookup
 		for module_name, module in _internal_sources_modules.items():
@@ -187,7 +187,7 @@ def internal_sources(active_sources, media_type, prescrape=False):
 			if prescrape and not check_prescrape_sources(module_name, media_type): continue
 			yield ('internal', module, module_name)
 	try: sourceDict = list(import_info())
-	except: sourceDict = []
+	except Exception: sourceDict = []
 	return sourceDict
 
 def internal_folders_import(folders):
@@ -197,12 +197,12 @@ def internal_folders_import(folders):
 			module = manual_function_import('scrapers.folders', 'source')
 			yield ('folders', (module, (item[1], scraper_name)), scraper_name)
 	try: sourceDict = list(import_info())
-	except: sourceDict = []
+	except Exception: sourceDict = []
 	return sourceDict
 
 def get_aliases_titles(aliases):
 	try: result = [i['title'] for i in aliases]
-	except: result = []
+	except Exception: result = []
 	return result
 
 def internal_results(provider, sources):
@@ -224,7 +224,7 @@ def normalize(title):
 	try:
 		title = ''.join(c for c in unicodedata.normalize('NFKD', title) if unicodedata.category(c) != 'Mn')
 		return string(title)
-	except: return title
+	except Exception: return title
 
 def enable_disable(folder):
 	try:
@@ -241,7 +241,7 @@ def enable_disable(folder):
 			if i in chosen: fenom_setSetting('provider.' + i, 'true')
 			else: fenom_setSetting('provider.' + i, 'false')
 		return kodi_utils.notification(32576, 1500)
-	except: return kodi_utils.notification(32574, 1500)
+	except Exception: return kodi_utils.notification(32574, 1500)
 
 def scrapers_status(folder='all'):
 	providers = scraper_names(folder)
@@ -276,7 +276,7 @@ def pack_enable_check(meta, season, episode):
 		unaired_episodes = [adjust_premiered_date(i['premiered'], adjust_hours)[0] for i in episodes_data]
 		if None in unaired_episodes or any(i > current_date for i in unaired_episodes): return False, False
 		else: return True, False
-	except: pass
+	except Exception: pass
 	return False, False
 
 def get_filename_match(title, url, name=None):
@@ -288,14 +288,14 @@ def get_filename_match(title, url, name=None):
 		title = clean_title(normalize(title))
 		name_url = unquote(url)
 		try: file_name = clean_title(name_url.split('/')[-1])
-		except: return title_match
+		except Exception: return title_match
 		test = name_url.split('/')
 		for item in test:
 			test_url = string(clean_title(normalize(item)))
 			if title in test_url:
 				title_match = clean_file_name(string(item)).replace('html', ' ').replace('+', ' ')
 				break
-	except: pass
+	except Exception: pass
 	return title_match
 
 def supported_video_extensions():
@@ -368,7 +368,7 @@ def find_season_in_release_title(release_title):
 			if match:
 				match = int(string(match.group(1)).lstrip('0'))
 				break
-		except: pass
+		except Exception: pass
 	return match
 
 def check_title(title, release_title, aliases, year, season, episode):
@@ -395,7 +395,7 @@ def check_title(title, release_title, aliases, year, season, episode):
 			if season == 'pack': hdlr = ''
 			else:
 				try: hdlr = seas_ep_filter(season, episode, release_title, return_match=True)
-				except: return False
+				except Exception: return False
 		else: hdlr = year
 		if hdlr:
 			release_title = release_title.split(hdlr.lower())[0]
@@ -405,13 +405,13 @@ def check_title(title, release_title, aliases, year, season, episode):
 			release_title = release_title.replace(year, '').replace('(', '').replace(')', '').replace('&', 'and').rstrip('.-').rstrip('.').rstrip('-').replace(':', '')
 			if not any(i in release_title for i in cleaned_titles): return False
 		return True
-	except: return True
+	except Exception: return True
 
 def strip_non_ascii_and_unprintable(text):
 	try:
 		result = ''.join(char for char in text if char in printable)
 		return result.encode('ascii', errors='ignore').decode('ascii', errors='ignore')
-	except: pass
+	except Exception: pass
 	return text
 
 def release_info_format(release_title):
@@ -420,7 +420,7 @@ def release_info_format(release_title):
 		release_title = release_title.lower().replace("'", "").lstrip('.').rstrip('.')
 		fmt = '.%s.' % re.sub(r'[^a-z0-9-~]+', '.', release_title).replace('.-.', '.').replace('-.', '.').replace('.-', '.').replace('--', '.')
 		return fmt
-	except:
+	except Exception:
 		return release_title.lower()
 
 def clean_title(title):
@@ -432,7 +432,7 @@ def clean_title(title):
 		title = re.sub(r'(&#[0-9]+)([^;^0-9]+)', '\\1;\\2', title)
 		title = title.replace('&quot;', '\"').replace('&amp;', '&')
 		title = re.sub(r'\n|([\[({].+?[})\]])|([:;–\-"\',!_.?~$@])|\s', '', title)
-	except: pass
+	except Exception: pass
 	return title
 
 def get_release_quality(release_info):
@@ -455,7 +455,7 @@ def url_strip(url):
 		if 'http' in fmt: return None
 		if fmt == '': return None
 		return fmt
-	except: return None
+	except Exception: return None
 
 def get_file_info(name_info=None, url=None):
 	# thanks 123Venom, whom I knicked most of this code from. :)
@@ -540,6 +540,6 @@ def get_cache_expiry(media_type, meta, season):
 				else: season_expiry = 24*30
 				show_expiry = 24*10
 			else: single_expiry, season_expiry, show_expiry = 24*10, 24*30, 24*30
-	except: single_expiry, season_expiry, show_expiry = 24*3, 24*3, 24*10
+	except Exception: single_expiry, season_expiry, show_expiry = 24*3, 24*3, 24*10
 	return single_expiry, season_expiry, show_expiry
 

@@ -63,7 +63,7 @@ class source:
 			for i in threads: i.start()
 			for i in threads: i.join()
 			return self.sources
-		except:
+		except Exception:
 			source_utils.scraper_error('ANIMETOSHO')
 			return self.sources
 
@@ -73,7 +73,7 @@ class source:
 			results = session.get(url, timeout=self.timeout).text
 			if not results: return
 			rows = client.parseDOM(results, 'div', attrs={'class': 'home_list_entry home_list_entry_alt home_list_entry_compl_1'})
-		except:
+		except Exception:
 			source_utils.scraper_error('ANIMETOSHO')
 			return
 
@@ -113,19 +113,19 @@ class source:
 					else:
 						seeders = 0
 					if self.min_seeders > seeders: continue
-				except: seeders = 0
+				except Exception: seeders = 0
 
 				quality, info = source_utils.get_release_quality(name_info, url)
 				try:
 					size = client.parseDOM(row, 'div', attrs={'class': 'size'})[0]
 					dsize, isize = source_utils._size(size)
 					info.insert(0, isize)
-				except: dsize = 0
+				except Exception: dsize = 0
 				info = ' | '.join(info)
 
 				self.sources_append({'provider': 'animetosho', 'source': 'torrent', 'seeders': seeders, 'hash': hash, 'name': name, 'name_info': name_info,
 													'quality': quality, 'language': 'en', 'url': url, 'info': info, 'direct': False, 'debridonly': True, 'size': dsize})
-			except:
+			except Exception:
 				source_utils.scraper_error('ANIMETOSHO')
 
 	def sources_packs(self, data, hostDict, search_series=False, total_seasons=None, bypass_filter=False):
@@ -165,7 +165,7 @@ class source:
 			for i in threads: i.start()
 			for i in threads: i.join()
 			return self.sources
-		except:
+		except Exception:
 			source_utils.scraper_error('ANIMETOSHO')
 			return self.sources
 
@@ -175,7 +175,7 @@ class source:
 			results = session.get(link, timeout=self.timeout).text
 			if not results: return
 			rows = client.parseDOM(results, 'div', attrs={'class': 'home_list_entry home_list_entry_alt home_list_entry_compl_1'})
-		except:
+		except Exception:
 			source_utils.scraper_error('ANIMETOSHO')
 			return
 
@@ -223,14 +223,14 @@ class source:
 					else:
 						seeders = 0
 					if self.min_seeders > seeders: continue
-				except: seeders = 0
+				except Exception: seeders = 0
 
 				quality, info = source_utils.get_release_quality(name_info, url)
 				try:
 					size = client.parseDOM(row, 'div', attrs={'class': 'size'})[0]
 					dsize, isize = source_utils._size(size)
 					info.insert(0, isize)
-				except: dsize = 0
+				except Exception: dsize = 0
 				info = ' | '.join(info)
 
 				item = {'provider': 'animetosho', 'source': 'torrent', 'seeders': seeders, 'hash': hash, 'name': name, 'name_info': name_info, 'quality': quality,
@@ -238,6 +238,6 @@ class source:
 				if self.search_series: item.update({'last_season': last_season})
 				elif episode_start: item.update({'episode_start': episode_start, 'episode_end': episode_end}) # for partial season packs
 				self.sources_append(item)
-			except:
+			except Exception:
 				source_utils.scraper_error('ANIMETOSHO')
 

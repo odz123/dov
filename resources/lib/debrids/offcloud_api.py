@@ -1,5 +1,7 @@
 import re
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 from caches.main_cache import cache_object
 from modules import kodi_utils
 # logger = kodi_utils.logger
@@ -7,8 +9,9 @@ from modules import kodi_utils
 ls, get_setting = kodi_utils.local_string, kodi_utils.get_setting
 base_url = 'https://offcloud.com/api'
 timeout = 10.0
+_retry = Retry(total=3, backoff_factor=0.5, status_forcelist=(502, 503, 504))
 session = requests.Session()
-session.mount('https://offcloud.com', requests.adapters.HTTPAdapter(max_retries=1))
+session.mount('https://offcloud.com', HTTPAdapter(max_retries=_retry))
 
 class OffcloudAPI:
 	icon = 'offcloud.png'
@@ -132,15 +135,15 @@ class OffcloudAPI:
 					for i in user_cloud_cache: clear_property(i)
 					dbcon.commit()
 				user_cloud_success = True
-			except: user_cloud_success = False
-		except: return False
+			except Exception: user_cloud_success = False
+		except Exception: return False
 		finally:
 			dbcon.close()
 		# HASH CACHED STATUS
 		try:
 			DebridCache().clear_debrid_results('oc')
 			hash_cache_status_success = True
-		except: hash_cache_status_success = False
+		except Exception: hash_cache_status_success = False
 		if False in (user_cloud_success, hash_cache_status_success): return False
 		return True
 

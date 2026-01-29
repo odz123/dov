@@ -75,6 +75,8 @@ RE_SPELLED_SEASON_PATTERNS = tuple(
 	[r'season[.-]%s' % x for x in ('one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eigh', 'nine', 'ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen', 'twenty', 'twenty-one', 'twenty-two', 'twenty-three', 'twenty-four', 'twenty-five')]
 )
 
+MAX_RELEASE_TITLE_LEN = 500  # Skip unreasonably long titles to prevent ReDoS
+
 RES_4K = ('2160', '216o', '.4k', 'ultrahd', 'ultra.hd', '.uhd.')
 RES_1080 = ('1080', '1o8o', '108o', '1o80', '.fhd.')
 RES_720 = ('720', '72o')
@@ -195,6 +197,7 @@ def aliases_to_array(aliases, filter=None):
 		return []
 
 def check_title(title, aliases, release_title, hdlr, year, years=None): # non pack file title check, single eps and movies
+	if len(release_title) > MAX_RELEASE_TITLE_LEN: return False
 	if years: # for movies only, scraper to pass None for episodes
 		if not any(value in release_title for value in years): return False
 	else:
@@ -253,6 +256,7 @@ def remove_undesirables(release_info, undesirables):
 	if any(value in release_info for value in undesirables): return True
 
 def filter_season_pack(show_title, aliases, year, season, release_title):
+	if len(release_title) > MAX_RELEASE_TITLE_LEN: return False, 0, 0
 	aliases = aliases_to_array(aliases)
 	title_list = []
 	title_list_append = title_list.append
@@ -322,6 +326,7 @@ def filter_season_pack(show_title, aliases, year, season, release_title):
 		return False, 0, 0
 
 def filter_show_pack(show_title, aliases, imdb, year, season, release_title, total_seasons):
+	if len(release_title) > MAX_RELEASE_TITLE_LEN: return False, 0
 	aliases = aliases_to_array(aliases)
 	title_list = []
 	title_list_append = title_list.append

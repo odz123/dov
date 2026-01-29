@@ -59,7 +59,7 @@ class Undesirables():
 			if not row: raise ValueError('No default undesirables found')
 			self.dbcon.close()
 			return True
-		except:
+		except Exception:
 			self.dbcur.execute('CREATE TABLE IF NOT EXISTS undesirables (keyword TEXT NOT NULL, user_defined BOOL NOT NULL, enabled BOOL NOT NULL, UNIQUE(keyword))')
 			self.set_defaults()
 			return False
@@ -81,7 +81,7 @@ def undesirablesSelect():
 	# Build index map for O(1) lookup instead of O(n²) .index() calls
 	idx_map = {item: idx for idx, item in enumerate(UNDESIRABLES)}
 	try: preselect = [idx_map[i] for i in chosen if i in idx_map]
-	except: preselect = list(range(len(UNDESIRABLES)))  # O(n) instead of O(n²)
+	except Exception: preselect = list(range(len(UNDESIRABLES)))  # O(n) instead of O(n²)
 	choices = multiselectDialog(UNDESIRABLES, preselect=preselect, heading=lang(32085))
 	if not choices: return
 	enabled = [UNDESIRABLES[i] for i in choices]

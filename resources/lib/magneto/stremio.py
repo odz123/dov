@@ -48,7 +48,7 @@ class source:
 			addons_str = getSetting('stremio.addons', '')
 			if addons_str:
 				addons = ast.literal_eval(addons_str)
-		except:
+		except Exception:
 			pass
 		return addons if isinstance(addons, list) else []
 
@@ -177,7 +177,7 @@ class source:
 		if seeders_match:
 			try:
 				info['seeders'] = int(seeders_match.group(1))
-			except:
+			except Exception:
 				pass
 
 		# Extract size
@@ -188,7 +188,7 @@ class source:
 				dsize, isize = source_utils._size(info['size_str'])
 				info['size'] = dsize
 				info['size_str'] = isize
-			except:
+			except Exception:
 				pass
 
 		# Check behaviorHints for size (videoSize in bytes)
@@ -197,7 +197,7 @@ class source:
 				video_size = int(behavior_hints['videoSize'])
 				info['size'] = round(video_size / (1024 * 1024 * 1024), 2)
 				info['size_str'] = f"{info['size']:.2f} GB"
-			except:
+			except Exception:
 				pass
 
 		# Extract quality
@@ -262,7 +262,7 @@ class source:
 			from urllib.parse import urlparse
 			parsed = urlparse(addon_url)
 			return parsed.netloc.split('.')[0]
-		except:
+		except Exception:
 			return 'stremio'
 
 	def _is_debrid_configured_addon(self, addon):
@@ -468,7 +468,7 @@ class source:
 			undesirables = source_utils.get_undesirables()
 			check_foreign_audio = source_utils.check_foreign_audio()
 
-		except:
+		except Exception:
 			source_utils.scraper_error('STREMIO')
 			return sources
 
@@ -517,11 +517,11 @@ class source:
 						if item:
 							sources_append(item)
 
-					except:
+					except Exception:
 						source_utils.scraper_error('STREMIO')
 						continue
 
-			except:
+			except Exception:
 				source_utils.scraper_error('STREMIO')
 				continue
 

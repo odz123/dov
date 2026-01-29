@@ -32,7 +32,7 @@ joinPath = os.path.join
 
 SETTINGS_PATH = transPath(joinPath(addonInfo('path'), 'resources', 'settings.xml'))
 try: dataPath = transPath(addonInfo('profile')).decode('utf-8')
-except: dataPath = transPath(addonInfo('profile'))
+except Exception: dataPath = transPath(addonInfo('profile'))
 #cacheFile = joinPath(dataPath, 'cache.db')
 #undesirablescacheFile = joinPath(dataPath, 'undesirables.db')
 cacheFile = joinPath(dataPath, 'fenomcache.db')
@@ -43,7 +43,7 @@ settingsFile = joinPath(dataPath, 'settings.xml')
 def setting(id, fallback=None):
 #	try: settings_dict = jsloads(homeWindow.getProperty('fenomscrapers_settings'))
 	try: settings_dict = jsloads(homeWindow.getProperty('pov_settings'))
-	except: settings_dict = make_settings_dict()
+	except Exception: settings_dict = make_settings_dict()
 	if settings_dict is None: settings_dict = settings_fallback(id)
 	value = settings_dict.get(id, '')
 	if fallback is None: return value
@@ -70,7 +70,7 @@ def make_settings_dict(): # service runs upon a setting change
 #		homeWindow.setProperty('fenomscrapers_settings', jsdumps(settings_dict))
 		homeWindow.setProperty('pov_settings', jsdumps(settings_dict))
 		return settings_dict
-	except:
+	except Exception:
 		return None
 
 def refresh_debugReversed(): # called from service "onSettingsChanged" to clear fenomscrapers.log if setting to reverse has been changed
@@ -92,21 +92,21 @@ def isVersionUpdate():
 		if not xbmcvfs.exists(versionFile):
 			with open(versionFile, 'w') as f:
 				pass
-	except:
+	except Exception:
 		LOGINFO = 1 # (LOGNOTICE(2) deprecated in 19, use LOGINFO(1))
 		xbmc.log('FenomScrapers Addon Data Path Does not Exist. Creating Folder....', LOGINFO)
 		addon_folder = transPath('special://profile/addon_data/script.module.fenomscrapers')
 		xbmcvfs.mkdirs(addon_folder)
 	try:
 		with open(versionFile, 'r') as fh: oldVersion = fh.read()
-	except: oldVersion = '0'
+	except Exception: oldVersion = '0'
 	try:
 		curVersion = addon('script.module.fenomscrapers').getAddonInfo('version')
 		if oldVersion != curVersion:
 			with open(versionFile, 'w') as fh: fh.write(curVersion)
 			return True
 		else: return False
-	except:
+	except Exception:
 		from fenom import log_utils
 		log_utils.error()
 		return False
@@ -157,7 +157,7 @@ def clean_settings():
 		nfo_file.close()
 		sleep(200)
 		notification(title=addon_name, message=lang(32042).format(str(len(removed_settings))))
-	except:
+	except Exception:
 		from fenom import log_utils
 		log_utils.error()
 		notification(title=addon_name, message=32043)
@@ -176,7 +176,7 @@ def addonIcon():
 
 def addonPath():
 	try: return transPath(addonInfo('path').decode('utf-8'))
-	except: return transPath(addonInfo('path'))
+	except Exception: return transPath(addonInfo('path'))
 
 def openSettings(query=None, id=addonInfo('id')):
 	try:
@@ -186,7 +186,7 @@ def openSettings(query=None, id=addonInfo('id')):
 		c, f = query.split('.')
 		execute('SetFocus(%i)' % (int(c) - 100))
 		execute('SetFocus(%i)' % (int(f) - 80))
-	except:
+	except Exception:
 		return
 
 def getSettingDefault(id):
@@ -197,7 +197,7 @@ def getSettingDefault(id):
 		value = value.replace('\n', '')
 		value = re.findall(r'id=\"%s\".*?default=\"(.*?)\"' % (id), value)[0]
 		return value
-	except:
+	except Exception:
 		return None
 
 def idle():

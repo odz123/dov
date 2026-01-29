@@ -72,7 +72,7 @@ class StremioMetaCache:
 		"""Get metadata from cache (SQLite + memory)"""
 		try:
 			return self._metacache.get_stremio(media_type, media_id)
-		except:
+		except Exception:
 			pass
 		return None
 
@@ -82,21 +82,21 @@ class StremioMetaCache:
 			# Convert hours to days for the MetaCache API
 			days = max(1, int(hours / 24)) if hours >= 24 else 7
 			self._metacache.set_stremio(media_type, media_id, meta, expiration=days)
-		except:
+		except Exception:
 			pass
 
 	def delete(self, media_type, media_id):
 		"""Delete metadata from cache"""
 		try:
 			self._metacache.delete_stremio(media_type, media_id)
-		except:
+		except Exception:
 			pass
 
 	def delete_all(self):
 		"""Delete all Stremio metadata from cache"""
 		try:
 			self._metacache.delete_all_stremio()
-		except:
+		except Exception:
 			pass
 
 
@@ -120,7 +120,7 @@ class StremioMetaProvider:
 				if isinstance(addons, list):
 					self._addons = addons
 					return addons
-		except:
+		except Exception:
 			pass
 		self._addons = []
 		return []
@@ -167,7 +167,7 @@ class StremioMetaProvider:
 				expires = int(time.time() + (MANIFEST_CACHE_HOURS * 3600))
 				set_property(cache_key, repr((expires, manifest)))
 			return manifest
-		except:
+		except Exception:
 			pass
 		return None
 
@@ -176,7 +176,7 @@ class StremioMetaProvider:
 		try:
 			from modules.http_client import fetch_json
 			return fetch_json(url, timeout=timeout or self.timeout)
-		except:
+		except Exception:
 			pass
 		return None
 
@@ -202,7 +202,7 @@ class StremioMetaProvider:
 
 			if data:
 				return data.get('meta', {})
-		except:
+		except Exception:
 			pass
 		return None
 
@@ -370,7 +370,7 @@ class StremioMetaProvider:
 					if 'min' in runtime_lower:
 						try:
 							duration = int(runtime_lower.split('min')[0].strip().split()[-1]) * 60
-						except:
+						except Exception:
 							pass
 					elif 'h' in runtime_lower:
 						try:
@@ -378,7 +378,7 @@ class StremioMetaProvider:
 							hours = int(parts[0].strip())
 							mins = int(parts[1].strip()) if len(parts) > 1 and parts[1].strip() else 0
 							duration = (hours * 60 + mins) * 60
-						except:
+						except Exception:
 							pass
 				elif isinstance(runtime, (int, float)):
 					duration = int(runtime) * 60
@@ -389,7 +389,7 @@ class StremioMetaProvider:
 			if imdb_rating:
 				try:
 					rating = float(imdb_rating)
-				except:
+				except Exception:
 					pass
 
 			# Process cast
@@ -475,7 +475,7 @@ class StremioMetaProvider:
 			pov_meta.update(DEFAULT_FANART_DATA)
 
 			return pov_meta
-		except:
+		except Exception:
 			pass
 		return None
 
@@ -506,7 +506,7 @@ class StremioMetaProvider:
 					if 'min' in runtime_lower:
 						try:
 							duration = int(runtime_lower.split('min')[0].strip().split()[-1]) * 60
-						except:
+						except Exception:
 							pass
 				elif isinstance(runtime, (int, float)):
 					duration = int(runtime) * 60
@@ -517,7 +517,7 @@ class StremioMetaProvider:
 			if imdb_rating:
 				try:
 					rating = float(imdb_rating)
-				except:
+				except Exception:
 					pass
 
 			# Process cast
@@ -624,7 +624,7 @@ class StremioMetaProvider:
 			pov_meta.update(DEFAULT_FANART_DATA)
 
 			return pov_meta
-		except:
+		except Exception:
 			pass
 		return None
 
@@ -837,5 +837,5 @@ def clear_stremio_meta_cache():
 	try:
 		cache = StremioMetaCache()
 		cache.delete_all()
-	except:
+	except Exception:
 		pass

@@ -15,7 +15,7 @@ def get(media_type, language, media_id, client_key):
 	query = base_url % (media_type, media_id)
 	headers = {'client-key': client_key, 'api-key': API_KEY}
 	try: art = session.get(query, headers=headers, timeout=timeout).json()
-	except: art = None
+	except Exception: art = None
 	if art is None or 'error_message' in art: return default_fanart_meta
 	art_get = art.get
 	if media_type == 'movies':
@@ -47,7 +47,7 @@ def parse_art(art, language):
 		if result:
 			result.sort(key=lambda x: int(x[1]), reverse=True)
 			result = [x[0] for x in result][0]
-	except: result = ''
+	except Exception: result = ''
 	if not 'http' in result: result = ''
 	return result
 
@@ -55,6 +55,6 @@ def add(media_type, language, media_id, client_key, meta):
 	if not media_id: meta.update(default_fanart_meta)
 	else:
 		try: meta.update(get(media_type, language, media_id, client_key))
-		except: meta.update(default_fanart_meta)
+		except Exception: meta.update(default_fanart_meta)
 	return meta
 

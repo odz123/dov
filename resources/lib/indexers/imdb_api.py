@@ -41,7 +41,7 @@ def people_get_imdb_id(actor_name, actor_tmdbID=None):
 		if actor_tmdbID:
 			from indexers.tmdb_api import tmdb_people_full_info
 			try: imdb_id = tmdb_people_full_info(actor_tmdbID)['imdb_id']
-			except: pass
+			except Exception: pass
 		if not imdb_id:
 			name = actor_name.lower()
 			string = 'imdb_people_id_%s' % name
@@ -171,7 +171,7 @@ def get_imdb(params):
 					if not imdb_id_match: continue
 					imdb_id = imdb_id_match[0]
 					yield {'title': str(title), 'year': str(year), 'imdb_id': str(imdb_id)}
-				except: pass
+				except Exception: pass
 		if action in ('imdb_watchlist', 'imdb_user_list_contents'):
 			list_url_type = user_list_movies_url if params['media_type'] == 'movie' else user_list_tvshows_url
 			if action == 'imdb_watchlist':
@@ -193,7 +193,7 @@ def get_imdb(params):
 				next_page = parseDOM(result, 'div', attrs = {'class': 'pagination'})[0]
 				next_page = zip(parseDOM(next_page, 'a', ret='href'), parseDOM(next_page, 'a'))
 				next_page = [i[0] for i in next_page if 'Next' in i[1]]
-		except: pass
+		except Exception: pass
 	elif action == 'imdb_user_lists':
 		def _process():
 			for item in items:
@@ -203,7 +203,7 @@ def get_imdb(params):
 					url = parseDOM(item, 'a', ret='href')[0]
 					list_id = url.split('/list/', 1)[-1].strip('/')
 					yield {'title': title, 'list_id': list_id}
-				except: pass
+				except Exception: pass
 		result = session.get(url, timeout=timeout)
 		result = remove_accents(result.text)
 		items = parseDOM(result, 'li', attrs={'class': 'ipl-zebra-list__item user-list'})
@@ -216,7 +216,7 @@ def get_imdb(params):
 					content = replace_html_codes(content)
 					content = content.replace('<br/><br/>', '\n')
 					yield content
-				except: pass
+				except Exception: pass
 		result = session.get(url, timeout=timeout)
 		result = remove_accents(result.text)
 		result = result.replace('\n', ' ')
@@ -226,29 +226,29 @@ def get_imdb(params):
 		def _process():
 			for listing in all_reviews:
 				try: spoiler = listing['spoiler']
-				except: spoiler = False
+				except Exception: spoiler = False
 				try: listing = listing['content']
-				except: continue
+				except Exception: continue
 				try:
 					try:
 						title = parseDOM(listing, 'a', attrs={'class': 'title'})[0]
-					except: title = ''
+					except Exception: title = ''
 					try:
 						date = parseDOM(listing, 'span', attrs={'class': 'review-date'})[0]
-					except: date = ''
+					except Exception: date = ''
 					try:
 						rating = parseDOM(listing, 'span', attrs={'class': 'rating-other-user-rating'})
 						rating = parseDOM(rating, 'span')
 						rating = (rating[0] + rating[1]) if len(rating) >= 2 else (rating[0] if rating else '')
-					except: rating = ''
+					except Exception: rating = ''
 					try:
 						content = parseDOM(listing, 'div', attrs={'class': 'text show-more__control'})[0]
 						content = replace_html_codes(content)
 						content = content.replace('<br/><br/>', '\n')
-					except: continue
+					except Exception: continue
 					review = {'spoiler': spoiler, 'title': title, 'date': date, 'rating': rating, 'content': content}
 					yield review
-				except: pass
+				except Exception: pass
 		result = session.get(url, timeout=timeout)
 		result = remove_accents(result.text)
 		result = result.replace('\n', ' ')
@@ -263,16 +263,16 @@ def get_imdb(params):
 			for item in image_results:
 				try:
 					try: title = re.findall(r'alt="(.+?)"', item, re.DOTALL)[0]
-					except: title = ''
+					except Exception: title = ''
 					try:
 						thumb = re.findall(r'src="(.+?)"', item, re.DOTALL)[0]
 						split = thumb.split('_V1_')[0]
 						thumb = split + '_V1_UY300_CR26,0,300,300_AL_.jpg'
 						image = split + '_V1_.jpg'
 						images = {'title': title, 'thumb': thumb, 'image': image}
-					except: continue
+					except Exception: continue
 					yield images
-				except: pass
+				except Exception: pass
 		image_results = []
 		result = session.get(url, timeout=timeout)
 		result = remove_accents(result.text)
@@ -280,13 +280,13 @@ def get_imdb(params):
 		try:
 			pages = parseDOM(result, 'span', attrs={'class': 'page_list'})[0]
 			pages = [int(i) for i in parseDOM(pages, 'a')]
-		except: pages = [1]
+		except Exception: pages = [1]
 		if params['next_page'] in pages:
 			next_page = params['next_page']
 		try:
 			image_results = parseDOM(result, 'div', attrs={'class': 'media_index_thumb_list'})[0]
 			image_results = parseDOM(image_results, 'a')
-		except: pass
+		except Exception: pass
 		if image_results: imdb_list = list(_process())
 	elif action == 'imdb_videos':
 		def _process():
@@ -315,7 +315,7 @@ def get_imdb(params):
 			result = session.get(url, timeout=timeout).content
 			result = json.loads(result.replace('imdb$%s(' % name.replace(' ', '_'), '')[:-1])['d']
 			imdb_list = [i['id'] for i in result if i['id'].startswith('nm') and i['l'].lower() == name][0]
-		except: pass
+		except Exception: pass
 		if not imdb_list:
 			result = session.get(params['url_backup'], timeout=timeout)
 			result = remove_accents(result.text)
@@ -323,13 +323,13 @@ def get_imdb(params):
 			try:
 				result = parseDOM(result, 'div', attrs={'class': 'lister-item-image'})[0]
 				imdb_list = re.findall(r'href="/name/(.+?)"', result, re.DOTALL)[0]
-			except: pass
+			except Exception: pass
 	elif action == 'imdb_movie_year':
 		result = session.get(url, timeout=timeout).json()
 		try:
 			result = next((i for i in result['d'] if 'y' in i)) # result['d'][0]
 			imdb_list = str(result['y'])
-		except: pass
+		except Exception: pass
 	elif action == 'imdb_parentsguide':
 		spoiler_results = None
 		spoiler_list = []
@@ -340,7 +340,7 @@ def get_imdb(params):
 		result = result.replace('\n', ' ')
 		results = parseDOM(result, 'section', attrs={'id': r'advisory-(.+?)'})
 		try: spoiler_results = parseDOM(result, 'section', attrs={'id': 'advisory-spoilers'})[0]
-		except: pass
+		except Exception: pass
 		if spoiler_results:
 			results = [i for i in results if not i in spoiler_results]
 			spoiler_results = spoiler_results.split('<h4 class="ipl-list-title">')[1:]
@@ -349,38 +349,38 @@ def get_imdb(params):
 				try:
 					title = replace_html_codes(re.findall(r'(.+?)</h4>', item, re.DOTALL)[0])
 					item_dict['title'] = title
-				except: continue
+				except Exception: continue
 				try:
 					listings = parseDOM(item, 'li', attrs={'class': 'ipl-zebra-list__item'})
 					item_dict['listings'] = []
-				except: continue
+				except Exception: continue
 				dict_listings_append = item_dict['listings'].append
 				for item in listings:
 					try:
 						listing = replace_html_codes(re.findall(r'(.+?)     <div class="', item, re.DOTALL)[0])
 						if not listing in item_dict['listings']: dict_listings_append(listing)
-					except: pass
+					except Exception: pass
 				if not item_dict in spoiler_list: spoiler_append(item_dict)
 		for item in results:
 			item_dict = {}
 			try:
 				title = replace_html_codes(parseDOM(item, 'h4', attrs={'class': 'ipl-list-title'})[0])
 				item_dict['title'] = title
-			except: continue
+			except Exception: continue
 			try:
 				ranking = replace_html_codes(parseDOM(item, 'span', attrs={'class': 'ipl-status-pill ipl-status-pill--(.+?)'})[0])
 				item_dict['ranking'] = ranking
-			except: continue
+			except Exception: continue
 			try:
 				listings = parseDOM(item, 'li', attrs={'class': 'ipl-zebra-list__item'})
 				item_dict['listings'] = []
-			except: continue
+			except Exception: continue
 			dict_listings_append = item_dict['listings'].append
 			for item in listings:
 				try:
 					listing = replace_html_codes(re.findall(r'(.+?)     <div class="', item, re.DOTALL)[0])
 					if not listing in item_dict['listings']: dict_listings_append(listing)
-				except: pass
+				except Exception: pass
 			if item_dict: imdb_append(item_dict)
 		if spoiler_list:
 			for imdb in imdb_list:
@@ -395,7 +395,7 @@ def get_imdb(params):
 				try:
 					keyword = re.findall(r'" >(.+?)</a>', item, re.DOTALL)[0]
 					yield keyword
-				except: pass
+				except Exception: pass
 		result = session.get(url, timeout=timeout)
 		result = remove_accents(result.text)
 		result = result.replace('\n', ' ')
@@ -409,7 +409,7 @@ def get_imdb(params):
 					keyword = re.findall(r'keywords=(.+?)"', item, re.DOTALL)[0]
 					listings = re.findall(r'</a> (.+?) </td>', item, re.DOTALL)[0]
 					yield (keyword, listings)
-				except: pass
+				except Exception: pass
 		result = session.get(url, timeout=timeout)
 		result = remove_accents(result.text)
 		result = result.replace('\n', ' ')
@@ -433,7 +433,7 @@ def clear_imdb_cache(silent=False):
 		dbcur.execute("""DELETE FROM maincache WHERE id LIKE ?""", ('imdb_%',))
 		for i in imdb_results: clear_property(i)
 		return True
-	except: return False
+	except Exception: return False
 	finally:
 		dbcon.close()
 
@@ -451,7 +451,7 @@ def imdb_build_user_lists(media_type):
 				cm_append((ls(32731), 'RunPlugin(%s)' % build_url({'mode': 'menu_editor.shortcut_folder_add_item', 'name': item['title'], 'iconImage': 'imdb.png'})))
 				listitem.addContextMenuItems(cm)
 				yield (url, listitem, True)
-			except: pass
+			except Exception: pass
 	__handle__ = int(argv[1])
 	user_lists = imdb_user_lists(media_type)
 	mode = 'build_%s_list' % media_type

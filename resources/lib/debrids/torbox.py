@@ -55,7 +55,7 @@ class Indexer(Debrid):
 				listitem.addContextMenuItems(cm)
 				listitem.setArt(default_art)
 				yield (url, listitem, True)
-			except: pass
+			except Exception: pass
 
 	def browse_cloud(self, items):
 		for count, item in enumerate(items, 1):
@@ -77,7 +77,7 @@ class Indexer(Debrid):
 				listitem.setArt(default_art)
 				listitem.setInfo('video', {})
 				yield (url, listitem, False)
-			except: pass
+			except Exception: pass
 
 	def cloud_delete(self, folder_id, media_type):
 		if not kodi_utils.confirm_dialog(): return
@@ -107,7 +107,7 @@ class Indexer(Debrid):
 			append('[B]Downloaded[/B]: %s' % account_info['total_downloaded'])
 			kodi_utils.hide_busy_dialog()
 			return kodi_utils.show_text('TorBox'.upper(), '\n\n'.join(body), font_size='large')
-		except: kodi_utils.hide_busy_dialog()
+		except Exception: kodi_utils.hide_busy_dialog()
 
 def resolve_tb(params):
 	file_id, media_type = params['url'], params['media_type']

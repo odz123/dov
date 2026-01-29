@@ -90,7 +90,7 @@ def reset_activity(latest_activities):
 			if cached_data: cached_data = literal_eval(cached_data[0])
 			else: cached_data = default_activities()
 			cache.dbcur.execute(TC_BASE_SET, (string, repr(latest_activities)))
-	except: pass
+	except Exception: pass
 	return cached_data
 
 def clear_trakt_hidden_data(list_type):
@@ -98,7 +98,7 @@ def clear_trakt_hidden_data(list_type):
 	try:
 		with TraktCache() as cache:
 			cache.dbcur.execute(DELETE, (string,))
-	except: pass
+	except Exception: pass
 
 def clear_trakt_collection_watchlist_data(list_type, media_type):
 	if media_type == 'movies': media_type = 'movie'
@@ -107,34 +107,34 @@ def clear_trakt_collection_watchlist_data(list_type, media_type):
 	try:
 		with TraktCache() as cache:
 			cache.dbcur.execute(DELETE, (string,))
-	except: pass
+	except Exception: pass
 
 def clear_trakt_list_contents_data(list_type):
 	string = 'trakt_list_contents_' + list_type + '_%'
 	try:
 		with TraktCache() as cache:
 			cache.dbcur.execute(DELETE_LIKE, (string,))
-	except: pass
+	except Exception: pass
 
 def clear_trakt_list_data(list_type):
 	string = 'trakt_%s' % list_type
 	try:
 		with TraktCache() as cache:
 			cache.dbcur.execute(DELETE, (string,))
-	except: pass
+	except Exception: pass
 
 def clear_trakt_calendar():
 	try:
 		with TraktCache() as cache:
 			cache.dbcur.execute(DELETE_LIKE, ('trakt_get_my_calendar_%',))
-	except: return
+	except Exception: return
 
 def clear_trakt_recommendations(media_type):
 	string = 'trakt_recommendations_%s' % (media_type)
 	try:
 		with TraktCache() as cache:
 			cache.dbcur.execute(DELETE, (string,))
-	except: pass
+	except Exception: pass
 
 def clear_all_trakt_cache_data(refresh=True):
 	try:
@@ -148,7 +148,7 @@ def clear_all_trakt_cache_data(refresh=True):
 		from indexers.trakt_api import trakt_sync_activities_thread
 		trakt_sync_activities_thread()
 		return True
-	except: return False
+	except Exception: return False
 
 def default_activities():
 	return {

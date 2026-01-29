@@ -63,7 +63,7 @@ class Images:
 					listitem.setProperty('tikiskins.path', item['image'])
 					listitem.setProperty('tikiskins.action', image_action)
 					yield listitem
-				except: pass
+				except Exception: pass
 		imdb_id = self.params['imdb_id']
 		page_no = int(self.params['page_no'])
 		rolling_count = int(self.params['rolling_count'])
@@ -81,11 +81,11 @@ class Images:
 	def people_image_results(self):
 		def get_tmdb():
 			try: tmdb_append(tmdb_people_full_info(actor_id)['images'])
-			except: pass
+			except Exception: pass
 		def get_imdb():
 			imdb_id = people_get_imdb_id(actor_name, actor_id)
 			try: imdb_append(imdb_people_images(imdb_id, page_no)[0])
-			except: pass
+			except Exception: pass
 		def builder():
 			for item in all_images:
 				try:
@@ -95,7 +95,7 @@ class Images:
 					listitem.setProperty('tikiskins.name', item[0])
 					listitem.setProperty('tikiskins.action', image_action)
 					yield listitem
-				except: pass
+				except Exception: pass
 		threads = []
 		tmdb_images = []
 		all_images = []
@@ -150,11 +150,11 @@ class Images:
 					listitem.setProperty('tikiskins.name', name)
 					listitem.setProperty('tikiskins.action', image_action)
 					yield listitem
-				except: pass
+				except Exception: pass
 		actor_name = self.params['actor_name']
 		actor_id = self.params['actor_id']
 		try: results = tmdb_people_full_info(actor_id)['tagged_images']
-		except: results = []
+		except Exception: results = []
 		image_info = results['results']
 		image_info.sort(key=lambda x: x['file_path'])
 		all_images_json = json.dumps([(tmdb_image_base % ('original', i['file_path']), (i['media']['title']) if 'title' in i['media'] else i['media']['name']) for i in image_info])
@@ -171,7 +171,7 @@ class Images:
 					try:
 						thumb_url = [i for i in thumbs if i == item][0]
 						thumb_url = os.path.join(thumbs_path, thumb_url)
-					except:
+					except Exception:
 						thumb_url = os.path.join(folder_path, item)
 					listitem.setProperty('tikiskins.thumb', thumb_url)
 					listitem.setProperty('tikiskins.path', image_url)
@@ -180,7 +180,7 @@ class Images:
 					listitem.setProperty('tikiskins.folder_path', folder_path)
 					listitem.setProperty('tikiskins.action', image_action)
 					yield listitem
-				except: pass
+				except Exception: pass
 		files = list_dirs(folder_path)[1]
 		files.sort()
 		thumbs_path = os.path.join(folder_path, '.thumbs')

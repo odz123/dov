@@ -206,7 +206,7 @@ def mdbl_watched_unwatched(action, media, media_id, tvdb_id=0, data=None, season
 	if action == 'mark_as_watched': url, result_key = 'sync/watched', 'updated'
 	else: url, result_key = 'sync/watched/remove', 'removed'
 	try: media_id = {key: int(media_id)}
-	except: pass
+	except Exception: pass
 	if media == 'movies':
 		success_key = 'movies'
 		data = {'movies': [{'ids': media_id}]}
@@ -255,7 +255,7 @@ def mdbl_indicators_tv(watched_info):
 def mdbl_progress(action, media, media_id, percent, season=None, episode=None, resume_id=None, refresh_mdb=False):
 	url = 'scrobble/pause'
 	try: media_id = int(media_id)
-	except: pass
+	except Exception: pass
 	if media in ('movie', 'movies'): data = {'movie': {'ids': {'tmdb': media_id}}, 'progress': float(percent)}
 	else: data = {'show': {'ids': {'tmdb': media_id}, 'season': {'episode': {'number': int(episode)}, 'number': int(season)}}, 'progress': float(percent)}
 	call_mdblist(url, json=data, method='post')
@@ -265,7 +265,7 @@ def mdbl_scrobble(action, media, media_id, percent, season=None, episode=None):
 	"""Scrobble playback state to MDBList. Action can be 'start', 'pause', or 'stop'."""
 	url = 'scrobble/%s' % action
 	try: media_id = int(media_id)
-	except: pass
+	except Exception: pass
 	if media in ('movie', 'movies'):
 		data = {'movie': {'ids': {'tmdb': media_id}}, 'progress': float(percent)}
 	else:
@@ -283,7 +283,7 @@ def mdbl_add_rating(media, media_id, rating, season=None, episode=None):
 	"""Add a rating to MDBList. Rating should be 1-10."""
 	url = 'sync/ratings'
 	try: media_id = int(media_id)
-	except: pass
+	except Exception: pass
 	if media in ('movie', 'movies'):
 		data = {'movies': [{'ids': {'tmdb': media_id}, 'rating': int(rating)}]}
 	elif media == 'episode':
@@ -297,7 +297,7 @@ def mdbl_remove_rating(media, media_id, season=None, episode=None):
 	"""Remove a rating from MDBList."""
 	url = 'sync/ratings/remove'
 	try: media_id = int(media_id)
-	except: pass
+	except Exception: pass
 	if media in ('movie', 'movies'):
 		data = {'movies': [{'ids': {'tmdb': media_id}}]}
 	elif media == 'episode':
@@ -357,7 +357,7 @@ def get_mdbl_movie_id(item):
 		try:
 			meta = movie_external_id('imdb_id', item['imdb'])
 			tmdb_id = meta['id']
-		except: pass
+		except Exception: pass
 	return tmdb_id
 
 def get_mdbl_tvshow_id(item):
@@ -367,13 +367,13 @@ def get_mdbl_tvshow_id(item):
 		try:
 			meta = tvshow_external_id('imdb_id', item['imdb'])
 			tmdb_id = meta['id']
-		except: tmdb_id = None
+		except Exception: tmdb_id = None
 	if not tmdb_id:
 		if item['tvdb']:
 			try:
 				meta = tvshow_external_id('tvdb_id', item['tvdb'])
 				tmdb_id = meta['id']
-			except: tmdb_id = None
+			except Exception: tmdb_id = None
 	return tmdb_id
 
 def mdbl_get_activity():
@@ -406,7 +406,7 @@ def mdbl_sync_activities(force_update=False):
 		return int(time.mktime(date_time.timetuple()))
 	def _compare(latest, cached, res_format='%Y-%m-%dT%H:%M:%SZ'):
 		try: result = _get_timestamp(js2date(latest, res_format)) > _get_timestamp(js2date(cached, res_format))
-		except: result = True
+		except Exception: result = True
 		return result
 	if not get_setting('mdblist_user', ''): return 'no account'
 	if force_update:
@@ -454,7 +454,7 @@ def clear_mdbl_cache(silent=False):
 		dbcur.execute("""DELETE FROM maincache WHERE id LIKE ?""", ('mdbl_%',))
 		for i in mdb_results: clear_property(i)
 		return True
-	except: return False
+	except Exception: return False
 	finally:
 		dbcon.close()
 
@@ -470,7 +470,7 @@ def get_mdbl(params):
 					if not (match := re.search(rf"{key}\:\ \d", html)): continue
 					rank = rank_map[match.group().split(': ')[-1]]
 					yield {'title': val, 'ranking': rank, 'listings': []}
-				except: pass
+				except Exception: pass
 		html = response.text.replace('\n', ' ')
 		results = list(_process())
 	return results

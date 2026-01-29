@@ -15,14 +15,14 @@ class Favourites(BaseCache):
 		try:
 			self.dbcur.execute(INSERT_FAV, (media_type, str(tmdb_id), title))
 			return True
-		except: return False
+		except Exception: return False
 
 	def remove_from_favourites(self, media_type, tmdb_id, title):
 		try:
 			self.dbcur.execute(DELETE_FAV, (media_type, str(tmdb_id)))
 			container_refresh()
 			return True
-		except: return False
+		except Exception: return False
 
 	def get_favourites(self, media_type):
 		self.dbcur.execute(SELECT_FAV, (media_type,))
@@ -35,7 +35,7 @@ class Favourites(BaseCache):
 			self.dbcur.execute(CLEAR_FAV, (media_type,))
 			# VACUUM removed - should be run during maintenance only
 			return True
-		except: return False
+		except Exception: return False
 
 favourites_cache = Favourites()
 

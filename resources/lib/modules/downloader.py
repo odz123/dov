@@ -144,10 +144,10 @@ class Downloader:
 		try:
 			url_parts = url.rsplit('|', 1)
 			headers = dict(parse_qsl(url_parts[1])) if len(url_parts) > 1 else {}
-		except: headers = {}
+		except Exception: headers = {}
 		self.headers = headers
 		try: url = url.split('|')[0]
-		except: pass
+		except Exception: pass
 		self.url = url
 
 	def get_download_folder(self):
@@ -156,7 +156,7 @@ class Downloader:
 			self.down_folder = os.path.join(self.down_folder, '.thumbs')
 		for level in levels:
 			try: kodi_utils.make_directory(os.path.abspath(os.path.join(self.down_folder, level)))
-			except: pass
+			except Exception: pass
 
 	def get_destination_folder(self):
 		if self.action == 'image':
@@ -189,7 +189,7 @@ class Downloader:
 				final_name = os.path.splitext(urlparse(name_url).path)[0].split('/')[-1]
 			else:
 				try: final_name = self.name.translate(str.maketrans('', '', r'\/:*?"<>|')).strip('.')
-				except: final_name = os.path.splitext(urlparse(name_url).path)[0].split('/')[-1]
+				except Exception: final_name = os.path.splitext(urlparse(name_url).path)[0].split('/')[-1]
 		self.final_name = safe_string(remove_accents(final_name))
 
 	def get_extension(self):
@@ -209,9 +209,9 @@ class Downloader:
 		self.resp = self.get_response(self.url, self.headers, 0)
 		if not self.resp: self.return_notification(ok_dialog=32575)
 		try: self.content = int(self.resp.headers['Content-Length'])
-		except: self.content = 0
+		except Exception: self.content = 0
 		try: self.resumable = 'bytes' in self.resp.headers['Accept-Ranges'].lower()
-		except: self.resumable = False
+		except Exception: self.resumable = False
 		if self.content < 1: self.return_notification(ok_dialog=32575)
 		self.size = 1024 * 1024
 		self.mb = self.content / (1024 * 1024)
@@ -241,7 +241,7 @@ class Downloader:
 					try:
 						line1 = '%s - [I]%s[/I]' % (str(percent)+'%', self.final_name)
 						if not playing: kodi_utils.notification(line1, 3000, self.image)
-					except: pass
+					except Exception: pass
 			chunk = None
 			error = False
 			try:
@@ -285,7 +285,7 @@ class Downloader:
 			if (self.resumable and errors > 0) or errors >= 10:
 				if (not self.resumable and resume >= 50) or resume >= 500:
 					try: f.close()
-					except: pass
+					except Exception: pass
 					return self.finish_download(self.final_name, self.media_type, False, self.image)
 				resume += 1
 				errors  = 0
@@ -302,7 +302,7 @@ class Downloader:
 			req = Request(url, headers=headers)
 			resp = urlopen(req, context=ctx, timeout=30)
 			return resp
-		except: return None
+		except Exception: return None
 
 	def finish_download(self, title, media_type, downloaded, image):
 		if self.media_type == 'thumb_url': return

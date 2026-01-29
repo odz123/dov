@@ -51,7 +51,7 @@ class source:
 			files = response_json.get('data', {}).get('nzbs', [])
 			undesirables = source_utils.get_undesirables()
 			check_foreign_audio = source_utils.check_foreign_audio()
-		except:
+		except Exception:
 			source_utils.scraper_error('TORBOXNEWS')
 			return sources
 
@@ -81,14 +81,14 @@ class source:
 				try:
 					seeders = file['last_known_seeders']
 					if self.min_seeders > seeders: continue
-				except: seeders = 0
+				except Exception: seeders = 0
 
 				quality, info = source_utils.get_release_quality(name_info, url)
 				try:
 					size = f"{float(file['size']) / 1073741824:.2f} GB"
 					dsize, isize = source_utils._size(size)
 					info.insert(0, isize)
-				except: dsize = 0
+				except Exception: dsize = 0
 				info = ' | '.join(info)
 
 				item = {
@@ -100,7 +100,7 @@ class source:
 				if package == 'show': item.update({'last_season': last_season})
 				if episode_start: item.update({'episode_start': episode_start, 'episode_end': episode_end}) # for partial season packs
 				sources_append(item)
-			except:
+			except Exception:
 				source_utils.scraper_error('TORBOXNEWS')
 		return sources
 

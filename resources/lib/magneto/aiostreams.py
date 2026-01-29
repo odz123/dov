@@ -186,7 +186,7 @@ class source:
 				from urllib.parse import urlparse
 				parsed = urlparse(self.base_link)
 				origin = f"{parsed.scheme}://{parsed.netloc}"
-			except:
+			except Exception:
 				origin = self.base_link
 
 			base_headers = self._headers()
@@ -396,7 +396,7 @@ class source:
 					if seeders is None: seeders = 0
 					# Only apply seeder filter to torrents, not direct links
 					if hash and self.min_seeders > seeders: continue
-				except: seeders = 0
+				except Exception: seeders = 0
 
 				quality, info = source_utils.get_release_quality(name_info, url)
 				try:
@@ -407,7 +407,7 @@ class source:
 						info.insert(0, isize)
 					else:
 						dsize = 0
-				except: dsize = 0
+				except Exception: dsize = 0
 				info = ' | '.join(info)
 
 				# Build item based on stream type
@@ -427,7 +427,7 @@ class source:
 				if package == 'show': item.update({'last_season': last_season})
 				if episode_start: item.update({'episode_start': episode_start, 'episode_end': episode_end}) # for partial season packs
 				sources_append(item)
-			except:
+			except Exception:
 				source_utils.scraper_error('AIOSTREAMS')
 		return sources
 

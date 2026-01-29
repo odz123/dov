@@ -160,7 +160,7 @@ def upload_LogFile():
 		else:
 			notification(message='FenomScrapers Log upload failed')
 			log('FenomScrapers Log upload failed: %s' % response.text, level=LOGERROR)
-	except:
+	except Exception:
 		error('FenomScrapers log upload failed')
 		notification(message='pastebin post failed: See log for more info')
 
@@ -169,7 +169,7 @@ def normalize(msg):
 		import unicodedata
 		msg = ''.join(c for c in unicodedata.normalize('NFKD', msg) if unicodedata.category(c) != 'Mn')
 		return str(msg)
-	except:
+	except Exception:
 		error()
 		return msg
 

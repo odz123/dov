@@ -51,7 +51,7 @@ class source:
 			if 'timeout' in data: self.timeout = int(data['timeout'])
 			undesirables = source_utils.get_undesirables()
 			check_foreign_audio = source_utils.check_foreign_audio()
-		except:
+		except Exception:
 			source_utils.scraper_error('NYYAA')
 			return sources
 
@@ -91,19 +91,19 @@ class source:
 						try:
 							seeders = int(link[2][0])
 							if self.min_seeders > seeders: continue
-						except: seeders = 0
+						except Exception: seeders = 0
 
 						quality, info = source_utils.get_release_quality(name_info, url)
 						try:
 							size = link[1]
 							dsize, isize = source_utils._size(size)
 							info.insert(0, isize)
-						except: dsize = 0
+						except Exception: dsize = 0
 						info = ' | '.join(info)
 
 						sources_append({'provider': 'nyaa', 'source': 'torrent', 'seeders': seeders, 'hash': hash, 'name': name, 'name_info': name_info,
 										'quality': quality, 'language': 'en', 'url': url, 'info': info, 'direct': False, 'debridonly': True, 'size': dsize})
-			except:
+			except Exception:
 				source_utils.scraper_error('NYAA')
 				return sources
 		return sources
