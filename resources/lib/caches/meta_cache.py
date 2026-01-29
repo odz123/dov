@@ -176,7 +176,7 @@ class MetaCache(BaseCache):
 					return None
 				self.set_stremio_memory_cache(media_type, imdb_id, meta, expiry)
 				return meta
-		except (ValueError, SyntaxError, TypeError, KeyError):
+		except (ValueError, SyntaxError, TypeError, KeyError, sqlite3.ProgrammingError, sqlite3.OperationalError):
 			pass
 		return None
 
@@ -187,7 +187,7 @@ class MetaCache(BaseCache):
 			expires = self._get_timestamp(datetime.now() + timedelta(days=expiration))
 			self.dbcur.execute(SET_STREMIO_META, (media_type, imdb_id, repr(meta), expires))
 			self.set_stremio_memory_cache(media_type, imdb_id, meta, expires)
-		except (KeyError, TypeError, ValueError):
+		except (KeyError, TypeError, ValueError, sqlite3.ProgrammingError, sqlite3.OperationalError):
 			return None
 
 	def delete_stremio(self, media_type, imdb_id):
@@ -196,7 +196,7 @@ class MetaCache(BaseCache):
 			imdb_id = string(imdb_id)
 			self.dbcur.execute(DELETE_STREMIO_META, (media_type, imdb_id))
 			self.delete_stremio_memory_cache(media_type, imdb_id)
-		except (KeyError, TypeError):
+		except (KeyError, TypeError, sqlite3.ProgrammingError, sqlite3.OperationalError):
 			return
 
 	def get_stremio_memory_cache(self, media_type, imdb_id, current_time):
