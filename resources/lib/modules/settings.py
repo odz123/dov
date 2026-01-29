@@ -131,6 +131,29 @@ def extras_open_action(media_type):
 def fanarttv_client_key():
 	return get_setting('fanart_client_key')
 
+def meta_show_cast():
+	return get_setting('meta.show_cast', 'true') == 'true'
+
+def meta_show_trailer():
+	return get_setting('meta.show_trailer', 'true') == 'true'
+
+def meta_show_tagline():
+	return get_setting('meta.show_tagline', 'true') == 'true'
+
+def meta_show_plot():
+	return get_setting('meta.show_plot', 'true') == 'true'
+
+def meta_show_tmdblogo():
+	return get_setting('meta.show_tmdblogo', 'true') == 'true'
+
+def meta_mpaa_country():
+	countries = ('US', 'GB', 'DE', 'FR', 'AU', 'CA', 'NZ', 'IN', 'BR', 'ES', 'IT', 'NL', 'JP', 'KR')
+	idx = int(get_setting('meta.mpaa_country', '0'))
+	return countries[min(idx, len(countries) - 1)]
+
+def meta_cache_duration():
+	return int(get_setting('meta.cache_duration', '1'))
+
 def filter_by_name(scraper):
 	return get_setting('%s.title_filter' % scraper, 'false') == 'true'
 
@@ -194,7 +217,10 @@ def metadata_user_info():
 	return {
 		'image_resolution': image_resolution , 'language': meta_language, 'widget_hide_watched': hide_watched,
 		'tmdb_api': tmdb_api, 'fanart_client_key': fanart_client_key, 'extra_fanart_enabled': extra_fanart_enabled,
-		'rpdb_api_key': rpdb_api, 'extra_rpdb_movies': extra_rpdb_movies, 'extra_rpdb_series': extra_rpdb_series
+		'rpdb_api_key': rpdb_api, 'extra_rpdb_movies': extra_rpdb_movies, 'extra_rpdb_series': extra_rpdb_series,
+		'show_cast': meta_show_cast(), 'show_trailer': meta_show_trailer(), 'show_tagline': meta_show_tagline(),
+		'show_plot': meta_show_plot(), 'show_tmdblogo': meta_show_tmdblogo(),
+		'mpaa_country': meta_mpaa_country(), 'cache_duration': meta_cache_duration()
 	}
 
 def movies_directory():

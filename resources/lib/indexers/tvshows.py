@@ -1,12 +1,12 @@
 import sys
 from threading import Thread
 from indexers.trakt_api import trakt_get_hidden_items
-from indexers.metadata import tvshow_meta, rpdb_get
+from indexers.metadata import tvshow_meta_with_stremio, rpdb_get
 from caches.watched_cache import get_watched_info_tv, get_watched_status_tvshow
 from modules import kodi_utils, settings
 from modules.utils import manual_function_import, get_datetime, TaskPool
 
-tv_meta_function, get_datetime_function = tvshow_meta, get_datetime
+tv_meta_function, get_datetime_function = tvshow_meta_with_stremio, get_datetime
 get_watched_function, get_watched_info_function = get_watched_status_tvshow, get_watched_info_tv
 KODI_VERSION, make_cast_list = kodi_utils.get_kodi_version(), kodi_utils.make_cast_list
 string, ls, build_url, get_infolabel = str, kodi_utils.local_string, kodi_utils.build_url, kodi_utils.get_infolabel
@@ -48,6 +48,11 @@ class TVShows:
 		if not self.exit_list_params: self.exit_list_params = get_infolabel('Container.FolderPath')
 		self.watched_title = ('POV', 'Trakt', 'MDBList')[self.watched_indicators]
 		self.poster_main, self.poster_backup, self.fanart_main, self.fanart_backup = settings.get_art_provider()
+		self.show_cast = self.meta_user_info.get('show_cast', True)
+		self.show_trailer = self.meta_user_info.get('show_trailer', True)
+		self.show_tagline = self.meta_user_info.get('show_tagline', True)
+		self.show_plot = self.meta_user_info.get('show_plot', True)
+		self.show_tmdblogo = self.meta_user_info.get('show_tmdblogo', True)
 
 	def build_tvshow_content(self, _position, _id):
 		try:
@@ -66,7 +71,7 @@ class TVShows:
 			total_seasons, total_aired_eps = meta_get('total_seasons'), meta_get('total_aired_eps')
 			poster = meta_get(self.poster_main) or meta_get(self.poster_backup) or poster_empty
 			fanart = meta_get(self.fanart_main) or meta_get(self.fanart_backup) or fanart_empty
-			clearlogo = meta_get('clearlogo') or meta_get('tmdblogo') or ''
+			clearlogo = (meta_get('clearlogo') or meta_get('tmdblogo') or '') if self.show_tmdblogo else meta_get('clearlogo', '')
 			if self.rpdb_enabled:
 				rpdb_data = rpdb_get('series', imdb_id or str(tmdb_id), self.meta_user_info['rpdb_api_key'])
 				poster = rpdb_data.get('rpdb') or poster
@@ -123,7 +128,7 @@ class TVShows:
 				if total_watched > 0: listitem.setProperty('watchedepisodes', string(total_watched))
 				if total_aired_eps > 0: listitem.setProperty('watchedprogress', string(int(total_watched / total_aired_eps * 100)))
 				videoinfo = listitem.getVideoInfoTag(offscreen=True)
-				videoinfo.setCast(make_cast_list(meta_get('cast', [])))
+				if self.show_cast: videoinfo.setCast(make_cast_list(meta_get('cast', [])))
 				videoinfo.setUniqueIDs({'imdb': imdb_id, 'tmdb': string(tmdb_id), 'tvdb': string(tvdb_id)})
 				videoinfo.setCountries(meta_get('country'))
 				videoinfo.setDirectors(meta_get('director').split(', '))
@@ -133,13 +138,13 @@ class TVShows:
 				videoinfo.setMediaType('tvshow')
 				videoinfo.setMpaa(meta_get('mpaa'))
 				videoinfo.setPlaycount(playcount)
-				videoinfo.setPlot(meta_get('plot'))
+				if self.show_plot: videoinfo.setPlot(meta_get('plot'))
 				videoinfo.setPremiered(meta_get('premiered'))
 				videoinfo.setRating(meta_get('rating'))
 				videoinfo.setStudios((meta_get('studio'),))
-				videoinfo.setTagLine(meta_get('tagline'))
+				if self.show_tagline: videoinfo.setTagLine(meta_get('tagline'))
 				videoinfo.setTitle(rootname if self.include_year_in_title else title)
-				videoinfo.setTrailer(meta_get('trailer'))
+				if self.show_trailer: videoinfo.setTrailer(meta_get('trailer'))
 				videoinfo.setTvShowStatus(meta_get('status'))
 				videoinfo.setTvShowTitle(title)
 				videoinfo.setVotes(meta_get('votes'))

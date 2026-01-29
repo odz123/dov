@@ -1,11 +1,11 @@
 import sys
 from threading import Thread
-from indexers.metadata import movie_meta, rpdb_get, tmdb_image_base
+from indexers.metadata import movie_meta_with_stremio, rpdb_get, tmdb_image_base
 from caches.watched_cache import get_watched_info_movie, get_watched_status_movie, get_resumetime, get_bookmarks
 from modules import kodi_utils, settings
 from modules.utils import manual_function_import, get_datetime, TaskPool, chunks
 
-movie_meta_function, get_datetime_function, default_duration = movie_meta, get_datetime, 5400
+movie_meta_function, get_datetime_function, default_duration = movie_meta_with_stremio, get_datetime, 5400
 get_watched_function, get_watched_info_function = get_watched_status_movie, get_watched_info_movie
 KODI_VERSION, make_cast_list = kodi_utils.get_kodi_version(), kodi_utils.make_cast_list
 string, ls, build_url, get_infolabel = str, kodi_utils.local_string, kodi_utils.build_url, kodi_utils.get_infolabel
@@ -46,6 +46,11 @@ class Movies:
 		if not self.exit_list_params: self.exit_list_params = get_infolabel('Container.FolderPath')
 		self.watched_title = ('POV', 'Trakt', 'MDBList')[self.watched_indicators]
 		self.poster_main, self.poster_backup, self.fanart_main, self.fanart_backup = settings.get_art_provider()
+		self.show_cast = self.meta_user_info.get('show_cast', True)
+		self.show_trailer = self.meta_user_info.get('show_trailer', True)
+		self.show_tagline = self.meta_user_info.get('show_tagline', True)
+		self.show_plot = self.meta_user_info.get('show_plot', True)
+		self.show_tmdblogo = self.meta_user_info.get('show_tmdblogo', True)
 
 	def build_movie_content(self, _position, _id):
 		try:
@@ -64,7 +69,7 @@ class Movies:
 			tmdb_id, imdb_id = meta_get('tmdb_id'), meta_get('imdb_id')
 			poster = meta_get(self.poster_main) or meta_get(self.poster_backup) or poster_empty
 			fanart = meta_get(self.fanart_main) or meta_get(self.fanart_backup) or fanart_empty
-			clearlogo = meta_get('clearlogo') or meta_get('tmdblogo') or ''
+			clearlogo = (meta_get('clearlogo') or meta_get('tmdblogo') or '') if self.show_tmdblogo else meta_get('clearlogo', '')
 			if self.rpdb_enabled:
 				rpdb_data = rpdb_get('movie', imdb_id or str(tmdb_id), self.meta_user_info['rpdb_api_key'])
 				poster = rpdb_data.get('rpdb') or poster
@@ -117,7 +122,7 @@ class Movies:
 			else:
 				if int(progress): listitem.setProperty('watchedprogress', progress)
 				videoinfo = listitem.getVideoInfoTag(offscreen=True)
-				videoinfo.setCast(make_cast_list(meta_get('cast', [])))
+				if self.show_cast: videoinfo.setCast(make_cast_list(meta_get('cast', [])))
 				videoinfo.setUniqueIDs({'imdb': imdb_id, 'tmdb': string(tmdb_id)})
 				videoinfo.setCountries(meta_get('country'))
 				videoinfo.setDirectors(meta_get('director').split(', '))
@@ -127,14 +132,14 @@ class Movies:
 				videoinfo.setMediaType('movie')
 				videoinfo.setMpaa(meta_get('mpaa'))
 				videoinfo.setPlaycount(playcount)
-				videoinfo.setPlot(meta_get('plot'))
+				if self.show_plot: videoinfo.setPlot(meta_get('plot'))
 				videoinfo.setPremiered(meta_get('premiered'))
 				videoinfo.setRating(meta_get('rating'))
 				videoinfo.setResumePoint(float(resumetime) or float(progress), int(meta_get('duration') or default_duration))
 				videoinfo.setStudios((meta_get('studio'),))
-				videoinfo.setTagLine(meta_get('tagline'))
+				if self.show_tagline: videoinfo.setTagLine(meta_get('tagline'))
 				videoinfo.setTitle(rootname if self.include_year_in_title else title)
-				videoinfo.setTrailer(meta_get('trailer'))
+				if self.show_trailer: videoinfo.setTrailer(meta_get('trailer'))
 				videoinfo.setVotes(meta_get('votes'))
 				videoinfo.setWriters(meta_get('writer').split(', '))
 				videoinfo.setYear(int(year))

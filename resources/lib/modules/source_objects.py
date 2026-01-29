@@ -1,6 +1,6 @@
 import json
 from caches.providers_cache import ExternalProvidersCache
-from indexers.metadata import movie_meta, tvshow_meta, season_episodes_meta, get_title
+from indexers.metadata import movie_meta_with_stremio, tvshow_meta_with_stremio, season_episodes_meta_with_stremio, get_title
 from modules.kodi_utils import local_string as ls, get_setting
 from modules.settings import metadata_user_info, date_offset
 from modules.source_utils import get_cache_expiry, get_filename_match, get_file_info, normalize
@@ -23,16 +23,16 @@ def get_source_meta(params):
 	else:
 		meta_user_info, adjust_hours, current_date = metadata_user_info(), date_offset(), get_datetime()
 		if media_type == 'episode':
-			meta = tvshow_meta('tmdb_id', tmdb_id, meta_user_info, current_date)
+			meta = tvshow_meta_with_stremio('tmdb_id', tmdb_id, meta_user_info, current_date)
 			try:
-				episodes_data = season_episodes_meta(season, meta, meta_user_info)
+				episodes_data = season_episodes_meta_with_stremio(season, meta, meta_user_info)
 				ep_data = next((i for i in episodes_data if i['episode'] == int(episode)))
 				meta.update({
 					'mediatype': 'episode', 'season': ep_data['season'], 'episode': ep_data['episode'],
 					'premiered': ep_data['premiered'], 'ep_name': ep_data['title'], 'plot': ep_data['plot']
 				})
 			except Exception: pass
-		else: meta = movie_meta('tmdb_id', tmdb_id, meta_user_info, current_date)
+		else: meta = movie_meta_with_stremio('tmdb_id', tmdb_id, meta_user_info, current_date)
 	meta.update({'background': background, 'media_type': media_type, 'season': season, 'episode': episode})
 	if custom_title: meta['custom_title'] = custom_title
 	if custom_year: meta['custom_year'] = custom_year

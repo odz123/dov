@@ -4,7 +4,7 @@ from random import choice
 from threading import Thread
 import _strptime  # fix bug in python import
 from windows import open_window
-from indexers.metadata import tvshow_meta, season_episodes_meta, all_episodes_meta
+from indexers.metadata import tvshow_meta_with_stremio, season_episodes_meta_with_stremio, all_episodes_meta_with_stremio
 from modules import kodi_utils, settings
 from modules.sources import SourceSelect
 from modules.utils import get_datetime, adjust_premiered_date
@@ -15,9 +15,9 @@ ls, build_url = kodi_utils.local_string, kodi_utils.build_url
 def get_random_episode(tmdb_id, continual=False):
 	meta_user_info, adjust_hours, current_date = settings.metadata_user_info(), settings.date_offset(), get_datetime()
 	tmdb_key = str(tmdb_id)
-	meta = tvshow_meta('tmdb_id', tmdb_id, meta_user_info, current_date)
+	meta = tvshow_meta_with_stremio('tmdb_id', tmdb_id, meta_user_info, current_date)
 	try:
-		episodes_data = [i for i in all_episodes_meta(meta, meta_user_info, Thread) if i['premiered']]
+		episodes_data = [i for i in all_episodes_meta_with_stremio(meta, meta_user_info, Thread) if i['premiered']]
 		episodes_data = [i for i in episodes_data if not i['season'] == 0 and adjust_premiered_date(i['premiered'], adjust_hours)[0] <= current_date]
 	except Exception: episodes_data = []
 	if not episodes_data: return None
@@ -65,7 +65,7 @@ def get_random_episode(tmdb_id, continual=False):
 
 def nextep_playback_info(meta):
 	def _build_next_episode_play():
-		ep_data = season_episodes_meta(season, meta, settings.metadata_user_info())
+		ep_data = season_episodes_meta_with_stremio(season, meta, settings.metadata_user_info())
 		if not ep_data: return 'no_next_episode'
 		matching_eps = [i for i in ep_data if i['episode'] == episode]
 		if not matching_eps: return 'no_next_episode'
