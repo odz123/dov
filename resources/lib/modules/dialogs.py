@@ -588,7 +588,13 @@ def options_menu(params, meta=None):
 def extras_menu(params):
 	from windows import open_window
 	function = metadata.movie_meta if params['media_type'] == 'movie' else metadata.tvshow_meta
-	meta = function('tmdb_id', params['tmdb_id'], settings.metadata_user_info(), get_datetime())
+	if 'tmdb_id' in params:
+		id_type, media_id = 'tmdb_id', params['tmdb_id']
+	elif 'imdb_id' in params:
+		id_type, media_id = 'imdb_id', params['imdb_id']
+	else:
+		return notification('No valid ID found', 2000)
+	meta = function(id_type, media_id, settings.metadata_user_info(), get_datetime())
 	open_window(('windows.extras', 'Extras'), 'extras.xml', meta=meta, is_widget=params.get('is_widget', 'false'), is_home=params.get('is_home', 'false'))
 
 def refresh_cached_meta(meta):
