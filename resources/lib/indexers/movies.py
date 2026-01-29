@@ -191,8 +191,13 @@ class Indexer(Movies):
 				self.id_type = 'trakt_dict'
 				data = function(page_no)
 				if not data: return
+				if isinstance(data, tuple):
+					data, total_pages = data
+				else:
+					total_pages = page_no
+				if not data: return
 				self.list = [i['movie']['ids'] for i in data if i.get('movie', {}).get('ids')]
-				if self.action not in ('trakt_moviesanime_trending',):
+				if total_pages > page_no:
 					self.new_page = {'new_page': string(page_no + 1)}
 			elif self.action in Indexer.tmdb_personal:
 				data, total_pages = function('movie', page_no, letter)

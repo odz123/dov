@@ -198,8 +198,14 @@ class Indexer(TVShows):
 				self.id_type = 'trakt_dict'
 				data = function(page_no)
 				if not data: return
+				if isinstance(data, tuple):
+					data, total_pages = data
+				else:
+					total_pages = page_no
+				if not data: return
 				self.list = [i['show']['ids'] for i in data if i.get('show', {}).get('ids')]
-				self.new_page = {'new_page': string(page_no + 1)}
+				if total_pages > page_no:
+					self.new_page = {'new_page': string(page_no + 1)}
 			elif self.action in Indexer.tmdb_personal:
 				data, total_pages = function('tv', page_no, letter)
 				if not data: return
@@ -284,8 +290,14 @@ class Indexer(TVShows):
 				if not certification: return
 				data = function(certification, page_no)
 				if not data: return
+				if isinstance(data, tuple):
+					data, total_pages = data
+				else:
+					total_pages = page_no
+				if not data: return
 				self.list = [i['show']['ids'] for i in data if i.get('show', {}).get('ids')]
-				self.new_page = {'new_page': string(page_no + 1), 'certification': certification}
+				if total_pages > page_no:
+					self.new_page = {'new_page': string(page_no + 1), 'certification': certification}
 			elif self.action == 'trakt_recommendations':
 				self.id_type = 'trakt_dict'
 				data = function('shows')
