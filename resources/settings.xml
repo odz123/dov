@@ -101,8 +101,6 @@
 			<setting id="check.oc_cloud" label="Check Before Full Search" type="bool" default="false" subsetting="true" visible="eq(-2,true)+eq(-5,true)+!eq(-6,)" />
 			<setting id="results.sort_occloud_first" label="Show Results at Top" type="bool" default="true" subsetting="true" visible="eq(-3,true)+eq(-6,true)+!eq(-7,)" />
 		<setting id="oc.priority" label="Priority (Lower Number Equals Higher Priority)" type="slider" default="9" option="int" range="1,1,10" visible="eq(-7,true)+!eq(-8,)" />
-	</category>
-	<category label="My Services">
 		<!-- Real Debrid -->
 		<setting label="Real Debrid" type="lsep" />
 		<setting id="rd.client_id" type="text" default="" visible="false" />
