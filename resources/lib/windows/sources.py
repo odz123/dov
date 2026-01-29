@@ -26,6 +26,9 @@ string, upper, lower = str, str.upper, str.lower
 class SourceResults(BaseDialog):
 	def __init__(self, *args, **kwargs):
 		BaseDialog.__init__(self, args)
+		self.selected = None
+		self.item_list = []
+		self.total_results = '0'
 		self.window_style = kwargs.get('window_style', 'list contrast details')
 		self.window_id = kwargs.get('window_id')
 		self.results = kwargs.get('results')
@@ -383,6 +386,7 @@ class SourceResultsChooser(BaseDialog):
 	def __init__(self, *args, **kwargs):
 		BaseDialog.__init__(self, args)
 		self.window_id = 5001
+		self.choice = None
 		self.xml_choices = kwargs.get('xml_choices')
 		self.xml_items = []
 		self.make_items()
@@ -399,7 +403,7 @@ class SourceResultsChooser(BaseDialog):
 	def onAction(self, action):
 		if action in self.closing_actions:
 			self.choice = None
-			self.close()
+			return self.close()
 		if action in self.selection_actions:
 			chosen_listitem = self.get_listitem(self.window_id)
 			self.choice = chosen_listitem.getProperty('tikiskins.window.name')

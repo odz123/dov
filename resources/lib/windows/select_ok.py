@@ -89,6 +89,7 @@ class Select(BaseDialog):
 class YesNo(BaseDialog):
 	def __init__(self, *args, **kwargs):
 		BaseDialog.__init__(self, args)
+		self.selected = None
 		self.ok_label = kwargs['ok_label']
 		self.cancel_label = kwargs['cancel_label']
 		self.text = kwargs['text']
