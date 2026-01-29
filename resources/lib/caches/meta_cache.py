@@ -1,3 +1,4 @@
+import sqlite3
 from ast import literal_eval
 from datetime import datetime, timedelta
 from caches import BaseCache, metacache_db, get_property, set_property, clear_property
@@ -58,7 +59,7 @@ class MetaCache(BaseCache):
 						self.delete(media_type, id_type, media_id, meta=meta, dbcon=None)
 						meta = None
 					else: self.set_memory_cache(media_type, id_type, meta, expiry, media_id)
-		except (ValueError, SyntaxError, TypeError, KeyError): pass
+		except (ValueError, SyntaxError, TypeError, KeyError, sqlite3.ProgrammingError, sqlite3.OperationalError): pass
 		return fanarttv_data or meta
 
 	def set(self, media_type, id_type, meta, expiration=30, tmdb_id=None):
@@ -70,7 +71,7 @@ class MetaCache(BaseCache):
 			else:
 				media_id = string(tmdb_id)
 				self.dbcur.execute(SET_SEASON, (media_id, repr(meta), int(expires)))
-		except (KeyError, TypeError, ValueError): return None
+		except (KeyError, TypeError, ValueError, sqlite3.ProgrammingError, sqlite3.OperationalError): return None
 		self.set_memory_cache(media_type, id_type, meta, expires, media_id)
 
 	def delete(self, media_type, id_type, media_id, meta=None, dbcon=None):
@@ -85,7 +86,7 @@ class MetaCache(BaseCache):
 			else:
 				self.dbcur.execute(DELETE_SEASON, (media_id,))
 				self.delete_memory_cache(media_type, id_type, media_id)
-		except (KeyError, TypeError): return
+		except (KeyError, TypeError, sqlite3.ProgrammingError, sqlite3.OperationalError): return
 
 	def get_memory_cache(self, media_type, id_type, media_id, current_time):
 		result = None
@@ -121,14 +122,14 @@ class MetaCache(BaseCache):
 			cache_data = self.dbcur.fetchone()
 			if cache_data and cache_data[2] > current_time: result = safe_eval(cache_data[1])
 			else: self.dbcur.execute(DELETE_FUNCTION, (prop_string,))
-		except (ValueError, SyntaxError, TypeError): pass
+		except (ValueError, SyntaxError, TypeError, sqlite3.ProgrammingError, sqlite3.OperationalError): pass
 		return result
 
 	def set_function(self, prop_string, result, expiration=timedelta(days=1)):
 		try:
 			expires = self._get_timestamp(datetime.now() + expiration)
 			self.dbcur.execute(SET_FUNCTION, (prop_string, repr(result), expires))
-		except (TypeError, ValueError): return
+		except (TypeError, ValueError, sqlite3.ProgrammingError, sqlite3.OperationalError): return
 
 	def delete_all_seasons_memory_cache(self, media_id, max_seasons=100):
 		for item in range(1, max_seasons + 1): clear_property('pov_meta_season_%s_%s' % (string(media_id), string(item)))

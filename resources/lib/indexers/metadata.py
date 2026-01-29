@@ -1,3 +1,4 @@
+import threading
 from indexers import tmdb_api as tmdb, fanarttv_api as fanarttv
 from caches.meta_cache import MetaCache
 from modules.utils import jsondate_to_datetime, subtract_dates, TaskPool
@@ -24,15 +25,15 @@ def _get_cache_expiry(user_info, level='mid'):
 	duration = user_info.get('cache_duration', 1)
 	return _cache_duration_map.get(duration, _cache_duration_map[1])[level]
 
-# Module-level cached MetaCache instance - connection pooling handles efficient reuse
-_metacache_instance = None
+# Thread-local MetaCache instances - each thread gets its own SQLite connection
+# to avoid ProgrammingError from cross-thread cursor access
+_metacache_local = threading.local()
 
 def get_metacache():
-	"""Get a cached MetaCache instance for efficient reuse."""
-	global _metacache_instance
-	if _metacache_instance is None:
-		_metacache_instance = MetaCache()
-	return _metacache_instance
+	"""Get a thread-local MetaCache instance for thread-safe reuse."""
+	if not hasattr(_metacache_local, 'instance') or _metacache_local.instance is None:
+		_metacache_local.instance = MetaCache()
+	return _metacache_local.instance
 
 def movie_meta(id_type, media_id, user_info, current_date):
 	if id_type == 'trakt_dict':
