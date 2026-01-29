@@ -9,6 +9,7 @@ root_list = [
 	{'name': 32107, 'iconImage': 'downloads.png', 'mode': 'navigator.downloads'},
 	{'name': 32454, 'iconImage': 'lists.png', 'mode': 'navigator.my_content'},
 	{'name': 32455, 'iconImage': 'premium.png', 'mode': 'navigator.premium'},
+	{'name': 'Stremio Catalogs', 'iconImage': 'lists.png', 'mode': 'navigator.stremio_catalogs'},
 #	{'name': 32456, 'iconImage': 'tools.png', 'mode': 'navigator.tools'},
 	{'name': 32247, 'iconImage': 'settings.png', 'mode': 'navigator.settings'}
 ]
