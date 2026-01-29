@@ -184,8 +184,8 @@ def openSettings(query=None, id=addonInfo('id')):
 		execute('Addon.OpenSettings(%s)' % id)
 		if not query: return
 		c, f = query.split('.')
-		execute('SetFocus(%i)' % (int(c) - 100))
-		execute('SetFocus(%i)' % (int(f) - 80))
+		execute('SetFocus(%i)' % (int(c) + 100))
+		execute('SetFocus(%i)' % (int(f) + 80))
 	except Exception:
 		return
 
