@@ -120,7 +120,7 @@ class Discover:
 		current_key_ids = self.discover_params['search_string'].get(key, [])
 		current_keywords = self.discover_params['search_name'].get(key, [])
 		if not isinstance(current_key_ids, list):
-			current_key_ids = current_key_ids.replace('&with_keywords=', '').split(', ')
+			current_key_ids = current_key_ids.replace('&with_keywords=', '').split(',')
 		if not isinstance(current_keywords, list):
 			current_keywords = current_keywords.split(', ')
 		key_ids_append = current_key_ids.append
@@ -146,7 +146,7 @@ class Discover:
 		current_key_ids = self.discover_params['search_string'].get(key, [])
 		current_keywords = self.discover_params['search_name'].get(key, [])
 		if not isinstance(current_key_ids, list):
-			current_key_ids = current_key_ids.split(', ')
+			current_key_ids = current_key_ids.replace('&without_keywords=', '').split(',')
 		if not isinstance(current_keywords, list):
 			current_keywords = current_keywords.split(', ')
 		key_ids_append = current_key_ids.append

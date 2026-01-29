@@ -24,7 +24,7 @@ class MainCache(BaseCache):
 				if cache_data:
 					if cache_data[0] > current_time:
 						result = literal_eval(cache_data[1])
-						self.set_memory_cache(result, string, cache_data[1])
+						self.set_memory_cache(result, string, cache_data[0])
 					else:
 						self.delete(string, dbcon=None)
 		except: pass
