@@ -22,8 +22,10 @@ from threading import Thread
 from modules.kodi_utils import (
 	get_setting, set_setting, notification, make_listitem, add_items,
 	set_content, end_directory, set_view_mode, build_url, dialog,
-	get_property, set_property, clear_property
+	get_property, set_property, clear_property, get_kodi_version
 )
+
+KODI_VERSION = get_kodi_version()
 
 # Try to import cloudscraper for Cloudflare bypass
 try:
@@ -253,6 +255,8 @@ class StremioIndexer:
 
 		if not addons:
 			notification('No Stremio addons configured', 2000)
+			set_content(self.__handle__, 'files')
+			end_directory(self.__handle__)
 			return
 
 		# Fetch manifests in parallel to check catalog support
@@ -283,6 +287,8 @@ class StremioIndexer:
 
 		if not items:
 			notification('No addons with catalog support found', 2000)
+			set_content(self.__handle__, 'files')
+			end_directory(self.__handle__)
 			return
 
 		self._build_addon_list(items)
@@ -293,7 +299,12 @@ class StremioIndexer:
 		for item in items:
 			listitem = make_listitem()
 			listitem.setLabel(item['name'])
-			listitem.setInfo('video', {'title': item['name'], 'plot': item.get('description', '')})
+			if KODI_VERSION < 20:
+				listitem.setInfo('video', {'title': item['name'], 'plot': item.get('description', '')})
+			else:
+				videoinfo = listitem.getVideoInfoTag(offscreen=True)
+				videoinfo.setTitle(item['name'])
+				videoinfo.setPlot(item.get('description', ''))
 
 			url = build_url({
 				'mode': item['mode'],
@@ -312,16 +323,22 @@ class StremioIndexer:
 		addon_url = self.params_get('addon_url', '')
 		if not addon_url:
 			notification('No addon URL provided', 2000)
+			set_content(self.__handle__, 'files')
+			end_directory(self.__handle__)
 			return
 
 		manifest = self.fetch_manifest(addon_url)
 		if not manifest:
 			notification('Failed to fetch addon manifest', 2000)
+			set_content(self.__handle__, 'files')
+			end_directory(self.__handle__)
 			return
 
 		catalogs = manifest.get('catalogs', [])
 		if not catalogs:
 			notification('No catalogs available', 2000)
+			set_content(self.__handle__, 'files')
+			end_directory(self.__handle__)
 			return
 
 		items = []
@@ -356,6 +373,8 @@ class StremioIndexer:
 
 		if not items:
 			notification('No movie/series catalogs found', 2000)
+			set_content(self.__handle__, 'files')
+			end_directory(self.__handle__)
 			return
 
 		self._build_catalog_list(items)
@@ -366,7 +385,11 @@ class StremioIndexer:
 		for item in items:
 			listitem = make_listitem()
 			listitem.setLabel(item['name'])
-			listitem.setInfo('video', {'title': item['name']})
+			if KODI_VERSION < 20:
+				listitem.setInfo('video', {'title': item['name']})
+			else:
+				videoinfo = listitem.getVideoInfoTag(offscreen=True)
+				videoinfo.setTitle(item['name'])
 
 			params = {
 				'mode': item['mode'],
@@ -392,7 +415,11 @@ class StremioIndexer:
 					if extra_name and extra_item.get('options'):
 						filter_listitem = make_listitem()
 						filter_listitem.setLabel(f"  Filter by {extra_name.capitalize()}")
-						filter_listitem.setInfo('video', {'title': f"Filter {item['name']} by {extra_name}"})
+						if KODI_VERSION < 20:
+							filter_listitem.setInfo('video', {'title': f"Filter {item['name']} by {extra_name}"})
+						else:
+							fi = filter_listitem.getVideoInfoTag(offscreen=True)
+							fi.setTitle(f"Filter {item['name']} by {extra_name}")
 						filter_url = build_url({
 							'mode': 'stremio_catalog',
 							'stremio_mode': 'filter_catalog',
@@ -423,13 +450,19 @@ class StremioIndexer:
 
 		if not options:
 			notification('No filter options available', 2000)
+			set_content(self.__handle__, 'files')
+			end_directory(self.__handle__)
 			return
 
 		listitems = []
 		for option in options:
 			listitem = make_listitem()
 			listitem.setLabel(str(option))
-			listitem.setInfo('video', {'title': str(option)})
+			if KODI_VERSION < 20:
+				listitem.setInfo('video', {'title': str(option)})
+			else:
+				videoinfo = listitem.getVideoInfoTag(offscreen=True)
+				videoinfo.setTitle(str(option))
 
 			url = build_url({
 				'mode': 'stremio_catalog',
@@ -457,6 +490,8 @@ class StremioIndexer:
 
 		if not addon_url or not catalog_id:
 			notification('Missing catalog parameters', 2000)
+			set_content(self.__handle__, 'files')
+			end_directory(self.__handle__)
 			return
 
 		# Fetch catalog contents
@@ -464,6 +499,8 @@ class StremioIndexer:
 
 		if not metas:
 			notification('No items found', 2000)
+			set_content(self.__handle__, 'files')
+			end_directory(self.__handle__)
 			return
 
 		self._build_meta_list(metas, addon_url, catalog_type, catalog_id, skip, filter_name, filter_value)
@@ -555,7 +592,22 @@ class StremioIndexer:
 				except Exception:
 					pass
 
-			listitem.setInfo('video', info_dict)
+			if KODI_VERSION < 20:
+				listitem.setInfo('video', info_dict)
+			else:
+				videoinfo = listitem.getVideoInfoTag(offscreen=True)
+				videoinfo.setTitle(name)
+				videoinfo.setMediaType('movie' if catalog_type == 'movie' else 'tvshow')
+				year_int = int(year) if year and str(year).isdigit() else 0
+				if year_int: videoinfo.setYear(year_int)
+				videoinfo.setPlot(meta.get('description', ''))
+				genres = meta.get('genres', [])
+				if genres: videoinfo.setGenres(genres)
+				videoinfo.setIMDBNumber(imdb_id)
+				duration = info_dict.get('duration', 0)
+				if duration: videoinfo.setDuration(duration)
+				rating = info_dict.get('rating')
+				if rating: videoinfo.setRating(rating)
 
 			# Set art
 			poster = meta.get('poster', '')
@@ -617,7 +669,11 @@ class StremioIndexer:
 			next_skip = current_skip + len(metas)
 			listitem = make_listitem()
 			listitem.setLabel('[B]Next Page >>>[/B]')
-			listitem.setInfo('video', {'title': 'Next Page'})
+			if KODI_VERSION < 20:
+				listitem.setInfo('video', {'title': 'Next Page'})
+			else:
+				videoinfo = listitem.getVideoInfoTag(offscreen=True)
+				videoinfo.setTitle('Next Page')
 
 			params = {
 				'mode': 'stremio_catalog',
@@ -644,6 +700,8 @@ class StremioIndexer:
 		# Get search query from user
 		search_query = dialog.input('Search Stremio Catalogs', type=0)
 		if not search_query:
+			set_content(self.__handle__, 'files')
+			end_directory(self.__handle__)
 			return
 
 		# Store search query and redirect to results
@@ -662,11 +720,15 @@ class StremioIndexer:
 
 		if not query:
 			notification('No search query provided', 2000)
+			set_content(self.__handle__, 'files')
+			end_directory(self.__handle__)
 			return
 
 		addons = self.get_stremio_addons()
 		if not addons:
 			notification('No Stremio addons configured', 2000)
+			set_content(self.__handle__, 'files')
+			end_directory(self.__handle__)
 			return
 
 		# Fetch manifests to find searchable catalogs
@@ -712,6 +774,8 @@ class StremioIndexer:
 
 		if not all_results:
 			notification(f'No results found for "{query}"', 2000)
+			set_content(self.__handle__, 'files')
+			end_directory(self.__handle__)
 			return
 
 		# Deduplicate by IMDb ID
@@ -784,14 +848,25 @@ class StremioIndexer:
 			listitem.setLabel(' '.join(label_parts))
 
 			# Set info
-			info_dict = {
-				'title': name,
-				'year': int(year) if year and str(year).isdigit() else 0,
-				'plot': meta.get('description', ''),
-				'genre': ', '.join(meta.get('genres', [])) if meta.get('genres') else '',
-				'imdbnumber': imdb_id
-			}
-			listitem.setInfo('video', info_dict)
+			if KODI_VERSION < 20:
+				info_dict = {
+					'title': name,
+					'year': int(year) if year and str(year).isdigit() else 0,
+					'plot': meta.get('description', ''),
+					'genre': ', '.join(meta.get('genres', [])) if meta.get('genres') else '',
+					'imdbnumber': imdb_id
+				}
+				listitem.setInfo('video', info_dict)
+			else:
+				videoinfo = listitem.getVideoInfoTag(offscreen=True)
+				videoinfo.setTitle(name)
+				videoinfo.setMediaType('movie' if catalog_type == 'movie' else 'tvshow')
+				year_int = int(year) if year and str(year).isdigit() else 0
+				if year_int: videoinfo.setYear(year_int)
+				videoinfo.setPlot(meta.get('description', ''))
+				genres = meta.get('genres', [])
+				if genres: videoinfo.setGenres(genres)
+				videoinfo.setIMDBNumber(imdb_id)
 
 			# Set art
 			poster = meta.get('poster', '')
@@ -837,6 +912,8 @@ class StremioIndexer:
 
 		if not addons:
 			notification('No Stremio addons configured', 2000)
+			set_content(self.__handle__, 'files')
+			end_directory(self.__handle__)
 			return
 
 		# Fetch all manifests in parallel
@@ -873,6 +950,8 @@ class StremioIndexer:
 
 		if not items:
 			notification('No catalogs found', 2000)
+			set_content(self.__handle__, 'files')
+			end_directory(self.__handle__)
 			return
 
 		# Sort by addon name then catalog name
@@ -882,7 +961,11 @@ class StremioIndexer:
 		for item in items:
 			listitem = make_listitem()
 			listitem.setLabel(item['name'])
-			listitem.setInfo('video', {'title': item['name']})
+			if KODI_VERSION < 20:
+				listitem.setInfo('video', {'title': item['name']})
+			else:
+				videoinfo = listitem.getVideoInfoTag(offscreen=True)
+				videoinfo.setTitle(item['name'])
 
 			url = build_url({
 				'mode': item['mode'],
@@ -907,6 +990,8 @@ class StremioIndexer:
 
 		if not meta_id:
 			notification('Missing meta parameters', 2000)
+			set_content(self.__handle__, 'files')
+			end_directory(self.__handle__)
 			return
 
 		# If no addon URL, try to fetch from any configured addon
@@ -922,6 +1007,8 @@ class StremioIndexer:
 
 		if not meta:
 			notification('Failed to fetch metadata', 2000)
+			set_content(self.__handle__, 'files')
+			end_directory(self.__handle__)
 			return
 
 		# Get IMDb ID for integration
@@ -1030,7 +1117,11 @@ def stremio_catalog_menu():
 	for label, mode, extra_params in items:
 		listitem = make_listitem()
 		listitem.setLabel(label)
-		listitem.setInfo('video', {'title': label})
+		if KODI_VERSION < 20:
+			listitem.setInfo('video', {'title': label})
+		else:
+			videoinfo = listitem.getVideoInfoTag(offscreen=True)
+			videoinfo.setTitle(label)
 
 		params = {'mode': mode}
 		params.update(extra_params)
