@@ -187,6 +187,8 @@ class StremioIndexer:
 			self.list_all_catalogs()
 		elif mode == 'filter_catalog':
 			self.filter_catalog()
+		elif mode == 'open_item':
+			self.open_item()
 
 	def get_stremio_addons(self):
 		"""Get list of configured Stremio addons"""
@@ -550,13 +552,16 @@ class StremioIndexer:
 
 			name = meta.get('name', 'Unknown')
 			year = meta.get('year', '')
-			imdb_id = meta.get('imdb_id', '') or meta.get('id', '')
+			imdb_id = meta.get('imdb_id', '')
+			tmdb_id = ''
+			stremio_id = meta.get('id', '')
 
-			# Extract IMDb ID from id if needed
-			if imdb_id.startswith('tt'):
-				pass
-			elif ':' in imdb_id:
-				imdb_id = imdb_id.split(':')[0]
+			# Parse IDs from stremio meta
+			if not imdb_id and stremio_id:
+				if stremio_id.startswith('tt'):
+					imdb_id = stremio_id
+				elif stremio_id.startswith('tmdb:'):
+					tmdb_id = stremio_id.split(':', 1)[1]
 
 			# Set label
 			if year:
@@ -626,41 +631,28 @@ class StremioIndexer:
 			if art_dict:
 				listitem.setArt(art_dict)
 
-			# Determine action based on type
-			if catalog_type == 'movie':
-				# Link to POV's movie play/info
-				if imdb_id.startswith('tt'):
-					url = build_url({
-						'mode': 'extras_menu_choice',
-						'media_type': 'movie',
-						'imdb_id': imdb_id,
-						'name': name
-					})
+			# Determine action based on available IDs
+			media_type = 'movie' if catalog_type == 'movie' else 'tvshow'
+			if tmdb_id:
+				if media_type == 'movie':
+					url = build_url({'mode': 'play_media', 'media_type': 'movie', 'tmdb_id': tmdb_id})
 				else:
-					url = build_url({
-						'mode': 'stremio_catalog',
-						'stremio_mode': 'view_meta',
-						'addon_url': addon_url,
-						'meta_type': catalog_type,
-						'meta_id': meta.get('id', '')
-					})
+					url = build_url({'mode': 'build_season_list', 'tmdb_id': tmdb_id})
+			elif imdb_id.startswith('tt'):
+				url = build_url({
+					'mode': 'stremio_catalog',
+					'stremio_mode': 'open_item',
+					'media_type': media_type,
+					'imdb_id': imdb_id
+				})
 			else:
-				# Series - link to POV's show info
-				if imdb_id.startswith('tt'):
-					url = build_url({
-						'mode': 'extras_menu_choice',
-						'media_type': 'tvshow',
-						'imdb_id': imdb_id,
-						'name': name
-					})
-				else:
-					url = build_url({
-						'mode': 'stremio_catalog',
-						'stremio_mode': 'view_meta',
-						'addon_url': addon_url,
-						'meta_type': catalog_type,
-						'meta_id': meta.get('id', '')
-					})
+				url = build_url({
+					'mode': 'stremio_catalog',
+					'stremio_mode': 'view_meta',
+					'addon_url': addon_url,
+					'meta_type': catalog_type,
+					'meta_id': stremio_id
+				})
 
 			listitems.append((url, listitem, catalog_type == 'series'))
 
@@ -831,10 +823,16 @@ class StremioIndexer:
 			year = meta.get('year', '')
 			catalog_type = meta.get('_catalog_type', 'movie')
 			addon_name = meta.get('_addon_name', '')
-			imdb_id = meta.get('imdb_id', '') or meta.get('id', '')
+			imdb_id = meta.get('imdb_id', '')
+			tmdb_id = ''
+			stremio_id = meta.get('id', '')
 
-			if ':' in imdb_id:
-				imdb_id = imdb_id.split(':')[0]
+			# Parse IDs from stremio meta
+			if not imdb_id and stremio_id:
+				if stremio_id.startswith('tt'):
+					imdb_id = stremio_id
+				elif stremio_id.startswith('tmdb:'):
+					tmdb_id = stremio_id.split(':', 1)[1]
 
 			# Set label with source info
 			label_parts = [name]
@@ -882,13 +880,18 @@ class StremioIndexer:
 				listitem.setArt(art_dict)
 
 			# Determine action
-			if imdb_id.startswith('tt'):
-				media_type = 'movie' if catalog_type == 'movie' else 'tvshow'
+			media_type = 'movie' if catalog_type == 'movie' else 'tvshow'
+			if tmdb_id:
+				if media_type == 'movie':
+					url = build_url({'mode': 'play_media', 'media_type': 'movie', 'tmdb_id': tmdb_id})
+				else:
+					url = build_url({'mode': 'build_season_list', 'tmdb_id': tmdb_id})
+			elif imdb_id.startswith('tt'):
 				url = build_url({
-					'mode': 'extras_menu_choice',
+					'mode': 'stremio_catalog',
+					'stremio_mode': 'open_item',
 					'media_type': media_type,
-					'imdb_id': imdb_id,
-					'name': name
+					'imdb_id': imdb_id
 				})
 			else:
 				url = build_url({
@@ -896,7 +899,7 @@ class StremioIndexer:
 					'stremio_mode': 'view_meta',
 					'addon_url': '',
 					'meta_type': catalog_type,
-					'meta_id': meta.get('id', '')
+					'meta_id': stremio_id
 				})
 
 			listitems.append((url, listitem, catalog_type == 'series'))
@@ -980,6 +983,28 @@ class StremioIndexer:
 		add_items(self.__handle__, listitems)
 		set_content(self.__handle__, 'files')
 		end_directory(self.__handle__)
+
+	def open_item(self):
+		"""Resolve TMDB ID and open item the same way trending lists do"""
+		media_type = self.params_get('media_type', 'movie')
+		imdb_id = self.params_get('imdb_id', '')
+		tmdb_id = self.params_get('tmdb_id', '')
+		if not tmdb_id and imdb_id:
+			from indexers import metadata
+			from modules import settings
+			from modules.kodi_utils import get_datetime
+			function = metadata.movie_meta if media_type == 'movie' else metadata.tvshow_meta
+			meta = function('imdb_id', imdb_id, settings.metadata_user_info(), get_datetime())
+			tmdb_id = str(meta.get('tmdb_id', ''))
+		if not tmdb_id:
+			notification('Could not resolve TMDB ID', 2000)
+			return
+		if media_type == 'movie':
+			from modules.sources import SourceSelect
+			SourceSelect.factory({'media_type': 'movie', 'tmdb_id': tmdb_id})
+		else:
+			from indexers.seasons import Seasons
+			Seasons({'tmdb_id': tmdb_id}).run()
 
 	def view_meta(self):
 		"""View detailed metadata for an item"""
