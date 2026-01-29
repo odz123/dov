@@ -252,6 +252,7 @@ class Navigator:
 		n_ins, l_str = _in_str % (settings_str.upper(), ''), _in_str % ('LINKS', '')
 		self._add_item({'mode': 'open_settings', 'query': '4.0', 'name': pov_str                 }, 'pov.png', n_ins, False)
 		self._add_item({'mode': 'myservices',                    'name': ms_str                  }, 'settings.png', n_ins, False)
+		self._add_item({'mode': 'open_settings', 'query': '9.0', 'name': 'Metadata'             }, 'settings.png', n_ins, False)
 		self._add_item({'mode': 'navigator.clear_info',          'name': clean_str               }, 'settings.png', n_ins)
 		self._add_item({'mode': 'navigator.log_utils',           'name': changelog_log_viewer_str}, 'settings.png', n_ins)
 		self._add_item({'mode': 'navigator.set_view_modes',      'name': views_str               }, 'settings.png', n_ins)
