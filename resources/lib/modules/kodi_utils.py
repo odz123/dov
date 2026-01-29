@@ -410,8 +410,8 @@ def open_settings(query, addon='plugin.video.pov'):
 			button, control = 100, 80
 			menu, function = query.split('.')
 			execute_builtin('Addon.OpenSettings(%s)' % addon)
-			execute_builtin('SetFocus(%i)' % (int(menu) - button))
-			execute_builtin('SetFocus(%i)' % (int(function) - control))
+			execute_builtin('SetFocus(%i)' % (int(menu) + button))
+			execute_builtin('SetFocus(%i)' % (int(function) + control))
 		except Exception: execute_builtin('Addon.OpenSettings(%s)' % addon)
 	else: execute_builtin('Addon.OpenSettings(%s)' % addon)
 
