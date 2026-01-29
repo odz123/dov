@@ -117,6 +117,7 @@ class TorBoxAPI:
 		data = {'hashes': hashes}
 		url = 'torrents/checkcached'
 		result = self._post(url, params={'format': 'list'}, json=data)
+		if not result or not isinstance(result, list): return []
 		return [i['hash'] for i in result]
 
 	def add_magnet(self, magnet):

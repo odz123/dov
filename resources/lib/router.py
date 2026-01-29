@@ -169,10 +169,7 @@ class Router:
 				from caches.watched_cache import erase_bookmark
 				erase_bookmark(params_get('media_type'), params_get('tmdb_id'), params_get('season', ''), params_get('episode', ''), params_get('refresh', 'false'))
 		elif 'toggle' in mode:
-			if mode == 'toggle_provider':
-				from modules.utils import toggle_provider
-				toggle_provider()
-			elif mode == 'toggle_language_invoker':
+			if mode == 'toggle_language_invoker':
 				from modules.kodi_utils import toggle_language_invoker
 				toggle_language_invoker()
 		elif 'history' in mode:

@@ -73,7 +73,8 @@ class OffcloudAPI:
 		data = {'hashes': hashes}
 		url = 'cache'
 		result = self._post(url, data=data)
-		return result['cachedItems']
+		if not result or not isinstance(result, dict): return []
+		return result.get('cachedItems', [])
 
 	def add_magnet(self, magnet):
 		data = {'url': magnet}

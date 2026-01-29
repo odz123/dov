@@ -12,6 +12,7 @@
 	- Cloudflare bypass support
 """
 
+import sys
 import json
 import time
 import requests
@@ -162,6 +163,7 @@ class StremioIndexer:
 		self.params_get = self.params.get
 		self.items = []
 		self.cache = StremioCache()
+		self.__handle__ = int(sys.argv[1])
 
 	def run(self):
 		"""Main entry point - routes to appropriate handler"""
@@ -301,9 +303,9 @@ class StremioIndexer:
 
 			listitems.append((url, listitem, True))
 
-		add_items(None, listitems)
-		set_content(None, 'files')
-		end_directory(None)
+		add_items(self.__handle__, listitems)
+		set_content(self.__handle__, 'files')
+		end_directory(self.__handle__)
 
 	def list_addon_catalogs(self):
 		"""List available catalogs from a specific addon"""
@@ -402,9 +404,9 @@ class StremioIndexer:
 						})
 						listitems.append((filter_url, filter_listitem, True))
 
-		add_items(None, listitems)
-		set_content(None, 'files')
-		end_directory(None)
+		add_items(self.__handle__, listitems)
+		set_content(self.__handle__, 'files')
+		end_directory(self.__handle__)
 
 	def filter_catalog(self):
 		"""Show filter options for a catalog"""
@@ -440,9 +442,9 @@ class StremioIndexer:
 			})
 			listitems.append((url, listitem, True))
 
-		add_items(None, listitems)
-		set_content(None, 'files')
-		end_directory(None)
+		add_items(self.__handle__, listitems)
+		set_content(self.__handle__, 'files')
+		end_directory(self.__handle__)
 
 	def browse_catalog(self):
 		"""Browse contents of a catalog"""
@@ -632,9 +634,9 @@ class StremioIndexer:
 			url = build_url(params)
 			listitems.append((url, listitem, True))
 
-		add_items(None, listitems)
-		set_content(None, 'movies' if catalog_type == 'movie' else 'tvshows')
-		end_directory(None)
+		add_items(self.__handle__, listitems)
+		set_content(self.__handle__, 'movies' if catalog_type == 'movie' else 'tvshows')
+		end_directory(self.__handle__)
 		set_view_mode('view.movies' if catalog_type == 'movie' else 'view.tvshows', 'movies' if catalog_type == 'movie' else 'tvshows')
 
 	def search_catalogs(self):
@@ -824,9 +826,9 @@ class StremioIndexer:
 
 			listitems.append((url, listitem, catalog_type == 'series'))
 
-		add_items(None, listitems)
-		set_content(None, 'movies')
-		end_directory(None)
+		add_items(self.__handle__, listitems)
+		set_content(self.__handle__, 'movies')
+		end_directory(self.__handle__)
 		set_view_mode('view.movies', 'movies')
 
 	def list_all_catalogs(self):
@@ -892,9 +894,9 @@ class StremioIndexer:
 
 			listitems.append((url, listitem, True))
 
-		add_items(None, listitems)
-		set_content(None, 'files')
-		end_directory(None)
+		add_items(self.__handle__, listitems)
+		set_content(self.__handle__, 'files')
+		end_directory(self.__handle__)
 
 	def view_meta(self):
 		"""View detailed metadata for an item"""
@@ -1036,9 +1038,10 @@ def stremio_catalog_menu():
 
 		listitems.append((url, listitem, True))
 
-	add_items(None, listitems)
-	set_content(None, 'files')
-	end_directory(None)
+	__handle__ = int(sys.argv[1])
+	add_items(__handle__, listitems)
+	set_content(__handle__, 'files')
+	end_directory(__handle__)
 
 
 def clear_stremio_catalog_cache():

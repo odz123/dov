@@ -7,20 +7,10 @@ ls, get_setting, set_setting = kodi_utils.local_string, kodi_utils.get_setting, 
 
 class Indexer(Debrid):
 	def run(self, params):
-		if   '_delete' in params['mode']:
-			return self.cloud_delete(params['folder_id'])
-		elif '_browse_cloud' in params['mode']:
-			items = self.user_cloud(params['folder_id']) or []
-			_builder = self.browse_cloud
-		elif '_torrent_cloud' in params['mode']:
-			items = self.user_cloud() or []
-			_builder = self.torrent_cloud
-		else: return getattr(self, params['mode'].split('.')[-1])()
-		__handle__ = int(sys.argv[1])
-		kodi_utils.add_items(__handle__, list(_builder(items)))
-		kodi_utils.set_content(__handle__, 'files')
-		kodi_utils.end_directory(__handle__)
-		kodi_utils.set_view_mode('view.premium')
+		if any(x in params['mode'] for x in ('_delete', '_browse_cloud', '_torrent_cloud')):
+			kodi_utils.notification('EasyDebrid does not support cloud storage', 3000)
+			return
+		return getattr(self, params['mode'].split('.')[-1])()
 
 	def show_account_info(self):
 		from datetime import datetime

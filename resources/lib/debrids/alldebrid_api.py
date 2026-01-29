@@ -61,6 +61,7 @@ class AllDebridAPI:
 		url = 'v4.1/magnet/status'
 		params = {'id': transfer_id}
 		result = self._get(url, params)
+		if not result or not isinstance(result, dict): return []
 		result = result['magnets']
 		return result
 

@@ -74,7 +74,8 @@ class PremiumizeAPI:
 		data = {'items[]': hashes}
 		url = 'cache/check'
 		response = self._post(url, data)
-		return [h for h, cached in zip(hashes, response['response']) if cached]
+		if not response or not isinstance(response, dict): return []
+		return [h for h, cached in zip(hashes, response.get('response', [])) if cached]
 
 	def instant_transfer(self, magnet):
 		data = {'src': magnet}

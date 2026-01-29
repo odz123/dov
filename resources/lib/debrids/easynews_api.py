@@ -74,7 +74,7 @@ class EasyNewsAPI:
 		return results
 
 	def _translate_search(self, query):
-		params = SEARCH_PARAMS
+		params = dict(SEARCH_PARAMS)
 		params['safeO'] = self.moderation
 		params['gps'] = query
 		url = self.base_url + self.search_link

@@ -312,7 +312,7 @@ def extras_lists_choice():
 
 def set_language_filter_choice(filter_setting):
 	from modules.meta_lists import language_choices
-	lang_choices = language_choices
+	lang_choices = dict(language_choices)
 	lang_choices.pop('None')
 	dl = list(lang_choices.keys())
 	fl = list(lang_choices.values())
@@ -476,7 +476,7 @@ def scraper_color_choice(setting):
 
 def color_choice(msg_dialog='POV', no_color=False):
 	from modules.meta_lists import meta_colors
-	color_chart = meta_colors
+	color_chart = list(meta_colors)
 	color_display = ['[COLOR %s]%s[/COLOR]' % (i, i.capitalize()) for i in color_chart]
 	if no_color:
 		color_chart.insert(0, 'No Color')

@@ -319,7 +319,7 @@ def filter_season_pack(show_title, aliases, year, season, release_title):
 	except Exception:
 		from fenom import log_utils
 		log_utils.error()
-		return True
+		return False, 0, 0
 
 def filter_show_pack(show_title, aliases, imdb, year, season, release_title, total_seasons):
 	aliases = aliases_to_array(aliases)

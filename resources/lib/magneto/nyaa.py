@@ -57,7 +57,7 @@ class source:
 		for url in urls:
 			try:
 				results = client.request(url, timeout=self.timeout)
-				if not results or 'magnet:' not in results: return sources
+				if not results or 'magnet:' not in results: continue
 				results = re.sub(r'[\n\t]', '', results)
 				tbody = client.parseDOM(results, 'tbody')
 				rows = client.parseDOM(tbody, 'tr')
@@ -66,7 +66,7 @@ class source:
 					links = zip(
 									re.findall(r'href\s*=\s*["\'](magnet:[^"\']+)["\']', row, re.DOTALL | re.I),
 									re.findall(r'((?:\d+\,\d+\.\d+|\d+\.\d+|\d+\,\d+|\d+)\s*(?:GB|GiB|Gb|MB|MiB|Mb))', row, re.DOTALL),
-									[re.findall(r'<td class\s*=\s*["\']text-center["\']>([0-9]+)</td>', row, re.DOTALL)])
+									re.findall(r'<td class\s*=\s*["\']text-center["\']>([0-9]+)</td>', row, re.DOTALL))
 					for link in links:
 						url = unquote_plus(link[0]).replace('&amp;', '&').split('&tr')[0].replace(' ', '.')
 						url = source_utils.strip_non_ascii_and_unprintable(url)

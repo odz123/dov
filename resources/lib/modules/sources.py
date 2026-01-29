@@ -489,7 +489,7 @@ class SourceSelect:
 		return self.provider_sort_ranks.get(account_type) or 11
 
 	def _get_quality_rank(self, quality):
-		return quality_ranks[quality]
+		return quality_ranks.get(quality, 5)
 
 	# Class-level cache for compiled language patterns
 	_language_pattern_cache = {}
