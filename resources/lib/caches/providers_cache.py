@@ -19,7 +19,7 @@ class ExternalProvidersCache(BaseCache):
 			cache_data = self.dbcur.fetchone()
 			if cache_data:
 				if cache_data[1] > self._get_timestamp(datetime.now()): result = literal_eval(cache_data[0])
-				else: self.delete(source, media_type, tmdb_id, title, season, episode)
+				else: self.delete(source, media_type, tmdb_id, title, year, season, episode)
 		except: pass
 		return result
 
@@ -29,8 +29,8 @@ class ExternalProvidersCache(BaseCache):
 			self.dbcur.execute(INSERT_RESULTS, (source, media_type, tmdb_id, title, year, season, episode, repr(results), int(expires)))
 		except: pass
 
-	def delete(self, source, media_type, tmdb_id, title, season, episode):
-		try: self.dbcur.execute(DELETE_RESULTS, (source, media_type, tmdb_id, title, season, episode))
+	def delete(self, source, media_type, tmdb_id, title, year, season, episode):
+		try: self.dbcur.execute(DELETE_RESULTS, (source, media_type, tmdb_id, title, year, season, episode))
 		except: pass
 
 	def delete_cache(self):

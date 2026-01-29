@@ -97,7 +97,7 @@ class source:
 				item = {
 					'source': file['protocol'], 'language': 'en', 'direct': False, 'debridonly': True,
 					'provider': file['indexer'], 'hash': file['infoHash'], 'url': url, 'name': name, 'name_info': name_info,
-					'quality': quality, 'info': info, 'size': dsize, 'seeders': seeders, 'package': package
+					'quality': quality, 'info': info, 'size': dsize, 'seeders': seeders
 				}
 				if package: item['package'] = package
 				if package == 'show': item.update({'last_season': last_season})

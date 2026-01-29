@@ -57,7 +57,7 @@ class Indexer(Debrid):
 				yield (url, listitem, True)
 			except: pass
 
-	def browse_cloud(sel, items):
+	def browse_cloud(self, items):
 		for count, item in enumerate(items, 1):
 			try:
 				if not item['short_name'].lower().endswith(tuple(extensions)): continue

@@ -125,6 +125,7 @@ class Source:
 
 	def resolve_external_sources(self, api, title, season, episode):
 		from modules.source_utils import supported_video_extensions, seas_ep_filter, extras_filter
+		files, torrent_id = None, None
 		try:
 			extensions = supported_video_extensions()
 			extras_filtering_list = tuple(i for i in extras_filter() if not i in title.lower())

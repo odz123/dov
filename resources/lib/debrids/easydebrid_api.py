@@ -53,7 +53,8 @@ class EasyDebridAPI:
 		data = {'urls': hashes}
 		url = 'link/lookup'
 		result = self._post(url, json=data)
-		return [h for h, cached in zip(hashes, result['cached']) if cached]
+		if not result or not isinstance(result, dict): return []
+		return [h for h, cached in zip(hashes, result.get('cached', [])) if cached]
 
 	def instant_transfer(self, magnet):
 		try: user_ip = requests.get(ip_url, timeout=2.0).text

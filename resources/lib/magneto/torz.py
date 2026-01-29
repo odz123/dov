@@ -16,11 +16,13 @@ class source:
 	hasEpisodes = True
 	def __init__(self):
 		self.language = ['en']
-		self.base_link = (
+		_torz_urls = (
 			"https://stremthru.stremio.ru",
 			"https://stremthru.13377001.xyz",
 			"https://stremthrufortheweebs.midnightignite.me"
-		)[int(getSetting('torz.url', '0'))]
+		)
+		_url_idx = min(int(getSetting('torz.url', '0')), len(_torz_urls) - 1)
+		self.base_link = _torz_urls[max(0, _url_idx)]
 		self.movieSearch_link = '/v0/torrents'
 		self.tvSearch_link = '/v0/torrents'
 		self.min_seeders = 0

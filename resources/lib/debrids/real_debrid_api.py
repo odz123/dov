@@ -82,7 +82,7 @@ class RealDebridAPI:
 		cache_info = self.check_hash(hash_string)
 		if not hash_string in cache_info: return False
 		info = cache_info[hash_string]
-		return True if isinstance(info, dict) and len(info.get('rd')) > 0 else False
+		return True if isinstance(info, dict) and len(info.get('rd', [])) > 0 else False
 
 	def check_hash(self, hash_string):
 		url = 'torrents/instantAvailability/%s' % hash_string
@@ -91,7 +91,8 @@ class RealDebridAPI:
 	def check_cache(self, hashes):
 		hash_string = '/'.join(hashes)
 		url = 'torrents/instantAvailability/%s' % hash_string
-		return self._get(url)
+		result = self._get(url)
+		return result if result and isinstance(result, dict) else {}
 
 	def add_torrent_select(self, torrent_id, file_ids):
 		self.clear_cache()

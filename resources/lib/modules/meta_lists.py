@@ -74,7 +74,7 @@ regions = (
 	{'code': 'BD', 'name': 'Bangladesh'},        {'code': 'BY', 'name': 'Belarus'},               {'code': 'BE', 'name': 'Belgium'},           {'code': 'BR', 'name': 'Brazil'},
 	{'code': 'BG', 'name': 'Bulgaria'},          {'code': 'KH', 'name': 'Cambodia'},              {'code': 'CA', 'name': 'Canada'},            {'code': 'CL', 'name': 'Chile'},
 	{'code': 'CN', 'name': 'China'},             {'code': 'HR', 'name': 'Croatia'},               {'code': 'CZ', 'name': 'Czech Republic'},    {'code': 'DK', 'name': 'Denmark'},
-	{'code': 'EG', 'name': 'Germany'},           {'code': 'FI', 'name': 'France'},                {'code': 'FR', 'name': 'Finland'},           {'code': 'DE', 'name': 'Egypt'},
+	{'code': 'DE', 'name': 'Germany'},           {'code': 'EG', 'name': 'Egypt'},                 {'code': 'FI', 'name': 'Finland'},           {'code': 'FR', 'name': 'France'},
 	{'code': 'GR', 'name': 'Greece'},            {'code': 'HK', 'name': 'Hong Kong'},             {'code': 'HU', 'name': 'Hungary'},           {'code': 'IS', 'name': 'Iceland'},
 	{'code': 'IN', 'name': 'India'},             {'code': 'ID', 'name': 'Indonesia'},             {'code': 'IR', 'name': 'Iran'},              {'code': 'IQ', 'name': 'Iraq'},
 	{'code': 'IE', 'name': 'Ireland'},           {'code': 'IL', 'name': 'Israel'},                {'code': 'IT', 'name': 'Italy'},             {'code': 'JP', 'name': 'Japan'},
