@@ -1,12 +1,12 @@
 import sys
 from threading import Thread
-from indexers.metadata import tvshow_meta, season_episodes_meta, all_episodes_meta, tmdb_image_base
+from indexers.metadata import tvshow_meta_with_stremio, season_episodes_meta_with_stremio, all_episodes_meta_with_stremio, tmdb_image_base
 from caches.watched_cache import get_watched_info_tv, get_watched_status_season, get_bookmarks, get_resumetime, get_watched_status_episode
 from modules import kodi_utils, settings
 from modules.utils import adjust_premiered_date, get_datetime
 # from modules.kodi_utils import logger
 
-tv_meta_function, season_meta_function, default_duration = tvshow_meta, season_episodes_meta, 3600
+tv_meta_function, season_meta_function, default_duration = tvshow_meta_with_stremio, season_episodes_meta_with_stremio, 3600
 KODI_VERSION, make_cast_list = kodi_utils.get_kodi_version(), kodi_utils.make_cast_list
 string, ls, build_url = str, kodi_utils.local_string, kodi_utils.build_url
 remove_meta_keys, dict_removals = kodi_utils.remove_meta_keys, kodi_utils.episode_dict_removals
@@ -137,7 +137,7 @@ class Seasons:
 			bookmarks = get_bookmarks(self.watched_indicators, 'episode')
 			all_episodes = True if params.get('season') == 'all' else False
 			if all_episodes:
-				episodes_data = all_episodes_meta(meta, self.meta_user_info, Thread)
+				episodes_data = all_episodes_meta_with_stremio(meta, self.meta_user_info, Thread)
 				if not show_specials(): episodes_data = [i for i in episodes_data if not i['season'] == 0]
 			else: episodes_data = season_meta_function(params['season'], meta, self.meta_user_info)
 			for item in episodes_data:

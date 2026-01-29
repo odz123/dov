@@ -1,12 +1,12 @@
 import sys
 from threading import Thread
-from indexers.metadata import tvshow_meta, season_episodes_meta, tmdb_image_base
+from indexers.metadata import tvshow_meta_with_stremio, season_episodes_meta_with_stremio, tmdb_image_base
 from indexers.trakt_api import trakt_fetch_collection_watchlist, trakt_get_hidden_items, trakt_get_my_calendar, trakt_my_anime_calendar, trakt_anime_calendar
 from caches.watched_cache import get_resumetime, get_watched_status_episode, get_watched_info_tv, get_bookmarks, get_next_episodes, get_in_progress_episodes
 from modules import kodi_utils, settings
 from modules.utils import jsondate_to_datetime, adjust_premiered_date, make_day, get_datetime, title_key, date_difference, TaskPool
 
-tv_meta_function, season_meta_function, default_duration = tvshow_meta, season_episodes_meta, 3600
+tv_meta_function, season_meta_function, default_duration = tvshow_meta_with_stremio, season_episodes_meta_with_stremio, 3600
 get_watched_status, get_watched_info = get_watched_status_episode, get_watched_info_tv
 KODI_VERSION, make_cast_list = kodi_utils.get_kodi_version(), kodi_utils.make_cast_list
 string, ls, build_url, get_infolabel = str, kodi_utils.local_string, kodi_utils.build_url, kodi_utils.get_infolabel

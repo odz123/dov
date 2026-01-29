@@ -1,11 +1,11 @@
 import sys
 from threading import Thread
-from indexers.metadata import movie_meta, rpdb_get, tmdb_image_base
+from indexers.metadata import movie_meta_with_stremio, rpdb_get, tmdb_image_base
 from caches.watched_cache import get_watched_info_movie, get_watched_status_movie, get_resumetime, get_bookmarks
 from modules import kodi_utils, settings
 from modules.utils import manual_function_import, get_datetime, TaskPool, chunks
 
-movie_meta_function, get_datetime_function, default_duration = movie_meta, get_datetime, 5400
+movie_meta_function, get_datetime_function, default_duration = movie_meta_with_stremio, get_datetime, 5400
 get_watched_function, get_watched_info_function = get_watched_status_movie, get_watched_info_movie
 KODI_VERSION, make_cast_list = kodi_utils.get_kodi_version(), kodi_utils.make_cast_list
 string, ls, build_url, get_infolabel = str, kodi_utils.local_string, kodi_utils.build_url, kodi_utils.get_infolabel

@@ -4,7 +4,7 @@ import unicodedata
 from string import printable
 from urllib.parse import unquote, unquote_plus
 from fenom.control import setting as fenom_getSetting, setSetting as fenom_setSetting
-from indexers.metadata import season_episodes_meta
+from indexers.metadata import season_episodes_meta_with_stremio
 from modules import kodi_utils
 from modules.settings import check_prescrape_sources, date_offset, metadata_user_info
 from modules.utils import manual_function_import, adjust_premiered_date, get_datetime, jsondate_to_datetime, subtract_dates
@@ -272,7 +272,7 @@ def pack_enable_check(meta, season, episode):
 		adjust_hours = date_offset()
 		current_date = get_datetime()
 		meta_user_info = metadata_user_info()
-		episodes_data = season_episodes_meta(season, meta, meta_user_info)
+		episodes_data = season_episodes_meta_with_stremio(season, meta, meta_user_info)
 		unaired_episodes = [adjust_premiered_date(i['premiered'], adjust_hours)[0] for i in episodes_data]
 		if None in unaired_episodes or any(i > current_date for i in unaired_episodes): return False, False
 		else: return True, False

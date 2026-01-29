@@ -1,12 +1,12 @@
 import sys
 from threading import Thread
 from indexers.trakt_api import trakt_get_hidden_items
-from indexers.metadata import tvshow_meta, rpdb_get
+from indexers.metadata import tvshow_meta_with_stremio, rpdb_get
 from caches.watched_cache import get_watched_info_tv, get_watched_status_tvshow
 from modules import kodi_utils, settings
 from modules.utils import manual_function_import, get_datetime, TaskPool
 
-tv_meta_function, get_datetime_function = tvshow_meta, get_datetime
+tv_meta_function, get_datetime_function = tvshow_meta_with_stremio, get_datetime
 get_watched_function, get_watched_info_function = get_watched_status_tvshow, get_watched_info_tv
 KODI_VERSION, make_cast_list = kodi_utils.get_kodi_version(), kodi_utils.make_cast_list
 string, ls, build_url, get_infolabel = str, kodi_utils.local_string, kodi_utils.build_url, kodi_utils.get_infolabel
