@@ -46,6 +46,10 @@ class Episodes:
 		self.widget_hide_watched = self.is_widget and self.meta_user_info['widget_hide_watched']
 		self.watched_title = ('POV', 'Trakt', 'MDBList')[self.watched_indicators]
 		self.poster_main, self.poster_backup, self.fanart_main, self.fanart_backup = settings.get_art_provider()
+		self.show_cast = self.meta_user_info.get('show_cast', True)
+		self.show_trailer = self.meta_user_info.get('show_trailer', True)
+		self.show_plot = self.meta_user_info.get('show_plot', True)
+		self.show_tmdblogo = self.meta_user_info.get('show_tmdblogo', True)
 		self.container_update = 'ActivateWindow(Videos,%s,return)' if self.is_widget else 'Container.Update(%s)'
 
 	def build_episode_content(self, _position, ep_data):
@@ -62,7 +66,7 @@ class Episodes:
 			title, year, rootname, show_status = meta_get('title'), meta_get('year'), meta_get('rootname'), meta_get('status')
 			show_poster = meta_get(self.poster_main) or meta_get(self.poster_backup) or poster_empty
 			show_fanart = meta_get(self.fanart_main) or meta_get(self.fanart_backup) or fanart_empty
-			clearlogo = meta_get('clearlogo') or meta_get('tmdblogo') or ''
+			clearlogo = (meta_get('clearlogo') or meta_get('tmdblogo') or '') if self.show_tmdblogo else meta_get('clearlogo', '')
 			if self.fanart_enabled: banner, clearart, landscape = meta_get('banner'), meta_get('clearart'), meta_get('landscape')
 			else: banner, clearart, landscape = '', '', ''
 			cast, mpaa, duration, tvshow_plot = meta_get('cast', []), meta_get('mpaa'), meta_get('duration'), meta_get('plot')
@@ -173,7 +177,7 @@ class Episodes:
 			else:
 				if int(progress): listitem.setProperty('watchedprogress', progress)
 				videoinfo = listitem.getVideoInfoTag(offscreen=True)
-				videoinfo.setCast(make_cast_list(cast + item_get('guest_stars', [])))
+				if self.show_cast: videoinfo.setCast(make_cast_list(cast + item_get('guest_stars', [])))
 				videoinfo.setUniqueIDs({'imdb': imdb_id, 'tmdb': string(tmdb_id), 'tvdb': string(tvdb_id)})
 				videoinfo.setDirectors(item_get('director').split(', '))
 				videoinfo.setDuration(item_get('duration'))
@@ -184,13 +188,13 @@ class Episodes:
 				videoinfo.setMediaType('episode')
 				videoinfo.setMpaa(mpaa)
 				videoinfo.setPlaycount(playcount)
-				videoinfo.setPlot(item_get('plot'))
+				if self.show_plot: videoinfo.setPlot(item_get('plot'))
 				videoinfo.setRating(item_get('rating'))
 				videoinfo.setResumePoint(float(resumetime) or float(progress), int(item_get('duration') or default_duration))
 				videoinfo.setSeason(season)
 				videoinfo.setStudios((studio,))
 				videoinfo.setTitle(item_get('title'))
-				videoinfo.setTrailer(trailer)
+				if self.show_trailer: videoinfo.setTrailer(trailer)
 				videoinfo.setTvShowStatus(show_status)
 				videoinfo.setTvShowTitle(title)
 				videoinfo.setVotes(item_get('votes'))

@@ -46,6 +46,11 @@ class Movies:
 		if not self.exit_list_params: self.exit_list_params = get_infolabel('Container.FolderPath')
 		self.watched_title = ('POV', 'Trakt', 'MDBList')[self.watched_indicators]
 		self.poster_main, self.poster_backup, self.fanart_main, self.fanart_backup = settings.get_art_provider()
+		self.show_cast = self.meta_user_info.get('show_cast', True)
+		self.show_trailer = self.meta_user_info.get('show_trailer', True)
+		self.show_tagline = self.meta_user_info.get('show_tagline', True)
+		self.show_plot = self.meta_user_info.get('show_plot', True)
+		self.show_tmdblogo = self.meta_user_info.get('show_tmdblogo', True)
 
 	def build_movie_content(self, _position, _id):
 		try:
@@ -64,7 +69,7 @@ class Movies:
 			tmdb_id, imdb_id = meta_get('tmdb_id'), meta_get('imdb_id')
 			poster = meta_get(self.poster_main) or meta_get(self.poster_backup) or poster_empty
 			fanart = meta_get(self.fanart_main) or meta_get(self.fanart_backup) or fanart_empty
-			clearlogo = meta_get('clearlogo') or meta_get('tmdblogo') or ''
+			clearlogo = (meta_get('clearlogo') or meta_get('tmdblogo') or '') if self.show_tmdblogo else meta_get('clearlogo', '')
 			if self.rpdb_enabled:
 				rpdb_data = rpdb_get('movie', imdb_id or str(tmdb_id), self.meta_user_info['rpdb_api_key'])
 				poster = rpdb_data.get('rpdb') or poster
@@ -117,7 +122,7 @@ class Movies:
 			else:
 				if int(progress): listitem.setProperty('watchedprogress', progress)
 				videoinfo = listitem.getVideoInfoTag(offscreen=True)
-				videoinfo.setCast(make_cast_list(meta_get('cast', [])))
+				if self.show_cast: videoinfo.setCast(make_cast_list(meta_get('cast', [])))
 				videoinfo.setUniqueIDs({'imdb': imdb_id, 'tmdb': string(tmdb_id)})
 				videoinfo.setCountries(meta_get('country'))
 				videoinfo.setDirectors(meta_get('director').split(', '))
@@ -127,14 +132,14 @@ class Movies:
 				videoinfo.setMediaType('movie')
 				videoinfo.setMpaa(meta_get('mpaa'))
 				videoinfo.setPlaycount(playcount)
-				videoinfo.setPlot(meta_get('plot'))
+				if self.show_plot: videoinfo.setPlot(meta_get('plot'))
 				videoinfo.setPremiered(meta_get('premiered'))
 				videoinfo.setRating(meta_get('rating'))
 				videoinfo.setResumePoint(float(resumetime) or float(progress), int(meta_get('duration') or default_duration))
 				videoinfo.setStudios((meta_get('studio'),))
-				videoinfo.setTagLine(meta_get('tagline'))
+				if self.show_tagline: videoinfo.setTagLine(meta_get('tagline'))
 				videoinfo.setTitle(rootname if self.include_year_in_title else title)
-				videoinfo.setTrailer(meta_get('trailer'))
+				if self.show_trailer: videoinfo.setTrailer(meta_get('trailer'))
 				videoinfo.setVotes(meta_get('votes'))
 				videoinfo.setWriters(meta_get('writer').split(', '))
 				videoinfo.setYear(int(year))

@@ -374,6 +374,19 @@
 		<setting label="Language" type="lsep" />
 		<setting id="meta_language_display" label="Set Language" type="action" default="English" action="RunPlugin(plugin://plugin.video.pov/?mode=meta_language_choice)" />
 		<setting id="meta_language" label="meta_language" type="text" default="en" visible="false" />
+		<!-- Display Options -->
+		<setting label="Display Options" type="lsep" />
+		<setting id="meta.show_cast" label="Show Cast Information" type="bool" default="true" />
+		<setting id="meta.show_trailer" label="Show Trailer Information" type="bool" default="true" />
+		<setting id="meta.show_tagline" label="Show Tagline" type="bool" default="true" />
+		<setting id="meta.show_plot" label="Show Plot" type="bool" default="true" />
+		<setting id="meta.show_tmdblogo" label="Show TMDb Logo as Clearlogo" type="bool" default="true" />
+		<!-- Certification -->
+		<setting label="Certification" type="lsep" />
+		<setting id="meta.mpaa_country" label="Rating Certification Country" type="enum" default="0" values="US|GB|DE|FR|AU|CA|NZ|IN|BR|ES|IT|NL|JP|KR" />
+		<!-- Cache Settings -->
+		<setting label="Cache Settings" type="lsep" />
+		<setting id="meta.cache_duration" label="Metadata Cache Duration" type="enum" default="1" values="Short (2 days)|Standard (7 days)|Long (14 days)|Extended (6 months)" />
 		<!-- Stremio Metadata -->
 		<setting label="Stremio Metadata" type="lsep" />
 		<setting id="stremio.meta.enabled" label="Enable Stremio Metadata" type="bool" default="false" />

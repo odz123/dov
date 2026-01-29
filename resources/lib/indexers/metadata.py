@@ -12,6 +12,17 @@ backup_resolutions, writer_credits = {'poster': 'w780', 'fanart': 'w1280', 'stil
 alt_titles_test, trailers_test, finished_show_check, empty_value_check = ('US', 'GB', 'UK', ''), ('Trailer', 'Teaser'), ('Ended', 'Canceled'), ('', 'None', None)
 tmdb_image_base, youtube_url, date_format = tmdb.tmdb_image_base, 'plugin://plugin.video.youtube/play/?video_id=%s', '%Y-%m-%d'
 EXPIRES_2_DAYS, EXPIRES_4_DAYS, EXPIRES_7_DAYS, EXPIRES_14_DAYS, EXPIRES_182_DAYS = 2, 4, 7, 14, 182
+# Cache duration multipliers: Short=0, Standard=1, Long=2, Extended=3
+_cache_duration_map = {
+	0: {'base': EXPIRES_2_DAYS, 'mid': EXPIRES_4_DAYS, 'long': EXPIRES_7_DAYS, 'max': EXPIRES_14_DAYS},
+	1: {'base': EXPIRES_4_DAYS, 'mid': EXPIRES_7_DAYS, 'long': EXPIRES_14_DAYS, 'max': EXPIRES_182_DAYS},
+	2: {'base': EXPIRES_7_DAYS, 'mid': EXPIRES_14_DAYS, 'long': EXPIRES_14_DAYS, 'max': EXPIRES_182_DAYS},
+	3: {'base': EXPIRES_14_DAYS, 'mid': EXPIRES_14_DAYS, 'long': EXPIRES_182_DAYS, 'max': EXPIRES_182_DAYS}
+}
+
+def _get_cache_expiry(user_info, level='mid'):
+	duration = user_info.get('cache_duration', 1)
+	return _cache_duration_map.get(duration, _cache_duration_map[1])[level]
 
 # Module-level cached MetaCache instance - connection pooling handles efficient reuse
 _metacache_instance = None
@@ -37,7 +48,7 @@ def movie_meta(id_type, media_id, user_info, current_date):
 		if 'tmdb_id' in meta:
 			if not meta.get('fanart_added', False) and extra_fanart_enabled:
 				meta = fanarttv_add('movies', language, meta['tmdb_id'], fanart_client_key, meta)
-				metacache_set('movie', id_type, meta, movie_expiry(current_date, meta))
+				metacache_set('movie', id_type, meta, movie_expiry(current_date, meta, user_info))
 			return meta
 		else: fanarttv_data = dict(meta)
 	try:
@@ -91,7 +102,7 @@ def tvshow_meta(id_type, media_id, user_info, current_date):
 		if 'tmdb_id' in meta:
 			if not meta.get('fanart_added', False) and extra_fanart_enabled:
 				meta = fanarttv_add('tv', language, meta['tvdb_id'], fanart_client_key, meta)
-				metacache_set('tvshow', id_type, meta, tvshow_expiry(current_date, meta))
+				metacache_set('tvshow', id_type, meta, tvshow_expiry(current_date, meta, user_info))
 			return meta
 		else: fanarttv_data = dict(meta)
 	try:
@@ -202,27 +213,35 @@ def english_translation(media_type, media_id, user_info):
 	except Exception: english = ''
 	return english
 
-def movie_expiry(current_date, meta):
+def movie_expiry(current_date, meta, user_info=None):
 	try:
+		cache_mid = _get_cache_expiry(user_info, 'mid') if user_info else EXPIRES_7_DAYS
+		cache_long = _get_cache_expiry(user_info, 'long') if user_info else EXPIRES_14_DAYS
+		cache_max = _get_cache_expiry(user_info, 'max') if user_info else EXPIRES_182_DAYS
 		difference = subtract_dates_function(current_date, jsondate_to_datetime_function(meta['premiered'], date_format, remove_time=True))
 		if difference < 0: expiration = abs(difference) + 1
-		elif difference <= 14: expiration = EXPIRES_7_DAYS
-		elif difference <= 30: expiration = EXPIRES_14_DAYS
-		else: expiration = EXPIRES_182_DAYS
-	except Exception: return EXPIRES_7_DAYS
-	return max(expiration, EXPIRES_7_DAYS)
+		elif difference <= 14: expiration = cache_mid
+		elif difference <= 30: expiration = cache_long
+		else: expiration = cache_max
+	except Exception: return _get_cache_expiry(user_info, 'mid') if user_info else EXPIRES_7_DAYS
+	return max(expiration, _get_cache_expiry(user_info, 'mid') if user_info else EXPIRES_7_DAYS)
 
-def tvshow_expiry(current_date, meta):
+def tvshow_expiry(current_date, meta, user_info=None):
 	try:
-		if meta['status'] in finished_show_check: return EXPIRES_182_DAYS
+		cache_max = _get_cache_expiry(user_info, 'max') if user_info else EXPIRES_182_DAYS
+		cache_mid = _get_cache_expiry(user_info, 'mid') if user_info else EXPIRES_7_DAYS
+		cache_base = _get_cache_expiry(user_info, 'base') if user_info else EXPIRES_4_DAYS
+		if meta['status'] in finished_show_check: return cache_max
 		next_episode_to_air = meta['extra_info'].get('next_episode_to_air')
-		if not next_episode_to_air: return EXPIRES_7_DAYS
+		if not next_episode_to_air: return cache_mid
 		expiration = subtract_dates_function(jsondate_to_datetime_function(next_episode_to_air['air_date'], date_format, remove_time=True), current_date)
-	except Exception: return EXPIRES_4_DAYS
-	return max(expiration, EXPIRES_4_DAYS)
+	except Exception: return cache_base
+	return max(expiration, cache_base)
 
 def build_movie_meta(data, user_info, fanarttv_data=None):
 	image_resolution = user_info.get('image_resolution', backup_resolutions)
+	mpaa_country = user_info.get('mpaa_country', 'US')
+	show_tmdblogo = user_info.get('show_tmdblogo', True)
 	data_get = data.get
 	cast, all_trailers, country, country_codes = [], [], [], []
 	writer, mpaa, director, trailer, studio = '', '', '', '', ''
@@ -234,10 +253,11 @@ def build_movie_meta(data, user_info, fanarttv_data=None):
 	else: poster = ''
 	if backdrop_path: fanart = tmdb_image_base % (image_resolution['fanart'], backdrop_path)
 	else: fanart = ''
-	try: tmdblogo_path = [i['file_path'] for i in data_get('images')['logos'] if 'file_path' in i if i['file_path'].endswith('png')][0]
-	except Exception: tmdblogo_path = None
-	if tmdblogo_path: tmdblogo = tmdb_image_base % (image_resolution['fanart'], tmdblogo_path)
-	else: tmdblogo = ''
+	tmdblogo = ''
+	if show_tmdblogo:
+		try: tmdblogo_path = [i['file_path'] for i in data_get('images')['logos'] if 'file_path' in i if i['file_path'].endswith('png')][0]
+		except Exception: tmdblogo_path = None
+		if tmdblogo_path: tmdblogo = tmdb_image_base % (image_resolution['fanart'], tmdblogo_path)
 	title, original_title = data_get('title'), data_get('original_title')
 	try: english_title = [i['data']['title'] for i in data_get('translations')['translations'] if i['iso_639_1'] == 'en'][0]
 	except Exception: english_title = None
@@ -264,7 +284,7 @@ def build_movie_meta(data, user_info, fanarttv_data=None):
 			x['certification']
 			for i in release_dates['results']
 			for x in i['release_dates']
-			if i['iso_3166_1'] == 'US' and x['certification']
+			if i['iso_3166_1'] == mpaa_country and x['certification']
 		][0]
 		except Exception: pass
 	credits = data_get('credits')
@@ -315,6 +335,8 @@ def build_movie_meta(data, user_info, fanarttv_data=None):
 
 def build_tvshow_meta(data, user_info, fanarttv_data=None):
 	image_resolution = user_info.get('image_resolution', backup_resolutions)
+	mpaa_country = user_info.get('mpaa_country', 'US')
+	show_tmdblogo = user_info.get('show_tmdblogo', True)
 	data_get = data.get
 	cast, all_trailers, country, country_codes = [], [], [], []
 	writer, mpaa, director, trailer, studio = '', '', '', '', ''
@@ -328,10 +350,11 @@ def build_tvshow_meta(data, user_info, fanarttv_data=None):
 	else: poster = ''
 	if backdrop_path: fanart = tmdb_image_base % (image_resolution['fanart'], backdrop_path)
 	else: fanart = ''
-	try: tmdblogo_path = [i['file_path'] for i in data_get('images')['logos'] if 'file_path' in i if i['file_path'].endswith('png')][0]
-	except Exception: tmdblogo_path = None
-	if tmdblogo_path: tmdblogo = tmdb_image_base % (image_resolution['fanart'], tmdblogo_path)
-	else: tmdblogo = ''
+	tmdblogo = ''
+	if show_tmdblogo:
+		try: tmdblogo_path = [i['file_path'] for i in data_get('images')['logos'] if 'file_path' in i if i['file_path'].endswith('png')][0]
+		except Exception: tmdblogo_path = None
+		if tmdblogo_path: tmdblogo = tmdb_image_base % (image_resolution['fanart'], tmdblogo_path)
 	title, original_title = data_get('name'), data_get('original_name')
 	try: english_title = [i['data']['name'] for i in data_get('translations')['translations'] if i['iso_639_1'] == 'en'][0]
 	except Exception: english_title = None
@@ -355,10 +378,10 @@ def build_tvshow_meta(data, user_info, fanarttv_data=None):
 	content_ratings = data_get('content_ratings')
 	release_dates = data_get('release_dates')
 	if content_ratings:
-		try: mpaa = [i['rating'] for i in content_ratings['results'] if i['iso_3166_1'] == 'US'][0]
+		try: mpaa = [i['rating'] for i in content_ratings['results'] if i['iso_3166_1'] == mpaa_country][0]
 		except Exception: pass
 	elif release_dates:
-		try: mpaa = [i['release_dates'][0]['certification'] for i in release_dates['results'] if i['iso_3166_1'] == 'US'][0]
+		try: mpaa = [i['release_dates'][0]['certification'] for i in release_dates['results'] if i['iso_3166_1'] == mpaa_country][0]
 		except Exception: pass
 	credits = data_get('credits')
 	if credits:
