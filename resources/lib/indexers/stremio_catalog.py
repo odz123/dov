@@ -992,7 +992,7 @@ class StremioIndexer:
 		if not tmdb_id and imdb_id:
 			from indexers import metadata
 			from modules import settings
-			from modules.kodi_utils import get_datetime
+			from modules.utils import get_datetime
 			function = metadata.movie_meta if media_type == 'movie' else metadata.tvshow_meta
 			meta = function('imdb_id', imdb_id, settings.metadata_user_info(), get_datetime())
 			tmdb_id = str(meta.get('tmdb_id', ''))
