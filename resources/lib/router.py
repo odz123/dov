@@ -89,6 +89,10 @@ class Router:
 			if 'mdbl_account_info' in mode:
 				from indexers.mdblist import mdbl_account_info
 				mdbl_account_info()
+		elif 'simkl.' in mode:
+			if 'simkl_account_info' in mode:
+				from indexers.simkl import simkl_account_info
+				simkl_account_info()
 		elif 'tmdb.' in mode:
 			if 'edit_tmdb_list' in mode:
 				from indexers.tmdb import edit_tmdb_list
@@ -108,6 +112,10 @@ class Router:
 			elif 'build_mdb_list' in mode:
 				from modules.utils import manual_function_import
 				function = manual_function_import('indexers.mdblist', mode.split('.')[-1])
+				function(params)
+			elif 'build_simkl_list' in mode:
+				from modules.utils import manual_function_import
+				function = manual_function_import('indexers.simkl', mode.split('.')[-1])
 				function(params)
 			elif 'build_tmdb_list' in mode:
 				from modules.utils import manual_function_import

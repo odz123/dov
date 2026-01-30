@@ -167,6 +167,11 @@
 		<setting label="MDBList" type="lsep" />
 		<setting id="mdblist.token" label="API Key" type="text" default="" visible="false" />
 		<setting id="mdblist_user" label="Username" type="text" default="" enable="false" />
+		<!-- Simkl -->
+		<setting label="Simkl" type="lsep" />
+		<setting id="simkl.token" type="text" default="" visible="false" />
+		<setting id="simkl_user" label="Username" type="text" default="" enable="false" />
+		<setting id="simkl.client_id" type="text" default="" visible="false" />
 		<!-- TMDB -->
 		<setting label="TMDB Lists" type="lsep" />
 		<setting id="tmdb.session_id" type="text" default="" visible="false" />
