@@ -36,6 +36,7 @@ class SimklCache:
 		self.dbcur.execute("""PRAGMA mmap_size = 268435456""")
 
 def cache_simkl_object(function, string, url):
+	result = None
 	try:
 		with SimklCache() as cache:
 			cache.dbcur.execute(SC_BASE_GET, (string,))
@@ -49,7 +50,7 @@ def cache_simkl_object(function, string, url):
 				cache.dbcur.execute(SC_BASE_SET, (string, repr(result)))
 			return result
 	except Exception:
-		return function(url)
+		return result if result is not None else function(url)
 
 def reset_activity(latest_activities):
 	string = 'simkl_get_activity'

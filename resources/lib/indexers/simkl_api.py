@@ -84,6 +84,7 @@ def _get_retry_wait(response):
 	return 5
 
 def call_simkl(path, params=None, data=None, with_auth=True, method=None, expected_statuses=None):
+	global _rate_limit_remaining
 	client_id = get_setting('simkl.client_id')
 	if not client_id: return None
 	headers = {'Content-Type': 'application/json', 'simkl-api-key': client_id}
@@ -106,6 +107,8 @@ def call_simkl(path, params=None, data=None, with_auth=True, method=None, expect
 				wait = min(_get_retry_wait(response), 60)
 				kodi_utils.logger('simkl', '429 rate limited on %s, waiting %d seconds (attempt %d/4)' % (path, wait, attempt + 1))
 				time.sleep(wait + 1)
+				with _rate_limit_lock:
+					_rate_limit_remaining = 1
 				continue
 			try: result = response.json() if 'json' in response.headers.get('Content-Type', '') else response.text
 			except (ValueError, Exception): result = response.text
@@ -258,21 +261,17 @@ def simkl_sync_activities(force_update=False):
 		return 'failed'
 	success = 'not needed'
 	cached = simkl_cache.reset_activity(latest)
-	movies_changed = False
-	shows_changed = False
+	changed = False
 	try:
-		movies_activity = latest.get('movies') or {}
-		shows_activity = latest.get('tv_shows') or {}
-		cached_movies = cached.get('movies') or {}
-		cached_shows = cached.get('tv_shows') or {}
-		if movies_activity.get('all', '') != cached_movies.get('all', ''):
-			movies_changed = True
-		if shows_activity.get('all', '') != cached_shows.get('all', ''):
-			shows_changed = True
+		for key in ('movies', 'tv_shows', 'anime'):
+			activity = latest.get(key) or {}
+			cached_activity = cached.get(key) or {}
+			if activity.get('all', '') != cached_activity.get('all', ''):
+				changed = True
+				break
 	except Exception:
-		movies_changed = True
-		shows_changed = True
-	if movies_changed or shows_changed:
+		changed = True
+	if changed:
 		success = 'success'
 		simkl_cache.clear_simkl_list_data()
 	return success
