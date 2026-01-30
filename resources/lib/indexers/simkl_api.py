@@ -86,6 +86,25 @@ def simkl_history_remove(data):
 	"""Remove items from watched history."""
 	return call_simkl('sync/history/remove', data=data, method='post')
 
+def simkl_watched_unwatched(action, media, media_id, season=None, episode=None):
+	"""Push watched/unwatched status to Simkl. Called in background thread."""
+	if not get_setting('simkl_user', ''): return
+	try: media_id = int(media_id)
+	except (ValueError, TypeError): return
+	func = simkl_history_add if action == 'mark_as_watched' else simkl_history_remove
+	if media == 'movies':
+		data = {'movies': [{'ids': {'tmdb': media_id}}]}
+	elif media == 'episode':
+		data = {'shows': [{'ids': {'tmdb': media_id}, 'seasons': [{'number': int(season), 'episodes': [{'number': int(episode)}]}]}]}
+	elif media == 'shows':
+		data = {'shows': [{'ids': {'tmdb': media_id}}]}
+	elif media == 'season':
+		data = {'shows': [{'ids': {'tmdb': media_id}, 'seasons': [{'number': int(season)}]}]}
+	else: return
+	result = func(data)
+	if result is not None:
+		simkl_cache.clear_simkl_list_data()
+
 def simkl_watchlist_items(media_type, status, page_no, letter):
 	"""Get and paginate watchlist items by media_type and status."""
 	from modules import settings
