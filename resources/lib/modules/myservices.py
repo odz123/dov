@@ -493,13 +493,15 @@ class Simkl:
 		return 'https://api.simkl.com/%s' % path
 
 	def poll_auth(self, data):
-		params = {'client_id': self.client_id}
-		response = requests.get(self.base_url('oauth/pin/%s' % data['user_code']), params=params, timeout=timeout)
-		if not response.ok: return
-		result = response.json()
-		if result.get('result') == 'OK' and result.get('access_token'):
-			data['access_token'] = result['access_token']
-			self.token = result['access_token']
+		try:
+			params = {'client_id': self.client_id}
+			response = requests.get(self.base_url('oauth/pin/%s' % data['user_code']), params=params, timeout=timeout)
+			if not response.ok: return
+			result = response.json()
+			if result.get('result') == 'OK' and result.get('access_token'):
+				data['access_token'] = result['access_token']
+				self.token = result['access_token']
+		except Exception: pass
 
 	def set(self):
 		cls_name = self.__class__.__name__
@@ -517,8 +519,10 @@ class Simkl:
 		self.client_id = client_id
 		params = {'client_id': client_id, 'redirect': 'urn:ietf:wg:oauth:2.0:oob'}
 		response = requests.get(self.base_url('oauth/pin'), params=params, timeout=timeout)
+		if not response.ok: return notification(32574)
 		result = response.json()
 		user_code = result.get('user_code', '')
+		if not user_code: return notification(32574)
 		verification_url = result.get('verification_url', 'https://simkl.com/pin')
 		expires_in = result.get('expires_in', 900)
 		expires_at = expires_in + time.monotonic()
@@ -543,14 +547,18 @@ class Simkl:
 		if not self.token: return notification(32574)
 		sleep(500)
 		headers = {'Content-Type': 'application/json', 'simkl-api-key': client_id, 'Authorization': 'Bearer %s' % self.token}
-		response = requests.get(self.base_url('users/settings'), headers=headers, timeout=timeout)
-		result = response.json()
-		user = result.get('user', {})
-		username = user.get('name', '')
+		try:
+			response = requests.get(self.base_url('users/settings'), headers=headers, timeout=timeout)
+			result = response.json()
+			username = result.get('user', {}).get('name', '')
+		except Exception:
+			username = ''
 		set_setting('simkl_user', str(username))
 		set_setting('simkl.token', self.token)
 		set_setting('simkl.client_id', client_id)
 		notification('Set %s Authorization' % cls_name)
+		sleep(500)
+		clear_cache('simkl', silent=True)
 		return True
 
 class TMDbList:
