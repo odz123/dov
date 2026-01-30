@@ -47,13 +47,12 @@ def cache_simkl_object(function, string, url):
 
 def reset_activity(latest_activities):
 	string = 'simkl_get_activity'
-	cached_data = None
+	cached_data = default_activities()
 	try:
 		with SimklCache() as cache:
 			cache.dbcur.execute(SC_BASE_GET, (string,))
-			cached_data = cache.dbcur.fetchone()
-			if cached_data: cached_data = literal_eval(cached_data[0])
-			else: cached_data = default_activities()
+			result = cache.dbcur.fetchone()
+			if result: cached_data = literal_eval(result[0])
 			cache.dbcur.execute(SC_BASE_SET, (string, repr(latest_activities)))
 	except Exception: pass
 	return cached_data

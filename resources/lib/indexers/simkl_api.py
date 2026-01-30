@@ -84,7 +84,9 @@ def _get_retry_wait(response):
 	return 5
 
 def call_simkl(path, params=None, data=None, with_auth=True, method=None, expected_statuses=None):
-	headers = {'Content-Type': 'application/json', 'simkl-api-key': get_setting('simkl.client_id')}
+	client_id = get_setting('simkl.client_id')
+	if not client_id: return None
+	headers = {'Content-Type': 'application/json', 'simkl-api-key': client_id}
 	if with_auth:
 		token = get_setting('simkl.token')
 		if token: headers['Authorization'] = 'Bearer %s' % token
@@ -160,7 +162,9 @@ def simkl_checkin(media_type, tmdb_id, season=None, episode=None):
 	if media_type == 'movie':
 		data = {'movie': {'ids': {'tmdb': tmdb_id}}}
 	elif media_type == 'episode':
-		data = {'show': {'ids': {'tmdb': tmdb_id}}, 'episode': {'season': int(season), 'number': int(episode)}}
+		try: season, episode = int(season), int(episode)
+		except (ValueError, TypeError): return
+		data = {'show': {'ids': {'tmdb': tmdb_id}}, 'episode': {'season': season, 'number': episode}}
 	else: return
 	return call_simkl('checkin', data=data, method='post')
 
@@ -221,9 +225,10 @@ def _fetch_all_items(args):
 		tmdb_id = ids.get('tmdb', '')
 		imdb_id = ids.get('imdb', '')
 		if not tmdb_id and not imdb_id: continue
+		year = media.get('year', '')
 		items.append({
 			'title': media.get('title', ''),
-			'release_year': media.get('year', ''),
+			'release_year': str(year) if year else '',
 			'id': tmdb_id,
 			'imdb_id': imdb_id,
 			'tmdb_id': tmdb_id,
