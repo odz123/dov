@@ -810,6 +810,142 @@ def add_popular_addon():
 	notification(f"Added: {addon_info['name']}", 2000)
 
 
+def stremio_debug_loop():
+	"""Debug Stremio addons by testing connectivity 10 times in a loop.
+	Shows detailed results for each attempt including timing and status."""
+	import time
+	addons = get_stremio_addons()
+	if not addons:
+		notification('No addons configured', 2000)
+		return
+
+	# Let user select which addon to debug, or all
+	items = [{'line1': '[B]All Addons[/B]', 'line2': 'Test all configured addons'}]
+	for addon in addons:
+		name = addon.get('name', 'Unknown')
+		url = addon.get('url', '')
+		items.append({'line1': f'[B]{name}[/B]', 'line2': url})
+
+	kwargs = {
+		'items': json.dumps(items),
+		'heading': 'Debug Stremio - Select Addon',
+		'multi_line': 'true'
+	}
+
+	selection = select_dialog(list(range(len(items))), **kwargs)
+	if selection is None:
+		return
+
+	if selection == 0:
+		test_addons = addons
+	else:
+		test_addons = [addons[selection - 1]]
+
+	loop_count = 10
+	results = []
+
+	notification(f'Running {loop_count} debug loops...', 3000)
+
+	for addon in test_addons:
+		addon_name = addon.get('name', 'Unknown')
+		addon_url = addon.get('config_url', '') or addon.get('url', '')
+		addon_results = {
+			'name': addon_name,
+			'url': addon_url,
+			'attempts': [],
+			'success_count': 0,
+			'fail_count': 0,
+			'total_time': 0.0
+		}
+
+		for i in range(loop_count):
+			attempt = {'iteration': i + 1, 'status': 'unknown', 'time': 0.0, 'error': '', 'http_code': 0}
+			start_time = time.time()
+
+			try:
+				response, error = _fetch_url(addon_url.rstrip('/') + '/manifest.json', timeout=10)
+				elapsed = time.time() - start_time
+				attempt['time'] = round(elapsed, 3)
+
+				if response is not None and response.status_code == 200:
+					content_type = response.headers.get('content-type', '')
+					if 'text/html' not in content_type:
+						try:
+							manifest = response.json()
+							if manifest.get('id') and manifest.get('name'):
+								attempt['status'] = 'success'
+								attempt['http_code'] = 200
+								addon_results['success_count'] += 1
+							else:
+								attempt['status'] = 'fail'
+								attempt['http_code'] = 200
+								attempt['error'] = 'Invalid manifest'
+								addon_results['fail_count'] += 1
+						except Exception:
+							attempt['status'] = 'fail'
+							attempt['http_code'] = 200
+							attempt['error'] = 'Invalid JSON'
+							addon_results['fail_count'] += 1
+					else:
+						attempt['status'] = 'fail'
+						attempt['http_code'] = response.status_code
+						attempt['error'] = 'Cloudflare challenge'
+						addon_results['fail_count'] += 1
+				else:
+					attempt['status'] = 'fail'
+					attempt['http_code'] = response.status_code if response else 0
+					attempt['error'] = error or 'No response'
+					addon_results['fail_count'] += 1
+			except Exception as e:
+				elapsed = time.time() - start_time
+				attempt['time'] = round(elapsed, 3)
+				attempt['status'] = 'fail'
+				attempt['error'] = str(e)[:60]
+				addon_results['fail_count'] += 1
+
+			addon_results['total_time'] += attempt['time']
+			addon_results['attempts'].append(attempt)
+
+		results.append(addon_results)
+
+	# Build summary text
+	summary_lines = []
+	for r in results:
+		avg_time = round(r['total_time'] / loop_count, 3) if loop_count else 0
+		summary_lines.append(f"[B]{r['name']}[/B]")
+		summary_lines.append(f"  URL: {r['url']}")
+		summary_lines.append(f"  Success: {r['success_count']}/{loop_count} | Avg: {avg_time}s | Total: {round(r['total_time'], 3)}s")
+
+		# Show each attempt
+		for a in r['attempts']:
+			if a['status'] == 'success':
+				summary_lines.append(f"  #{a['iteration']}: [COLOR green]OK[/COLOR] ({a['time']}s)")
+			else:
+				summary_lines.append(f"  #{a['iteration']}: [COLOR red]FAIL[/COLOR] ({a['time']}s) - {a['error']}")
+
+		# Show failure summary if any failures
+		if r['fail_count'] > 0:
+			errors = {}
+			for a in r['attempts']:
+				if a['status'] == 'fail' and a['error']:
+					errors[a['error']] = errors.get(a['error'], 0) + 1
+			if errors:
+				summary_lines.append(f"  Errors: {', '.join(f'{e} x{c}' for e, c in errors.items())}")
+		summary_lines.append('')
+
+	summary_text = '\n'.join(summary_lines)
+
+	# Log to Kodi log
+	try:
+		from modules.kodi_utils import logger
+		logger('STREMIO DEBUG LOOP', summary_text.replace('[B]', '').replace('[/B]', '').replace('[COLOR green]', '').replace('[/COLOR]', '').replace('[COLOR red]', ''))
+	except Exception:
+		pass
+
+	# Show results dialog
+	ok_dialog(heading=f'Stremio Debug - {loop_count} Loops', text=summary_text)
+
+
 def reconfigure_all_addons_debrid():
 	"""Reconfigure all addons with a debrid service"""
 	addons = get_stremio_addons()
