@@ -38,7 +38,7 @@ def authorize():
 			item.setArt({'icon': '%s%s' % (icon_path, api.icon)})
 			yield(item)
 	icon_path, services = kodi_utils.media_path(), (
-		('trakt', Trakt), ('mdblist', MDBList), ('tmdblist', TMDbList),
+		('trakt', Trakt), ('mdblist', MDBList), ('simkl', Simkl), ('tmdblist', TMDbList),
 		('real-debrid', RealDebrid), ('premiumize.me', Premiumize), ('alldebrid', AllDebrid),
 		('torbox', TorBox), ('offcloud', Offcloud), ('easydebrid', EasyDebrid), ('easynews', EasyNews)
 	)
@@ -481,6 +481,76 @@ class MDBList:
 		notification('Set %s Authorization' % cls_name)
 		sleep(500)
 		clear_cache('mdblist', silent=True)
+		return True
+
+class Simkl:
+	icon = 'simkl.png'
+	def __init__(self):
+		self.token = get_setting('simkl.token')
+		self.client_id = get_setting('simkl.client_id')
+
+	def base_url(self, path):
+		return 'https://api.simkl.com/%s' % path
+
+	def poll_auth(self, data):
+		params = {'client_id': self.client_id}
+		response = requests.get(self.base_url('oauth/pin/%s' % data['user_code']), params=params, timeout=timeout)
+		if not response.ok: return
+		result = response.json()
+		if result.get('result') == 'OK' and result.get('access_token'):
+			data['access_token'] = result['access_token']
+			self.token = result['access_token']
+
+	def set(self):
+		cls_name = self.__class__.__name__
+		if self.token:
+			if not confirm_dialog(): return
+			set_setting('simkl_user', '')
+			set_setting('simkl.token', '')
+			set_setting('simkl.client_id', '')
+			sleep(500)
+			clear_cache('simkl', silent=True)
+			return notification('Removed %s Authorization' % cls_name)
+
+		client_id = kodi_utils.dialog.input('Simkl Client ID:')
+		if not client_id: return
+		self.client_id = client_id
+		params = {'client_id': client_id, 'redirect': 'urn:ietf:wg:oauth:2.0:oob'}
+		response = requests.get(self.base_url('oauth/pin'), params=params, timeout=timeout)
+		result = response.json()
+		user_code = result.get('user_code', '')
+		verification_url = result.get('verification_url', 'https://simkl.com/pin')
+		expires_in = result.get('expires_in', 900)
+		expires_at = expires_in + time.monotonic()
+		data = {'user_code': user_code}
+		try: qr_icon = qr_str % '&data=%s' % quote('%s/%s' % (verification_url, user_code))
+		except Exception: qr_icon = ''
+		meta = {**dict.fromkeys(meta_keys.split(), ''), 'poster': qr_icon}
+		detail = code_str % user_code, nav2_str % verification_url
+		progress_dialog = _make_progress_dialog(meta=meta)
+		interval = result.get('interval', 5)
+		timer = RepeatTimer(interval, self.poll_auth, args=(data,))
+		timer.start()
+		for i in range(1, expires_in + 1):
+			if self.token or progress_dialog.iscanceled(): break
+			lines = await_str % divmod(expires_at - time.monotonic(), 60), *detail
+			progress = 100 - int(100 * i / expires_in)
+			progress_dialog.update('[CR]'.join(lines), progress)
+			sleep(1000)
+		timer.cancel()
+		progress_dialog.close()
+		if progress_dialog.iscanceled(): return False
+		if not self.token: return notification(32574)
+		sleep(500)
+		headers = {'Content-Type': 'application/json', 'simkl-api-key': client_id, 'Authorization': 'Bearer %s' % self.token}
+		response = requests.get(self.base_url('users/settings'), headers=headers, timeout=timeout)
+		result = response.json()
+		user = result.get('user', {})
+		username = user.get('name', '')
+		set_setting('simkl_user', str(username))
+		set_setting('simkl.token', self.token)
+		set_setting('simkl.client_id', client_id)
+		notification('Set %s Authorization' % cls_name)
 		return True
 
 class TMDbList:

@@ -20,6 +20,7 @@ favourites_db  = 'special://profile/addon_data/plugin.video.pov/favourites.db'
 views_db       = 'special://profile/addon_data/plugin.video.pov/views.db'
 trakt_db       = 'special://profile/addon_data/plugin.video.pov/traktcache4.db'
 mdbl_db        = 'special://profile/addon_data/plugin.video.pov/mdblcache.db'
+simkl_db       = 'special://profile/addon_data/plugin.video.pov/simklcache.db'
 maincache_db   = 'special://profile/addon_data/plugin.video.pov/maincache.db'
 metacache_db   = 'special://profile/addon_data/plugin.video.pov/metacache.db'
 debridcache_db = 'special://profile/addon_data/plugin.video.pov/debridcache.db'
@@ -28,7 +29,7 @@ databases_path = 'special://profile/addon_data/plugin.video.pov/'
 packages_path  = 'special://home/addons/packages/'
 
 current_dbs           = ('settings.xml', 'debridcache.db', 'favourites.db', 'maincache.db', 'metacache.db', 'fenomundesirables.db',
-						'navigator.db', 'providerscache.db', 'traktcache4.db', 'mdblcache.db', 'views.db', 'watched.db', 'fenomcache.db')
+						'navigator.db', 'providerscache.db', 'traktcache4.db', 'mdblcache.db', 'simklcache.db', 'views.db', 'watched.db', 'fenomcache.db')
 movie_dict_removals   = ('tmdblogo', 'fanart_added', 'cast', 'poster', 'rootname', 'imdb_id', 'tmdb_id', 'tvdb_id', 'all_trailers',
 						'fanart', 'banner', 'clearlogo', 'clearart', 'landscape', 'discart', 'original_title', 'english_title', 'extra_info',
 						'alternative_titles', 'country_codes', 'fanarttv_fanart', 'fanarttv_poster', 'fanart2', 'poster2', 'meta_language')

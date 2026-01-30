@@ -84,6 +84,8 @@ def traktMonitor():
 	from caches.trakt_cache import clear_trakt_list_contents_data
 	from indexers.trakt_api import trakt_sync_activities
 	from indexers.mdblist_api import mdbl_sync_activities, clear_mdbl_cache
+	from indexers.simkl_api import simkl_sync_activities
+	from caches.simkl_cache import clear_simkl_list_data
 	from indexers.tmdb_api import tmdb_clean_watchlist, clear_tmdbl_cache
 	logger('POV', 'TraktMonitor Service Starting')
 	trakt_service_string = 'TraktMonitor Service Update %s - %s'
@@ -92,6 +94,7 @@ def traktMonitor():
 		for i in ('user_lists', 'liked_lists', 'my_lists'): clear_trakt_list_contents_data(i)
 		clear_mdbl_cache()
 		clear_tmdbl_cache()
+		clear_simkl_list_data()
 		kodi_utils.set_property('pov_traktmonitor_first_run', 'true')
 	while not monitor.abortRequested():
 		while is_playing() or get_visibility('Container().isUpdating') or get_property('pov_pause_services') == 'true':
@@ -132,6 +135,22 @@ def traktMonitor():
 			logger('POV', trakt_service_string % ('POV MDBListMonitor - Failed. Error from MDBList', next_update_string))
 		else:# 'not needed'
 			logger('POV', trakt_service_string % ('POV MDBListMonitor - Success. No Changes Needed', next_update_string))
+		try: status = simkl_sync_activities()
+		except Exception as e:
+			logger('POV', 'TraktMonitor simkl_sync_activities error: %s' % str(e))
+			status = 'failed'
+		if status == 'success':
+			logger('POV', trakt_service_string % ('POV SimklMonitor - Success', 'Simkl Update Performed'))
+			if settings.trakt_sync_refresh_widgets():
+				kodi_utils.widget_refresh()
+				logger('POV', trakt_service_string % ('POV SimklMonitor - Widgets Refresh', 'Setting Activated. Widget Refresh Performed'))
+			else: logger('POV', trakt_service_string % ('POV SimklMonitor - Widgets Refresh', 'Setting Disabled. Skipping Widget Refresh'))
+		elif status == 'no account':
+			logger('POV', trakt_service_string % ('POV SimklMonitor - Aborted. No Simkl Account Active', next_update_string))
+		elif status == 'failed':
+			logger('POV', trakt_service_string % ('POV SimklMonitor - Failed. Error from Simkl', next_update_string))
+		else:# 'not needed'
+			logger('POV', trakt_service_string % ('POV SimklMonitor - Success. No Changes Needed', next_update_string))
 		try:
 			if get_setting('tmdb.token') and get_setting('tmdblist.watchlist_sync') == 'true':
 				status = tmdb_clean_watchlist(silent=True)

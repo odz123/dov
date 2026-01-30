@@ -14,6 +14,7 @@ favourites_db = kodi_utils.favourites_db
 views_db = kodi_utils.views_db
 trakt_db = kodi_utils.trakt_db
 mdbl_db = kodi_utils.mdbl_db
+simkl_db = kodi_utils.simkl_db
 maincache_db = kodi_utils.maincache_db
 metacache_db = kodi_utils.metacache_db
 debridcache_db = kodi_utils.debridcache_db
@@ -101,6 +102,9 @@ def check_databases():
 	# Indexes for faster watched status lookups
 	dbcon.execute("""CREATE INDEX IF NOT EXISTS idx_mdbl_watched_lookup ON watched_status (db_type, media_id)""")
 	dbcon.execute("""CREATE INDEX IF NOT EXISTS idx_mdbl_progress_lookup ON progress (db_type, media_id)""")
+	dbcon.close()
+	dbcon = database_connect(simkl_db) # Simkl
+	dbcon.execute("""CREATE TABLE IF NOT EXISTS simkl_data (id text unique, data text)""")
 	dbcon.close()
 
 def remove_old_databases():
@@ -204,6 +208,11 @@ def clear_cache(cache_type, silent=False):
 		from indexers.mdblist_api import clear_mdbl_cache
 		from caches.mdbl_cache import clear_all_mdbl_cache_data
 		success = clear_mdbl_cache() and clear_all_mdbl_cache_data()
+	elif cache_type == 'simkl':
+		if not _confirm(): return
+		from indexers.simkl_api import clear_simkl_cache
+		from caches.simkl_cache import clear_all_simkl_cache_data
+		success = clear_simkl_cache() and clear_all_simkl_cache_data()
 	elif cache_type == 'tmdblist':
 		if not _confirm(): return
 		from indexers.tmdb_api import clear_tmdbl_cache
@@ -257,6 +266,7 @@ def clear_all_cache():
 		('list', '%s %s' % (ls(32815), ls(32524))),
 		('trakt', ls(32087)),
 		('mdblist', 'MDBList'),
+		('simkl', 'Simkl'),
 		('imdb', '%s %s' % (ls(32064), ls(32524))),
 		('internal_scrapers', '%s %s' % (ls(32096), ls(32524))),
 		('external_scrapers', '%s %s' % (ls(32118), ls(32524)))

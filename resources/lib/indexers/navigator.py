@@ -138,6 +138,7 @@ class Navigator:
 		trakt_status = ku.get_setting('trakt_user') not in ('', None)
 		tmdb_status = ku.get_setting('tmdb.account_id') not in ('', None)
 		mdblist_status = ku.get_setting('mdblist.token') not in ('', None)
+		simkl_status = ku.get_setting('simkl_user') not in ('', None)
 		imdb_status = ku.get_setting('imdb_user') not in ('', None)
 		if trakt_status:
 			self._add_item({'mode': 'navigator.trakt_lists'                                                 , 'name': ls_str   }, 'trakt.png', t_n_ins)
@@ -156,6 +157,10 @@ class Navigator:
 			self._add_item({'mode': 'mdblist.mdbl_account_info'                             , 'name': ai_str    }, 'mdblist.png', m_n_ins, False)
 			self._add_item({'mode': 'build_mdb_list.get_mdbl_toplists'                      , 'name': pu_str    }, 'mdblist.png', m_n_ins)
 			self._add_item({'mode': 'build_mdb_list.search_mdbl_lists'                      , 'name': sea_str   }, 'mdblist.png', m_n_ins)
+		if simkl_status:
+			sk_n_ins = _in_str % ('SIMKL', '')
+			self._add_item({'mode': 'navigator.simkl_lists'                                 , 'name': ls_str    }, 'simkl.png', sk_n_ins)
+			self._add_item({'mode': 'simkl.simkl_account_info'                              , 'name': ai_str    }, 'simkl.png', sk_n_ins, False)
 		if tmdb_status:
 			self._add_item({'mode': 'build_movie_list', 'action': 'tmdb_watchlist'          , 'name': 'Movie Watchlist'        }, 'tmdb.png', '[B]TMDB:[/B] ')
 			self._add_item({'mode': 'build_tvshow_list', 'action': 'tmdb_watchlist'         , 'name': 'TV Show Watchlist'      }, 'tmdb.png', '[B]TMDB:[/B] ')
@@ -231,6 +236,31 @@ class Navigator:
 		self._add_item({'mode': 'imdb_build_user_lists', 'media_type': 'tvshow', 'name': tv_str }, 'imdb.png', n_ins)
 		self._end_directory()
 
+	def simkl_lists(self):
+		simkl_str = 'Simkl'
+		n_ins = _in_str % (simkl_str.upper(), '')
+		ptw_mov = 'Plan to Watch %s' % mov_str
+		ptw_tv = 'Plan to Watch %s' % tv_str
+		watching_mov = 'Watching %s' % mov_str
+		watching_tv = 'Watching %s' % tv_str
+		completed_mov = 'Completed %s' % mov_str
+		completed_tv = 'Completed %s' % tv_str
+		hold_mov = 'On Hold %s' % mov_str
+		hold_tv = 'On Hold %s' % tv_str
+		dropped_mov = 'Dropped %s' % mov_str
+		dropped_tv = 'Dropped %s' % tv_str
+		self._add_item({'mode': 'build_simkl_list.get_simkl_watchlist', 'media_type': 'movies', 'status': 'plantowatch', 'name': ptw_mov      }, 'simkl.png', n_ins)
+		self._add_item({'mode': 'build_simkl_list.get_simkl_watchlist', 'media_type': 'shows',  'status': 'plantowatch', 'name': ptw_tv       }, 'simkl.png', n_ins)
+		self._add_item({'mode': 'build_simkl_list.get_simkl_watchlist', 'media_type': 'movies', 'status': 'watching',    'name': watching_mov  }, 'simkl.png', n_ins)
+		self._add_item({'mode': 'build_simkl_list.get_simkl_watchlist', 'media_type': 'shows',  'status': 'watching',    'name': watching_tv   }, 'simkl.png', n_ins)
+		self._add_item({'mode': 'build_simkl_list.get_simkl_watchlist', 'media_type': 'movies', 'status': 'completed',   'name': completed_mov }, 'simkl.png', n_ins)
+		self._add_item({'mode': 'build_simkl_list.get_simkl_watchlist', 'media_type': 'shows',  'status': 'completed',   'name': completed_tv  }, 'simkl.png', n_ins)
+		self._add_item({'mode': 'build_simkl_list.get_simkl_watchlist', 'media_type': 'movies', 'status': 'hold',        'name': hold_mov      }, 'simkl.png', n_ins)
+		self._add_item({'mode': 'build_simkl_list.get_simkl_watchlist', 'media_type': 'shows',  'status': 'hold',        'name': hold_tv       }, 'simkl.png', n_ins)
+		self._add_item({'mode': 'build_simkl_list.get_simkl_watchlist', 'media_type': 'movies', 'status': 'dropped',     'name': dropped_mov   }, 'simkl.png', n_ins)
+		self._add_item({'mode': 'build_simkl_list.get_simkl_watchlist', 'media_type': 'shows',  'status': 'dropped',     'name': dropped_tv    }, 'simkl.png', n_ins)
+		self._end_directory()
+
 	def search(self):
 		search_str, people_str, clca_str = ls(32450), ls(32507), ls(32497)
 		coll_str, clear_search_str = '%s %s (%s)' % (mov_str, ls(32499), ls(32068)), clca_str % search_str
@@ -271,7 +301,7 @@ class Navigator:
 		clean_thumbs_str = '%s %s' % (clean_str, 'Stale Kodi Thumbnails')
 		clean_all_str = '%s %s %s' % (clean_str, all_str, settings_str)
 		clear_all_str, clear_meta_str = clca_str % all_str, clca_str % ls(32527)
-		clear_list_str, clear_trakt_str, clear_mdbl_str = clca_str % ls(32501), clca_str % ls(32037), clca_str % 'MDBList'
+		clear_list_str, clear_trakt_str, clear_mdbl_str, clear_simkl_str = clca_str % ls(32501), clca_str % ls(32037), clca_str % 'MDBList', clca_str % 'Simkl'
 		clear_imdb_str, clint_str, clext_str = clca_str % ls(32064), clca_str % ls(32096), clca_str % ls(32118)
 		clear_ad_str, clear_pm_str, clear_rd_str = clca_str % ls(32063), clca_str % ls(32061), clca_str % ls(32054)
 		clear_tb_str, clear_oc_str = clca_str % 'TorBox', clca_str % 'Offcloud'
@@ -286,6 +316,7 @@ class Navigator:
 		self._add_item({'mode': 'clear_cache', 'cache': 'list',              'name': clear_list_str     }, 'tools.png', n_ins, False)
 		self._add_item({'mode': 'clear_cache', 'cache': 'trakt',             'name': clear_trakt_str    }, 'tools.png', n_ins, False)
 		self._add_item({'mode': 'clear_cache', 'cache': 'mdblist',           'name': clear_mdbl_str     }, 'tools.png', n_ins, False)
+		self._add_item({'mode': 'clear_cache', 'cache': 'simkl',            'name': clear_simkl_str    }, 'tools.png', n_ins, False)
 		self._add_item({'mode': 'clear_cache', 'cache': 'imdb',              'name': clear_imdb_str     }, 'tools.png', n_ins, False)
 		self._add_item({'mode': 'clear_cache', 'cache': 'internal_scrapers', 'name': clint_str          }, 'tools.png', n_ins, False)
 		self._add_item({'mode': 'clear_cache', 'cache': 'external_scrapers', 'name': clext_str          }, 'tools.png', n_ins, False)
