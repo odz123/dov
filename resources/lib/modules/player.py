@@ -85,7 +85,7 @@ class POVPlayer(kodi_utils.xbmc_player):
 					self.current_point = round(float(self.curr_time/self.total_time * 100), 1) if self.total_time > 0 else 0
 					if self.curr_time > self.stinger_check and not self.stingers_checked:
 						self.run_stingers()
-					if self.current_point >= self.set_watched and not self.media_marked:
+					if self.current_point >= self.set_watched and not self.media_marked and self.curr_time >= 120:
 						self.media_watched_marker()
 					if self.play_random_continual:
 						if not self.nextep_info_gathered: self.info_next_ep()
@@ -104,7 +104,7 @@ class POVPlayer(kodi_utils.xbmc_player):
 							if not self.nextep_started and self.autoscrape_nextep: self.run_scrape_next_ep()
 				except Exception: pass
 				if not self.subs_searched: self.run_subtitles()
-			if not self.media_marked:
+			if not self.media_marked and getattr(self, 'curr_time', 0) >= 120:
 				try: self.media_watched_marker()
 				except Exception: pass
 			try: self.run_scrobble_stop()
@@ -279,16 +279,15 @@ class POVPlayer(kodi_utils.xbmc_player):
 		if not get_setting('simkl_user', ''): return
 		self.simkl_scrobble_started = True
 		try:
-			from indexers.simkl_api import simkl_scrobble_start
-			self._safe_thread(simkl_scrobble_start, self.media_type, self.tmdb_id, self.season, self.episode, 0)
+			from indexers.simkl_api import simkl_checkin
+			self._safe_thread(simkl_checkin, self.media_type, self.tmdb_id, self.season, self.episode)
 		except Exception: pass
 
 	def run_simkl_scrobble_stop(self):
 		if not self.simkl_scrobble_started: return
 		try:
-			from indexers.simkl_api import simkl_scrobble_stop
-			progress = getattr(self, 'current_point', 0)
-			self._safe_thread(simkl_scrobble_stop, self.media_type, self.tmdb_id, self.season, self.episode, progress)
+			from indexers.simkl_api import simkl_checkout
+			self._safe_thread(simkl_checkout)
 		except Exception: pass
 
 	def run_trakt_scrobble_start(self):
