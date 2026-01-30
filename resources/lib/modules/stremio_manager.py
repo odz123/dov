@@ -6,179 +6,36 @@
 	- Addon configuration URLs (for addons like Torrentio)
 	- Popular addon presets
 	- Connection testing
-	- Cloudflare bypass via cloudscraper
+	- Cloudflare bypass via shared http_client module
 """
 
 import json
-import time
-import requests
 from modules.kodi_utils import (
 	notification, ok_dialog, confirm_dialog, select_dialog,
 	get_setting, set_setting, dialog, local_string
 )
-
-# Try to import cloudscraper for Cloudflare bypass
-try:
-	import cloudscraper
-	HAS_CLOUDSCRAPER = True
-except ImportError:
-	HAS_CLOUDSCRAPER = False
-
-# Try to import curl_cffi for TLS fingerprint bypass (stronger than cloudscraper)
-try:
-	from curl_cffi import requests as curl_requests
-	HAS_CURL_CFFI = True
-except ImportError:
-	HAS_CURL_CFFI = False
-
-# Browser-like headers to help bypass Cloudflare and other protections
-BROWSER_HEADERS = {
-	'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
-	'Accept': 'application/json, text/plain, */*',
-	'Accept-Language': 'en-US,en;q=0.9',
-	'Accept-Encoding': 'gzip, deflate, br',
-	'Connection': 'keep-alive',
-	'Sec-Ch-Ua': '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"',
-	'Sec-Ch-Ua-Mobile': '?0',
-	'Sec-Ch-Ua-Platform': '"Windows"',
-	'Sec-Fetch-Dest': 'empty',
-	'Sec-Fetch-Mode': 'cors',
-	'Sec-Fetch-Site': 'cross-site',
-}
-
-# Cloudscraper session management
-_scraper_session = None
-_scraper_fail_count = 0
-
-def _get_scraper(force_new=False):
-	global _scraper_session, _scraper_fail_count
-	if not HAS_CLOUDSCRAPER:
-		return None
-	if force_new or _scraper_session is None or _scraper_fail_count >= 3:
-		try:
-			_scraper_session = cloudscraper.create_scraper(
-				browser={'browser': 'chrome', 'platform': 'windows', 'desktop': True},
-				delay=1
-			)
-			_scraper_fail_count = 0
-		except Exception:
-			_scraper_session = None
-	return _scraper_session
-
-def _mark_scraper_fail():
-	global _scraper_fail_count
-	_scraper_fail_count += 1
+from modules import http_client
 
 
 def _fetch_url(url, timeout=10):
-	"""Fetch a URL with multi-method Cloudflare bypass and retry logic"""
-	# Extract origin for Referer/Origin headers
-	try:
-		from urllib.parse import urlparse
-		parsed = urlparse(url)
-		origin = f"{parsed.scheme}://{parsed.netloc}"
-	except Exception:
-		origin = url.rsplit('/', 1)[0] if '/' in url else url
-
-	headers = BROWSER_HEADERS.copy()
-	headers['Referer'] = f"{origin}/"
-	headers['Origin'] = origin
-
-	last_response = None
-
-	# Method 1: curl_cffi with Chrome impersonation (best for TLS fingerprinting)
-	if HAS_CURL_CFFI:
-		try:
-			for attempt in range(3):
-				try:
-					response = curl_requests.get(url, timeout=timeout, headers=headers, impersonate='chrome120')
-					if response.status_code == 200:
-						content_type = response.headers.get('content-type', '')
-						if 'text/html' not in content_type:
-							return response, None
-					last_response = response
-					if response.status_code in (403, 418, 503):
-						if attempt < 2:
-							time.sleep(0.5 * (attempt + 1))
-							continue
-					break
-				except Exception:
-					if attempt < 2:
-						time.sleep(0.5 * (attempt + 1))
-						continue
-					raise
-		except Exception:
-			pass
-
-	# Method 2: cloudscraper (JS challenge solver)
-	scraper = _get_scraper()
-	if scraper:
-		try:
-			for attempt in range(3):
-				try:
-					response = scraper.get(url, timeout=timeout, headers=headers)
-					if response.status_code == 200:
-						content_type = response.headers.get('content-type', '')
-						if 'text/html' not in content_type:
-							return response, None
-					last_response = response
-					if response.status_code in (403, 418, 503):
-						_mark_scraper_fail()
-						if attempt < 2:
-							time.sleep(0.5 * (attempt + 1))
-							if attempt == 1:
-								scraper = _get_scraper(force_new=True)
-								if not scraper:
-									break
-							continue
-					break
-				except Exception:
-					_mark_scraper_fail()
-					if attempt < 2:
-						time.sleep(0.5 * (attempt + 1))
-						continue
-					raise
-		except Exception:
-			pass
-
-	# Method 3: Regular requests (fallback)
-	try:
-		for attempt in range(2):
-			try:
-				response = requests.get(url, timeout=timeout, headers=headers)
-				if response.status_code == 200:
-					content_type = response.headers.get('content-type', '')
-					if 'text/html' not in content_type:
-						return response, None
-				last_response = response
-				if response.status_code in (403, 418, 503):
-					if attempt == 0:
-						time.sleep(0.5)
-						continue
-				break
-			except (requests.exceptions.Timeout, requests.exceptions.ConnectionError):
-				if attempt == 0:
-					time.sleep(0.5)
-					continue
-				raise
-	except Exception:
-		pass
-
-	# Return last response with error info
-	if last_response:
-		if last_response.status_code == 403:
-			return last_response, "Blocked by Cloudflare - addon needs configuration"
-		elif last_response.status_code == 418:
-			return last_response, "Bot protection - use configured addon URL"
-		elif last_response.status_code == 503:
-			return last_response, "Service unavailable - addon may be down"
-		elif last_response.status_code in (522, 524):
-			return last_response, "Addon server timeout"
-		elif 'text/html' in last_response.headers.get('content-type', ''):
-			return last_response, "Cloudflare challenge - use configured URL"
-		else:
-			return last_response, "HTTP %d" % last_response.status_code
-	return None, "Connection failed"
+	"""Fetch a URL with Cloudflare bypass via shared http_client.
+	Returns (response, error_message) tuple for compatibility."""
+	response, error_msg = http_client.fetch_raw(url, timeout=timeout)
+	if error_msg is None:
+		return response, None
+	# Provide user-friendly error messages for the addon manager UI
+	if response is not None:
+		if response.status_code == 403:
+			return response, 'Blocked by Cloudflare - addon needs configuration'
+		elif response.status_code == 418:
+			return response, 'Bot protection - use configured addon URL'
+		elif response.status_code == 503:
+			return response, 'Service unavailable - addon may be down'
+		elif response.status_code in (522, 524):
+			return response, 'Addon server timeout'
+		elif 'text/html' in response.headers.get('content-type', ''):
+			return response, 'Cloudflare challenge - use configured URL'
+	return response, error_msg or 'Connection failed'
 
 
 # Debrid service definitions
@@ -418,10 +275,6 @@ def validate_stremio_addon(url, return_config_info=False):
 			return addon_info, None, existing_config, has_debrid_config
 		return addon_info, None
 
-	except requests.exceptions.Timeout:
-		return None, "Connection timed out"
-	except requests.exceptions.ConnectionError:
-		return None, "Could not connect to server"
 	except json.JSONDecodeError:
 		return None, "Invalid JSON response"
 	except Exception as e:
