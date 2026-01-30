@@ -259,6 +259,7 @@ class Navigator:
 		self._add_item({'mode': 'build_simkl_list.get_simkl_watchlist', 'media_type': 'shows',  'status': 'hold',        'name': hold_tv       }, 'simkl.png', n_ins)
 		self._add_item({'mode': 'build_simkl_list.get_simkl_watchlist', 'media_type': 'movies', 'status': 'dropped',     'name': dropped_mov   }, 'simkl.png', n_ins)
 		self._add_item({'mode': 'build_simkl_list.get_simkl_watchlist', 'media_type': 'shows',  'status': 'dropped',     'name': dropped_tv    }, 'simkl.png', n_ins)
+		self._add_item({'mode': 'simkl_debug_loop',                                                                  'name': 'Debug Simkl Loop'    }, 'tools.png', n_ins, False)
 		self._end_directory()
 
 	def search(self):

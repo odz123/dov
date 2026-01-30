@@ -307,6 +307,9 @@ class Router:
 		elif mode == 'stremio_debug_loop':
 			from modules.stremio_manager import stremio_debug_loop
 			stremio_debug_loop()
+		elif mode == 'simkl_debug_loop':
+			from indexers.simkl_api import simkl_debug_loop
+			simkl_debug_loop()
 
 
 if __name__ == '__main__':

@@ -260,6 +260,70 @@ def simkl_sync_activities(force_update=False):
 		simkl_cache.clear_simkl_list_data()
 	return success
 
+def simkl_debug_loop():
+	"""Debug Simkl API by testing connectivity 5 times in a loop.
+	Shows detailed results for each attempt including timing, rate limits, and status."""
+	from modules.kodi_utils import notification, ok_dialog, logger as kodi_logger
+	loop_count = 5
+	results = []
+	notification('Running %d Simkl debug loops...' % loop_count, 3000)
+	for i in range(loop_count):
+		attempt = {'iteration': i + 1, 'status': 'unknown', 'time': 0.0, 'error': '', 'rate_remaining': 0, 'rate_reset': 0, 'endpoint': ''}
+		start_time = time.time()
+		try:
+			# Test sync/activities endpoint (lightweight, requires auth)
+			attempt['endpoint'] = 'sync/activities'
+			result = simkl_get_activity()
+			elapsed = time.time() - start_time
+			attempt['time'] = round(elapsed, 3)
+			rate = get_rate_limit_status()
+			attempt['rate_remaining'] = rate['remaining']
+			attempt['rate_reset'] = rate['reset']
+			if result and isinstance(result, dict):
+				attempt['status'] = 'success'
+			elif result is None:
+				attempt['status'] = 'fail'
+				attempt['error'] = 'No response (None)'
+			else:
+				attempt['status'] = 'fail'
+				attempt['error'] = 'Unexpected: %s' % str(type(result).__name__)
+		except Exception as e:
+			elapsed = time.time() - start_time
+			attempt['time'] = round(elapsed, 3)
+			attempt['status'] = 'fail'
+			attempt['error'] = str(e)[:80]
+		results.append(attempt)
+	# Build summary
+	total_time = sum(a['time'] for a in results)
+	success_count = sum(1 for a in results if a['status'] == 'success')
+	fail_count = loop_count - success_count
+	avg_time = round(total_time / loop_count, 3) if loop_count else 0
+	lines = []
+	lines.append('[B]Simkl API Debug Results[/B]')
+	lines.append('Success: %d/%d | Avg: %ss | Total: %ss' % (success_count, loop_count, avg_time, round(total_time, 3)))
+	lines.append('')
+	for a in results:
+		if a['status'] == 'success':
+			lines.append('#%d: [COLOR green]OK[/COLOR] (%ss) rate_remaining=%s' % (a['iteration'], a['time'], a['rate_remaining']))
+		else:
+			lines.append('#%d: [COLOR red]FAIL[/COLOR] (%ss) - %s' % (a['iteration'], a['time'], a['error']))
+	if fail_count > 0:
+		errors = {}
+		for a in results:
+			if a['status'] == 'fail' and a['error']:
+				errors[a['error']] = errors.get(a['error'], 0) + 1
+		if errors:
+			lines.append('')
+			lines.append('[B]Errors:[/B] %s' % ', '.join('%s x%d' % (e, c) for e, c in errors.items()))
+	lines.append('')
+	lines.append('[B]Final Rate Limit:[/B] remaining=%s' % _rate_limit_remaining)
+	summary_text = '\n'.join(lines)
+	try:
+		kodi_logger('SIMKL DEBUG LOOP', summary_text.replace('[B]', '').replace('[/B]', '').replace('[COLOR green]', '').replace('[/COLOR]', '').replace('[COLOR red]', ''))
+	except Exception:
+		pass
+	ok_dialog(heading='Simkl Debug - %d Loops' % loop_count, text=summary_text)
+
 def clear_simkl_cache():
 	from modules.kodi_utils import path_exists, clear_property, database_connect, maincache_db
 	if not path_exists(maincache_db): return True
