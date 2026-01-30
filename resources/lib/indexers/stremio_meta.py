@@ -384,13 +384,22 @@ class StremioMetaProvider:
 					duration = int(runtime) * 60
 
 			# Process rating
-			rating = ''
+			rating = 0
 			imdb_rating = meta_get('imdbRating')
 			if imdb_rating:
 				try:
 					rating = float(imdb_rating)
 				except Exception:
-					pass
+					rating = 0
+
+			# Process votes
+			votes = 0
+			popularity = meta_get('popularity', 0)
+			if popularity:
+				try:
+					votes = int(popularity)
+				except (ValueError, TypeError):
+					votes = 0
 
 			# Process cast
 			cast = []
@@ -445,7 +454,7 @@ class StremioMetaProvider:
 				'tmdblogo': meta_get('logo', ''),
 				'clearlogo': meta_get('logo', ''),
 				'rating': rating,
-				'votes': meta_get('popularity', ''),
+				'votes': votes,
 				'duration': duration,
 				'premiered': meta_get('released', meta_get('releaseInfo', '')),
 				'genre': genre,
@@ -512,13 +521,22 @@ class StremioMetaProvider:
 					duration = int(runtime) * 60
 
 			# Process rating
-			rating = ''
+			rating = 0
 			imdb_rating = meta_get('imdbRating')
 			if imdb_rating:
 				try:
 					rating = float(imdb_rating)
 				except Exception:
-					pass
+					rating = 0
+
+			# Process votes
+			votes = 0
+			popularity = meta_get('popularity', 0)
+			if popularity:
+				try:
+					votes = int(popularity)
+				except (ValueError, TypeError):
+					votes = 0
 
 			# Process cast
 			cast = []
@@ -590,7 +608,7 @@ class StremioMetaProvider:
 				'tmdblogo': meta_get('logo', ''),
 				'clearlogo': meta_get('logo', ''),
 				'rating': rating,
-				'votes': meta_get('popularity', ''),
+				'votes': votes,
 				'duration': duration,
 				'premiered': meta_get('released', meta_get('releaseInfo', '')),
 				'genre': genre,
@@ -679,14 +697,21 @@ class StremioMetaProvider:
 		episodes = []
 		for ep in sorted(season_episodes, key=lambda x: x.get('episode', 0)):
 			ep_get = ep.get
+			ep_rating = 0
+			ep_rating_val = ep_get('rating', 0)
+			if ep_rating_val:
+				try:
+					ep_rating = float(ep_rating_val)
+				except (ValueError, TypeError):
+					ep_rating = 0
 			episodes.append({
 				'title': ep_get('title', ep_get('name', f'Episode {ep_get("episode", "")}')),
 				'plot': ep_get('overview', ep_get('description', '')),
 				'premiered': ep_get('released', ep_get('firstAired', '')),
 				'season': season_num,
 				'episode': ep_get('episode', 0),
-				'rating': ep_get('rating', ''),
-				'votes': '',
+				'rating': ep_rating,
+				'votes': 0,
 				'thumb': ep_get('thumbnail', ''),
 				'duration': 0,
 				'director': '',
