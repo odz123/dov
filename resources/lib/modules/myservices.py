@@ -550,9 +550,9 @@ class Simkl:
 		try:
 			response = requests.get(self.base_url('users/settings'), headers=headers, timeout=timeout)
 			result = response.json()
-			username = result.get('user', {}).get('name', '')
+			username = result.get('user', {}).get('name', '') or 'Simkl User'
 		except Exception:
-			username = ''
+			username = 'Simkl User'
 		set_setting('simkl_user', str(username))
 		set_setting('simkl.token', self.token)
 		set_setting('simkl.client_id', client_id)

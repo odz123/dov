@@ -10,7 +10,11 @@ SC_BASE_SET = 'INSERT OR REPLACE INTO simkl_data (id, data) VALUES (?, ?)'
 class SimklCache:
 	def __init__(self):
 		self._connect_database()
-		self._set_PRAGMAS()
+		try:
+			self._set_PRAGMAS()
+		except Exception:
+			self.close()
+			raise
 
 	def __enter__(self):
 		return self
@@ -36,26 +40,41 @@ class SimklCache:
 		self.dbcur.execute("""PRAGMA mmap_size = 268435456""")
 
 def cache_simkl_object(function, string, url):
-	with SimklCache() as cache:
-		cache.dbcur.execute(SC_BASE_GET, (string,))
-		cached_data = cache.dbcur.fetchone()
-		if cached_data: return literal_eval(cached_data[0])
-		result = function(url)
-		cache.dbcur.execute(SC_BASE_SET, (string, repr(result)))
-		return result
-
-def reset_activity(latest_activities):
-	string = 'simkl_get_activity'
-	cached_data = None
+	result = None
 	try:
 		with SimklCache() as cache:
 			cache.dbcur.execute(SC_BASE_GET, (string,))
 			cached_data = cache.dbcur.fetchone()
-			if cached_data: cached_data = literal_eval(cached_data[0])
-			else: cached_data = default_activities()
-			cache.dbcur.execute(SC_BASE_SET, (string, repr(latest_activities)))
+			if cached_data:
+				try: return literal_eval(cached_data[0])
+				except (ValueError, SyntaxError):
+					cache.dbcur.execute("DELETE FROM simkl_data WHERE id = ?", (string,))
+			result = function(url)
+			if result is not None:
+				cache.dbcur.execute(SC_BASE_SET, (string, repr(result)))
+			return result
+	except Exception:
+		return result if result is not None else function(url)
+
+def get_cached_activity():
+	"""Read the cached activity data without modifying it."""
+	cached_data = default_activities()
+	try:
+		with SimklCache() as cache:
+			cache.dbcur.execute(SC_BASE_GET, ('simkl_get_activity',))
+			result = cache.dbcur.fetchone()
+			if result:
+				try: cached_data = literal_eval(result[0])
+				except (ValueError, SyntaxError): pass
 	except Exception: pass
 	return cached_data
+
+def save_activity(latest_activities):
+	"""Save the latest activity data to cache."""
+	try:
+		with SimklCache() as cache:
+			cache.dbcur.execute(SC_BASE_SET, ('simkl_get_activity', repr(latest_activities)))
+	except Exception: pass
 
 def clear_simkl_list_data():
 	"""Clear cached list data but preserve activity tracking."""

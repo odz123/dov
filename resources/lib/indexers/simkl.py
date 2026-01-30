@@ -24,10 +24,11 @@ status_labels = {
 def get_simkl_watchlist(params):
 	"""Build a Kodi directory of Simkl watchlist items for a given media_type and status."""
 	def _thread_target(q):
-		while not q.empty():
-			try: target, *args = q.get()
+		while True:
+			try: target, *args = q.get_nowait()
+			except Exception: break
+			try: target(*args)
 			except Exception: pass
-			else: target(*args)
 	__handle__, _queue, is_widget = int(sys.argv[1]), SimpleQueue(), kodi_utils.external_browse()
 	max_threads = int(kodi_utils.get_setting('pov.max_threads', '100'))
 	use_alphabet = nav_jump_use_alphabet() > 0
@@ -53,7 +54,7 @@ def get_simkl_watchlist(params):
 		threads = list(TaskPool.process(threads))
 		for i in threads: i.join()
 	items = movies.items + tvshows.items
-	items.sort(key=lambda k: int(k[1].getProperty('pov_sort_order')))
+	items.sort(key=lambda k: int(k[1].getProperty('pov_sort_order') or '0'))
 	content, total = max(
 		('movies', movies), ('tvshows', tvshows), key=lambda k: len(k[1].items)
 	)
@@ -77,8 +78,11 @@ def simkl_account_info():
 		kodi_utils.show_busy_dialog()
 		account_info = simkl_api.simkl_user_settings()
 		rate_limit = simkl_api.get_rate_limit_status()
-		user = account_info.get('user', {}) if account_info else {}
-		account = account_info.get('account', {}) if account_info else {}
+		if not account_info or not isinstance(account_info, dict):
+			kodi_utils.hide_busy_dialog()
+			return kodi_utils.notification('Simkl: Failed to retrieve account info')
+		user = account_info.get('user') or {}
+		account = account_info.get('account') or {}
 		body = []
 		append = body.append
 		append('[B]Username:[/B] %s' % user.get('name', 'N/A'))
@@ -88,5 +92,7 @@ def simkl_account_info():
 		append('  Remaining: %s' % rate_limit['remaining'])
 		kodi_utils.hide_busy_dialog()
 		return kodi_utils.show_text(simkl_str.upper(), '\n\n'.join(body), font_size='large')
-	except Exception:
+	except Exception as e:
 		kodi_utils.hide_busy_dialog()
+		kodi_utils.logger('simkl_account_info', str(e))
+		kodi_utils.notification('Simkl: Failed to retrieve account info')

@@ -6,7 +6,7 @@ from modules.cache import check_databases
 from modules.utils import paginate_list, sort_for_article
 # logger = kodi_utils.logger
 
-from threading import Thread
+from threading import Thread, Lock
 
 get_setting = kodi_utils.get_setting
 base_url = 'https://api.simkl.com/%s'
@@ -29,37 +29,42 @@ session.mount('https://api.simkl.com', requests.adapters.HTTPAdapter(pool_maxsiz
 # Rate limit tracking
 _rate_limit_remaining = 1000
 _rate_limit_reset = 0
+_rate_limit_lock = Lock()
 
 def _update_rate_limits(response):
 	global _rate_limit_remaining, _rate_limit_reset
 	try:
-		if 'X-RateLimit-Remaining' in response.headers:
-			_rate_limit_remaining = int(response.headers['X-RateLimit-Remaining'])
-		if 'X-RateLimit-Reset' in response.headers:
-			reset_val = int(response.headers['X-RateLimit-Reset'])
-			if reset_val > 1000000000:
-				_rate_limit_reset = reset_val
-			else:
-				_rate_limit_reset = int(time.time()) + reset_val
+		with _rate_limit_lock:
+			if 'X-RateLimit-Remaining' in response.headers:
+				_rate_limit_remaining = int(response.headers['X-RateLimit-Remaining'])
+			if 'X-RateLimit-Reset' in response.headers:
+				reset_val = int(response.headers['X-RateLimit-Reset'])
+				if reset_val > 1000000000:
+					_rate_limit_reset = reset_val
+				else:
+					_rate_limit_reset = int(time.time()) + reset_val
 	except (ValueError, KeyError):
 		pass
 
 def _wait_for_rate_limit():
 	"""Wait if rate limited before making a request."""
 	global _rate_limit_remaining, _rate_limit_reset
-	if _rate_limit_remaining > 0:
-		return
-	wait_time = max(0, _rate_limit_reset - int(time.time()))
+	with _rate_limit_lock:
+		if _rate_limit_remaining > 0:
+			return
+		wait_time = max(0, _rate_limit_reset - int(time.time()))
 	if wait_time > 0:
 		kodi_utils.logger('simkl', 'Rate limited, waiting %d seconds' % wait_time)
 		time.sleep(min(wait_time + 1, 60))
-	_rate_limit_remaining = 1
+	with _rate_limit_lock:
+		_rate_limit_remaining = 1
 
 def get_rate_limit_status():
-	return {
-		'remaining': _rate_limit_remaining,
-		'reset': _rate_limit_reset
-	}
+	with _rate_limit_lock:
+		return {
+			'remaining': _rate_limit_remaining,
+			'reset': _rate_limit_reset
+		}
 
 def _get_retry_wait(response):
 	"""Get wait time in seconds from a 429 response."""
@@ -79,7 +84,10 @@ def _get_retry_wait(response):
 	return 5
 
 def call_simkl(path, params=None, data=None, with_auth=True, method=None, expected_statuses=None):
-	headers = {'Content-Type': 'application/json', 'simkl-api-key': get_setting('simkl.client_id')}
+	global _rate_limit_remaining
+	client_id = get_setting('simkl.client_id')
+	if not client_id: return None
+	headers = {'Content-Type': 'application/json', 'simkl-api-key': client_id}
 	if with_auth:
 		token = get_setting('simkl.token')
 		if token: headers['Authorization'] = 'Bearer %s' % token
@@ -99,11 +107,17 @@ def call_simkl(path, params=None, data=None, with_auth=True, method=None, expect
 				wait = min(_get_retry_wait(response), 60)
 				kodi_utils.logger('simkl', '429 rate limited on %s, waiting %d seconds (attempt %d/4)' % (path, wait, attempt + 1))
 				time.sleep(wait + 1)
+				with _rate_limit_lock:
+					_rate_limit_remaining = 1
 				continue
-			result = response.json() if 'json' in response.headers.get('Content-Type', '') else response.text
+			try: result = response.json() if 'json' in response.headers.get('Content-Type', '') else response.text
+			except (ValueError, Exception): result = response.text
 			if not response.ok:
 				if expected_statuses and response.status_code in expected_statuses:
 					return result
+				if response.status_code < 500:
+					kodi_utils.logger('simkl error', 'HTTP %d for %s' % (response.status_code, path))
+					return None
 				response.raise_for_status()
 			return result
 		except requests.exceptions.RequestException as e:
@@ -155,9 +169,11 @@ def simkl_checkin(media_type, tmdb_id, season=None, episode=None):
 	if media_type == 'movie':
 		data = {'movie': {'ids': {'tmdb': tmdb_id}}}
 	elif media_type == 'episode':
-		data = {'show': {'ids': {'tmdb': tmdb_id}}, 'episode': {'season': int(season), 'number': int(episode)}}
+		try: season, episode = int(season), int(episode)
+		except (ValueError, TypeError): return
+		data = {'show': {'ids': {'tmdb': tmdb_id}}, 'episode': {'season': season, 'number': episode}}
 	else: return
-	return call_simkl('checkin', data=data, method='post')
+	return call_simkl('checkin', data=data, method='post', expected_statuses=(409,))
 
 def simkl_checkout():
 	"""Cancel any active Simkl checkin to avoid 409 Conflict on next checkin."""
@@ -173,11 +189,15 @@ def simkl_watched_unwatched(action, media, media_id, season=None, episode=None):
 	if media == 'movies':
 		data = {'movies': [{'ids': {'tmdb': media_id}}]}
 	elif media == 'episode':
-		data = {'shows': [{'ids': {'tmdb': media_id}, 'seasons': [{'number': int(season), 'episodes': [{'number': int(episode)}]}]}]}
+		try: season, episode = int(season), int(episode)
+		except (ValueError, TypeError): return
+		data = {'shows': [{'ids': {'tmdb': media_id}, 'seasons': [{'number': season, 'episodes': [{'number': episode}]}]}]}
 	elif media == 'shows':
 		data = {'shows': [{'ids': {'tmdb': media_id}}]}
 	elif media == 'season':
-		data = {'shows': [{'ids': {'tmdb': media_id}, 'seasons': [{'number': int(season)}]}]}
+		try: season = int(season)
+		except (ValueError, TypeError): return
+		data = {'shows': [{'ids': {'tmdb': media_id}, 'seasons': [{'number': season}]}]}
 	else: return
 	result = func(data)
 	if result is not None:
@@ -193,7 +213,7 @@ def simkl_watchlist_items(media_type, status, page_no, letter):
 	if sort_key == 2:
 		original_list.sort(key=lambda k: k.get('release_year', ''), reverse=True)
 	elif sort_key == 1:
-		original_list.sort(key=lambda k: k.get('last_watched_at', ''), reverse=True)
+		original_list.sort(key=lambda k: k.get('last_watched_at') or '', reverse=True)
 	else:
 		original_list = sort_for_article(original_list, 'title', settings.ignore_articles())
 	if settings.paginate():
@@ -207,28 +227,35 @@ def _fetch_all_items(args):
 	"""Fetch all items from Simkl for a given media_type and status."""
 	media_type, status = args
 	result = simkl_all_items(media_type, status)
-	if not result: return []
+	if result is None: return None
+	if not isinstance(result, list): return None
 	items = []
 	key = 'movie' if media_type == 'movies' else 'show'
 	for item in result:
-		media = item.get(key, {})
-		ids = media.get('ids', {})
-		items.append({
-			'title': media.get('title', ''),
-			'release_year': media.get('year', ''),
-			'id': ids.get('tmdb'),
-			'imdb_id': ids.get('imdb', ''),
-			'tmdb_id': ids.get('tmdb', ''),
-			'simkl_id': ids.get('simkl', ''),
-			'last_watched_at': item.get('last_watched_at', ''),
-			'status': item.get('status', status),
-			'user_rating': item.get('user_rating'),
-			'mediatype': 'movie' if media_type == 'movies' else 'show'
-		})
+		try:
+			media = item.get(key) or {}
+			ids = media.get('ids') or {}
+			tmdb_id = ids.get('tmdb') or ''
+			imdb_id = ids.get('imdb') or ''
+			if not tmdb_id and not imdb_id: continue
+			year = media.get('year') or ''
+			items.append({
+				'title': media.get('title') or '',
+				'release_year': str(year) if year else '',
+				'id': tmdb_id,
+				'imdb_id': imdb_id,
+				'tmdb_id': tmdb_id,
+				'simkl_id': ids.get('simkl') or '',
+				'last_watched_at': item.get('last_watched_at') or '',
+				'status': item.get('status', status),
+				'user_rating': item.get('user_rating'),
+				'mediatype': 'movie' if media_type == 'movies' else 'show'
+			})
+		except Exception: continue
 	return items
 
 def simkl_sync_activities_thread(*args, **kwargs):
-	Thread(target=simkl_sync_activities, args=args, kwargs=kwargs).start()
+	Thread(target=simkl_sync_activities, args=args, kwargs=kwargs, daemon=True).start()
 
 def simkl_sync_activities(force_update=False):
 	if not get_setting('simkl_user', ''): return 'no account'
@@ -236,42 +263,40 @@ def simkl_sync_activities(force_update=False):
 		check_databases()
 		simkl_cache.clear_all_simkl_cache_data(refresh=False)
 	latest = simkl_get_activity()
-	if not latest:
-		simkl_cache.clear_all_simkl_cache_data(refresh=False)
+	if not latest or not isinstance(latest, dict):
 		return 'failed'
 	success = 'not needed'
-	cached = simkl_cache.reset_activity(latest)
-	movies_changed = False
-	shows_changed = False
+	cached = simkl_cache.get_cached_activity()
+	changed = False
 	try:
-		movies_activity = latest.get('movies', {})
-		shows_activity = latest.get('tv_shows', {})
-		cached_movies = cached.get('movies', {})
-		cached_shows = cached.get('tv_shows', {})
-		if movies_activity.get('all', '') != cached_movies.get('all', ''):
-			movies_changed = True
-		if shows_activity.get('all', '') != cached_shows.get('all', ''):
-			shows_changed = True
+		for key in ('movies', 'tv_shows', 'anime'):
+			activity = latest.get(key) or {}
+			cached_activity = cached.get(key) or {}
+			if activity.get('all', '') != cached_activity.get('all', ''):
+				changed = True
+				break
 	except Exception:
-		movies_changed = True
-		shows_changed = True
-	if movies_changed or shows_changed:
+		changed = True
+	if changed:
 		success = 'success'
 		simkl_cache.clear_simkl_list_data()
+	simkl_cache.save_activity(latest)
 	return success
 
 def clear_simkl_cache():
-	from modules.kodi_utils import path_exists, clear_property, database_connect, maincache_db
-	if not path_exists(maincache_db): return True
-	dbcon = database_connect(maincache_db, isolation_level=None)
+	from modules.kodi_utils import path_exists, clear_property, database_connect, simkl_db
+	if not path_exists(simkl_db): return True
+	try:
+		dbcon = database_connect(simkl_db, isolation_level=None)
+	except Exception: return False
 	try:
 		dbcur = dbcon.cursor()
 		dbcur.execute("""PRAGMA synchronous = OFF""")
 		dbcur.execute("""PRAGMA journal_mode = OFF""")
-		dbcur.execute("""SELECT id FROM maincache WHERE id LIKE ?""", ('simkl_%',))
+		dbcur.execute("""SELECT id FROM simkl_data""")
 		results = [str(i[0]) for i in dbcur.fetchall()]
 		if not results: return True
-		dbcur.execute("""DELETE FROM maincache WHERE id LIKE ?""", ('simkl_%',))
+		dbcur.execute("""DELETE FROM simkl_data""")
 		for i in results: clear_property(i)
 		return True
 	except Exception: return False
