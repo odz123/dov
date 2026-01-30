@@ -86,6 +86,18 @@ def simkl_history_remove(data):
 	"""Remove items from watched history."""
 	return call_simkl('sync/history/remove', data=data, method='post')
 
+def simkl_checkin(media_type, tmdb_id, season=None, episode=None):
+	"""Check in to Simkl (real-time scrobbling). Tells Simkl the user is currently watching."""
+	if not get_setting('simkl_user', ''): return
+	try: tmdb_id = int(tmdb_id)
+	except (ValueError, TypeError): return
+	if media_type == 'movie':
+		data = {'movie': {'ids': {'tmdb': tmdb_id}}}
+	elif media_type == 'episode':
+		data = {'show': {'ids': {'tmdb': tmdb_id}}, 'episode': {'season': int(season), 'number': int(episode)}}
+	else: return
+	return call_simkl('checkin', data=data, method='post')
+
 def simkl_watched_unwatched(action, media, media_id, season=None, episode=None):
 	"""Push watched/unwatched status to Simkl. Called in background thread."""
 	if not get_setting('simkl_user', ''): return

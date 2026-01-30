@@ -21,6 +21,7 @@ class POVPlayer(kodi_utils.xbmc_player):
 		self.subs_searched, self.stingers_checked = False, False
 		self.nextep_started, self.play_random_continual = False, False
 		self.scrobble_started = False
+		self.simkl_scrobble_started = False
 		self.autoplay_next_episode = False
 		self.autoplay_nextep = settings.autoplay_next_episode()
 		self.autoscrape_next_episode = False
@@ -73,6 +74,7 @@ class POVPlayer(kodi_utils.xbmc_player):
 			kodi_utils.close_all_dialog()
 			if self.volume_check: kodi_utils.volume_checker(get_setting('volumecheck.percent', '100'))
 			self.run_scrobble_start()
+			self.run_simkl_scrobble_start()
 			kodi_utils.sleep(1000)
 			while self.isPlayingVideo():
 				try:
@@ -261,6 +263,14 @@ class POVPlayer(kodi_utils.xbmc_player):
 			from indexers.mdblist_api import mdbl_scrobble
 			progress = getattr(self, 'current_point', 0)
 			self._safe_thread(mdbl_scrobble, 'stop', self.media_type, self.tmdb_id, progress, self.season, self.episode)
+		except Exception: pass
+
+	def run_simkl_scrobble_start(self):
+		if self.simkl_scrobble_started: return
+		self.simkl_scrobble_started = True
+		try:
+			from indexers.simkl_api import simkl_checkin
+			self._safe_thread(simkl_checkin, self.media_type, self.tmdb_id, self.season, self.episode)
 		except Exception: pass
 
 	def info_next_ep(self):
