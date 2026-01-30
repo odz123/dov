@@ -16,7 +16,7 @@ _retry_kwargs = dict(
 	total=5,
 	status=3,
 	backoff_factor=1.0,
-	status_forcelist=(429, 502, 503, 504),
+	status_forcelist=(502, 503, 504),
 	respect_retry_after_header=True
 )
 _allowed = frozenset(['GET', 'POST', 'DELETE', 'HEAD', 'PUT', 'OPTIONS', 'TRACE'])
@@ -36,7 +36,11 @@ def _update_rate_limits(response):
 		if 'X-RateLimit-Remaining' in response.headers:
 			_rate_limit_remaining = int(response.headers['X-RateLimit-Remaining'])
 		if 'X-RateLimit-Reset' in response.headers:
-			_rate_limit_reset = int(response.headers['X-RateLimit-Reset'])
+			reset_val = int(response.headers['X-RateLimit-Reset'])
+			if reset_val > 1000000000:
+				_rate_limit_reset = reset_val
+			else:
+				_rate_limit_reset = int(time.time()) + reset_val
 	except (ValueError, KeyError):
 		pass
 
@@ -57,30 +61,59 @@ def get_rate_limit_status():
 		'reset': _rate_limit_reset
 	}
 
+def _get_retry_wait(response):
+	"""Get wait time in seconds from a 429 response."""
+	try:
+		if 'Retry-After' in response.headers:
+			return int(response.headers['Retry-After'])
+	except (ValueError, KeyError):
+		pass
+	try:
+		if 'X-RateLimit-Reset' in response.headers:
+			reset_val = int(response.headers['X-RateLimit-Reset'])
+			if reset_val > 1000000000:
+				return max(1, reset_val - int(time.time()))
+			return max(1, reset_val)
+	except (ValueError, KeyError):
+		pass
+	return 5
+
 def call_simkl(path, params=None, data=None, with_auth=True, method=None, expected_statuses=None):
 	headers = {'Content-Type': 'application/json', 'simkl-api-key': get_setting('simkl.client_id')}
 	if with_auth:
 		token = get_setting('simkl.token')
 		if token: headers['Authorization'] = 'Bearer %s' % token
 	_wait_for_rate_limit()
-	try:
-		response = session.request(
-			method or ('post' if data else 'get'),
-			base_url % path,
-			params=params,
-			json=data,
-			headers=headers,
-			timeout=timeout
-		)
-		_update_rate_limits(response)
-		result = response.json() if 'json' in response.headers.get('Content-Type', '') else response.text
-		if not response.ok:
-			if expected_statuses and response.status_code in expected_statuses:
-				return result
-			response.raise_for_status()
-		return result
-	except requests.exceptions.RequestException as e:
-		kodi_utils.logger('simkl error', str(e))
+	for attempt in range(4):
+		try:
+			response = session.request(
+				method or ('post' if data else 'get'),
+				base_url % path,
+				params=params,
+				json=data,
+				headers=headers,
+				timeout=timeout
+			)
+			_update_rate_limits(response)
+			if response.status_code == 429:
+				wait = min(_get_retry_wait(response), 60)
+				kodi_utils.logger('simkl', '429 rate limited on %s, waiting %d seconds (attempt %d/4)' % (path, wait, attempt + 1))
+				time.sleep(wait + 1)
+				continue
+			result = response.json() if 'json' in response.headers.get('Content-Type', '') else response.text
+			if not response.ok:
+				if expected_statuses and response.status_code in expected_statuses:
+					return result
+				response.raise_for_status()
+			return result
+		except requests.exceptions.RequestException as e:
+			kodi_utils.logger('simkl error', '%s (attempt %d/4)' % (str(e), attempt + 1))
+			if attempt < 3:
+				time.sleep(2 ** attempt)
+				continue
+			return None
+	kodi_utils.logger('simkl error', 'all retries exhausted for %s' % path)
+	return None
 
 def simkl_get_activity():
 	return call_simkl('sync/activities')
