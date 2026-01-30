@@ -207,7 +207,7 @@ def simkl_watchlist_items(media_type, status, page_no, letter):
 	if sort_key == 2:
 		original_list.sort(key=lambda k: k.get('release_year', ''), reverse=True)
 	elif sort_key == 1:
-		original_list.sort(key=lambda k: k.get('last_watched_at', ''), reverse=True)
+		original_list.sort(key=lambda k: k.get('last_watched_at') or '', reverse=True)
 	else:
 		original_list = sort_for_article(original_list, 'title', settings.ignore_articles())
 	if settings.paginate():
@@ -238,7 +238,7 @@ def _fetch_all_items(args):
 			'imdb_id': imdb_id,
 			'tmdb_id': tmdb_id,
 			'simkl_id': ids.get('simkl', ''),
-			'last_watched_at': item.get('last_watched_at', ''),
+			'last_watched_at': item.get('last_watched_at') or '',
 			'status': item.get('status', status),
 			'user_rating': item.get('user_rating'),
 			'mediatype': 'movie' if media_type == 'movies' else 'show'

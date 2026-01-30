@@ -36,14 +36,20 @@ class SimklCache:
 		self.dbcur.execute("""PRAGMA mmap_size = 268435456""")
 
 def cache_simkl_object(function, string, url):
-	with SimklCache() as cache:
-		cache.dbcur.execute(SC_BASE_GET, (string,))
-		cached_data = cache.dbcur.fetchone()
-		if cached_data: return literal_eval(cached_data[0])
-		result = function(url)
-		if result:
-			cache.dbcur.execute(SC_BASE_SET, (string, repr(result)))
-		return result
+	try:
+		with SimklCache() as cache:
+			cache.dbcur.execute(SC_BASE_GET, (string,))
+			cached_data = cache.dbcur.fetchone()
+			if cached_data:
+				try: return literal_eval(cached_data[0])
+				except (ValueError, SyntaxError):
+					cache.dbcur.execute("DELETE FROM simkl_data WHERE id = ?", (string,))
+			result = function(url)
+			if result:
+				cache.dbcur.execute(SC_BASE_SET, (string, repr(result)))
+			return result
+	except Exception:
+		return function(url)
 
 def reset_activity(latest_activities):
 	string = 'simkl_get_activity'

@@ -78,7 +78,7 @@ def simkl_account_info():
 		kodi_utils.show_busy_dialog()
 		account_info = simkl_api.simkl_user_settings()
 		rate_limit = simkl_api.get_rate_limit_status()
-		if not account_info:
+		if not account_info or not isinstance(account_info, dict):
 			kodi_utils.hide_busy_dialog()
 			return kodi_utils.notification('Simkl: Failed to retrieve account info')
 		user = account_info.get('user', {})
@@ -95,3 +95,4 @@ def simkl_account_info():
 	except Exception as e:
 		kodi_utils.hide_busy_dialog()
 		kodi_utils.logger('simkl_account_info', str(e))
+		kodi_utils.notification('Simkl: Failed to retrieve account info')

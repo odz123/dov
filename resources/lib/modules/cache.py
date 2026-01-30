@@ -212,7 +212,8 @@ def clear_cache(cache_type, silent=False):
 		if not _confirm(): return
 		from indexers.simkl_api import clear_simkl_cache
 		from caches.simkl_cache import clear_all_simkl_cache_data
-		success = clear_simkl_cache() and clear_all_simkl_cache_data()
+		s1, s2 = clear_simkl_cache(), clear_all_simkl_cache_data()
+		success = s1 and s2
 	elif cache_type == 'tmdblist':
 		if not _confirm(): return
 		from indexers.tmdb_api import clear_tmdbl_cache
