@@ -4,6 +4,7 @@ from threading import Thread
 from indexers import metadata
 from indexers.mdblist_api import mdbl_watched_unwatched, mdbl_progress
 from indexers.trakt_api import trakt_watched_unwatched, trakt_official_status, trakt_progress
+from indexers.simkl_api import simkl_watched_unwatched
 from caches.mdbl_cache import clear_mdbl_collection_watchlist_data
 from caches.trakt_cache import clear_trakt_collection_watchlist_data
 from caches import ConnectionPool
@@ -397,6 +398,7 @@ def mark_as_watched_unwatched_movie(params):
 		if not mdbl_watched_unwatched(action, 'movies', tmdb_id): return kodi_utils.notification(32574)
 		clear_mdbl_collection_watchlist_data('watchlist')
 	mark_as_watched_unwatched(watched_indicators, media_type, tmdb_id, action, title=title)
+	Thread(target=simkl_watched_unwatched, args=(action, 'movies', tmdb_id)).start()
 	if settings.sync_kodi_library_watchstatus():
 		mark_as_watched_unwatched_kodi_library(media_type, action, title, year)
 	if refresh: kodi_utils.container_refresh()
@@ -448,6 +450,7 @@ def mark_as_watched_unwatched_tvshow(params):
 		if not mdbl_watched_unwatched(action, 'shows', tmdb_id, tvdb_id, data): return kodi_utils.notification(32574)
 		clear_mdbl_collection_watchlist_data('watchlist')
 	batch_mark_as_watched_unwatched(watched_indicators, insert_list, action)
+	Thread(target=simkl_watched_unwatched, args=(action, 'shows', tmdb_id)).start()
 	kodi_utils.progressDialogBG.close()
 	if settings.sync_kodi_library_watchstatus(): batch_mark_kodi_library(action, insert_list, title, year)
 	kodi_utils.container_refresh()
@@ -488,6 +491,7 @@ def mark_as_watched_unwatched_season(params):
 		if not mdbl_watched_unwatched(action, 'season', tmdb_id, tvdb_id, data): return kodi_utils.notification(32574)
 		clear_mdbl_collection_watchlist_data('watchlist')
 	batch_mark_as_watched_unwatched(watched_indicators, insert_list, action)
+	Thread(target=simkl_watched_unwatched, args=(action, 'season', tmdb_id, season)).start()
 	kodi_utils.progressDialogBG.close()
 	if settings.sync_kodi_library_watchstatus(): batch_mark_kodi_library(action, insert_list, title, year)
 	kodi_utils.container_refresh()
@@ -511,6 +515,7 @@ def mark_as_watched_unwatched_episode(params):
 			return kodi_utils.notification(32574)
 		clear_mdbl_collection_watchlist_data('watchlist')
 	mark_as_watched_unwatched(watched_indicators, media_type, tmdb_id, action, season, episode, title)
+	Thread(target=simkl_watched_unwatched, args=(action, 'episode', tmdb_id, season, episode)).start()
 	if settings.sync_kodi_library_watchstatus():
 		mark_as_watched_unwatched_kodi_library(media_type, action, title, year, season, episode)
 	if refresh: kodi_utils.container_refresh()
