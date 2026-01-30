@@ -292,11 +292,10 @@ class POVPlayer(kodi_utils.xbmc_player):
 
 	def run_trakt_scrobble_start(self):
 		if self.trakt_scrobble_started or self.watched_indicators != 1: return
-		from indexers.trakt_api import trakt_official_status
-		if trakt_official_status(self.media_type) is False: return
-		self.trakt_scrobble_started = True
 		try:
-			from indexers.trakt_api import trakt_scrobble
+			from indexers.trakt_api import trakt_official_status, trakt_scrobble
+			if trakt_official_status(self.media_type) is False: return
+			self.trakt_scrobble_started = True
 			self._safe_thread(trakt_scrobble, 'start', self.media_type, self.tmdb_id, 0, self.season, self.episode)
 		except Exception: pass
 
