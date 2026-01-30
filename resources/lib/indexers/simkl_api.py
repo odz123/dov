@@ -6,7 +6,7 @@ from modules.cache import check_databases
 from modules.utils import paginate_list, sort_for_article
 # logger = kodi_utils.logger
 
-from threading import Thread
+from threading import Thread, Lock
 
 get_setting = kodi_utils.get_setting
 base_url = 'https://api.simkl.com/%s'
@@ -29,37 +29,42 @@ session.mount('https://api.simkl.com', requests.adapters.HTTPAdapter(pool_maxsiz
 # Rate limit tracking
 _rate_limit_remaining = 1000
 _rate_limit_reset = 0
+_rate_limit_lock = Lock()
 
 def _update_rate_limits(response):
 	global _rate_limit_remaining, _rate_limit_reset
 	try:
-		if 'X-RateLimit-Remaining' in response.headers:
-			_rate_limit_remaining = int(response.headers['X-RateLimit-Remaining'])
-		if 'X-RateLimit-Reset' in response.headers:
-			reset_val = int(response.headers['X-RateLimit-Reset'])
-			if reset_val > 1000000000:
-				_rate_limit_reset = reset_val
-			else:
-				_rate_limit_reset = int(time.time()) + reset_val
+		with _rate_limit_lock:
+			if 'X-RateLimit-Remaining' in response.headers:
+				_rate_limit_remaining = int(response.headers['X-RateLimit-Remaining'])
+			if 'X-RateLimit-Reset' in response.headers:
+				reset_val = int(response.headers['X-RateLimit-Reset'])
+				if reset_val > 1000000000:
+					_rate_limit_reset = reset_val
+				else:
+					_rate_limit_reset = int(time.time()) + reset_val
 	except (ValueError, KeyError):
 		pass
 
 def _wait_for_rate_limit():
 	"""Wait if rate limited before making a request."""
 	global _rate_limit_remaining, _rate_limit_reset
-	if _rate_limit_remaining > 0:
-		return
-	wait_time = max(0, _rate_limit_reset - int(time.time()))
+	with _rate_limit_lock:
+		if _rate_limit_remaining > 0:
+			return
+		wait_time = max(0, _rate_limit_reset - int(time.time()))
 	if wait_time > 0:
 		kodi_utils.logger('simkl', 'Rate limited, waiting %d seconds' % wait_time)
 		time.sleep(min(wait_time + 1, 60))
-	_rate_limit_remaining = 1
+	with _rate_limit_lock:
+		_rate_limit_remaining = 1
 
 def get_rate_limit_status():
-	return {
-		'remaining': _rate_limit_remaining,
-		'reset': _rate_limit_reset
-	}
+	with _rate_limit_lock:
+		return {
+			'remaining': _rate_limit_remaining,
+			'reset': _rate_limit_reset
+		}
 
 def _get_retry_wait(response):
 	"""Get wait time in seconds from a 429 response."""
@@ -213,12 +218,15 @@ def _fetch_all_items(args):
 	for item in result:
 		media = item.get(key, {})
 		ids = media.get('ids', {})
+		tmdb_id = ids.get('tmdb', '')
+		imdb_id = ids.get('imdb', '')
+		if not tmdb_id and not imdb_id: continue
 		items.append({
 			'title': media.get('title', ''),
 			'release_year': media.get('year', ''),
-			'id': ids.get('tmdb'),
-			'imdb_id': ids.get('imdb', ''),
-			'tmdb_id': ids.get('tmdb', ''),
+			'id': tmdb_id,
+			'imdb_id': imdb_id,
+			'tmdb_id': tmdb_id,
 			'simkl_id': ids.get('simkl', ''),
 			'last_watched_at': item.get('last_watched_at', ''),
 			'status': item.get('status', status),
@@ -237,7 +245,6 @@ def simkl_sync_activities(force_update=False):
 		simkl_cache.clear_all_simkl_cache_data(refresh=False)
 	latest = simkl_get_activity()
 	if not latest:
-		simkl_cache.clear_all_simkl_cache_data(refresh=False)
 		return 'failed'
 	success = 'not needed'
 	cached = simkl_cache.reset_activity(latest)
@@ -261,17 +268,17 @@ def simkl_sync_activities(force_update=False):
 	return success
 
 def clear_simkl_cache():
-	from modules.kodi_utils import path_exists, clear_property, database_connect, maincache_db
-	if not path_exists(maincache_db): return True
-	dbcon = database_connect(maincache_db, isolation_level=None)
+	from modules.kodi_utils import path_exists, clear_property, database_connect, simkl_db
+	if not path_exists(simkl_db): return True
+	dbcon = database_connect(simkl_db, isolation_level=None)
 	try:
 		dbcur = dbcon.cursor()
 		dbcur.execute("""PRAGMA synchronous = OFF""")
 		dbcur.execute("""PRAGMA journal_mode = OFF""")
-		dbcur.execute("""SELECT id FROM maincache WHERE id LIKE ?""", ('simkl_%',))
+		dbcur.execute("""SELECT id FROM simkl_data""")
 		results = [str(i[0]) for i in dbcur.fetchall()]
 		if not results: return True
-		dbcur.execute("""DELETE FROM maincache WHERE id LIKE ?""", ('simkl_%',))
+		dbcur.execute("""DELETE FROM simkl_data""")
 		for i in results: clear_property(i)
 		return True
 	except Exception: return False

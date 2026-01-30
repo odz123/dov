@@ -77,8 +77,11 @@ def simkl_account_info():
 		kodi_utils.show_busy_dialog()
 		account_info = simkl_api.simkl_user_settings()
 		rate_limit = simkl_api.get_rate_limit_status()
-		user = account_info.get('user', {}) if account_info else {}
-		account = account_info.get('account', {}) if account_info else {}
+		if not account_info:
+			kodi_utils.hide_busy_dialog()
+			return kodi_utils.notification('Simkl: Failed to retrieve account info')
+		user = account_info.get('user', {})
+		account = account_info.get('account', {})
 		body = []
 		append = body.append
 		append('[B]Username:[/B] %s' % user.get('name', 'N/A'))
@@ -88,5 +91,6 @@ def simkl_account_info():
 		append('  Remaining: %s' % rate_limit['remaining'])
 		kodi_utils.hide_busy_dialog()
 		return kodi_utils.show_text(simkl_str.upper(), '\n\n'.join(body), font_size='large')
-	except Exception:
+	except Exception as e:
 		kodi_utils.hide_busy_dialog()
+		kodi_utils.logger('simkl_account_info', str(e))

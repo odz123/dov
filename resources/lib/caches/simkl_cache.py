@@ -41,7 +41,8 @@ def cache_simkl_object(function, string, url):
 		cached_data = cache.dbcur.fetchone()
 		if cached_data: return literal_eval(cached_data[0])
 		result = function(url)
-		cache.dbcur.execute(SC_BASE_SET, (string, repr(result)))
+		if result:
+			cache.dbcur.execute(SC_BASE_SET, (string, repr(result)))
 		return result
 
 def reset_activity(latest_activities):
