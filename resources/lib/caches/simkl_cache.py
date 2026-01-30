@@ -62,9 +62,10 @@ def reset_activity(latest_activities):
 	return cached_data
 
 def clear_simkl_list_data():
+	"""Clear cached list data but preserve activity tracking."""
 	try:
 		with SimklCache() as cache:
-			cache.dbcur.execute(DELETE_LIKE, ('simkl_%',))
+			cache.dbcur.execute("DELETE FROM simkl_data WHERE id LIKE ? AND id != ?", ('simkl_%', 'simkl_get_activity'))
 	except Exception: pass
 
 def clear_all_simkl_cache_data(refresh=True):

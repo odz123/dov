@@ -1,16 +1,14 @@
 import requests
 from caches import simkl_cache
-from caches.main_cache import cache_object, timedelta, MainCache
 from modules import kodi_utils
 from modules.cache import check_databases
-from modules.utils import paginate_list, sort_for_article, title_key, jsondate_to_datetime, TaskPool
+from modules.utils import paginate_list, sort_for_article, jsondate_to_datetime
 # logger = kodi_utils.logger
 
 import time
 from threading import Thread
 
 get_setting, js2date = kodi_utils.get_setting, jsondate_to_datetime
-EXPIRES_1_HOURS = 1
 base_url = 'https://api.simkl.com/%s'
 timeout = 10.05
 session = requests.Session()
@@ -172,7 +170,7 @@ def simkl_sync_activities(force_update=False):
 		simkl_cache.clear_simkl_list_data()
 	return success
 
-def clear_simkl_cache(silent=False):
+def clear_simkl_cache():
 	from modules.kodi_utils import path_exists, clear_property, database_connect, maincache_db
 	if not path_exists(maincache_db): return True
 	dbcon = database_connect(maincache_db, isolation_level=None)

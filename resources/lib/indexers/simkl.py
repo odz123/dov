@@ -5,16 +5,12 @@ from indexers import simkl_api
 from indexers.movies import Movies
 from indexers.tvshows import TVShows
 from modules import kodi_utils
-from modules.utils import paginate_list, TaskPool
-from modules.settings import paginate, page_limit, nav_jump_use_alphabet
+from modules.utils import TaskPool
+from modules.settings import nav_jump_use_alphabet
 # logger = kodi_utils.logger
 
-KODI_VERSION, ls = kodi_utils.get_kodi_version(), kodi_utils.local_string
-build_url, make_listitem = kodi_utils.build_url, kodi_utils.make_listitem
-fanart = kodi_utils.get_addoninfo('fanart')
-default_icon = kodi_utils.media_path('simkl.png')
+ls = kodi_utils.local_string
 item_jump = kodi_utils.media_path('item_jump.png')
-add2menu_str, add2folder_str = ls(32730), ls(32731)
 nextpage_str, jump2_str, simkl_str = ls(32799), ls(32964), 'Simkl'
 
 status_labels = {
@@ -36,7 +32,7 @@ def get_simkl_watchlist(params):
 	max_threads = int(kodi_utils.get_setting('pov.max_threads', '100'))
 	use_alphabet = nav_jump_use_alphabet() > 0
 	media_type = params.get('media_type', 'movies')
-	status = params.get('status', 'plantowatch')
+	status = params.get('status', '') or params.get('slug', 'plantowatch')
 	name = params.get('name', status_labels.get(status, status))
 	letter, page = params.get('new_letter', 'None'), int(params.get('new_page', '1'))
 	results, total_pages = simkl_api.simkl_watchlist_items(media_type, status, page, letter)
@@ -63,8 +59,8 @@ def get_simkl_watchlist(params):
 	)
 	if total_pages > 2 and not is_widget and use_alphabet:
 		url = {'mode': 'build_navigate_to_page', 'current_page': page, 'total_pages': total_pages,
-				'media_type': media_type, 'status': status, 'name': name,
-				'transfer_mode': 'build_simkl_list', 'media_type': 'Media'}
+				'media_type': media_type, 'slug': status, 'name': name,
+				'transfer_mode': 'build_simkl_list.get_simkl_watchlist'}
 		kodi_utils.add_dir(__handle__, url, jump2_str, iconImage=item_jump, isFolder=False)
 	kodi_utils.add_items(__handle__, items)
 	if total_pages > page:
