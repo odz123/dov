@@ -115,6 +115,9 @@ def call_simkl(path, params=None, data=None, with_auth=True, method=None, expect
 			if not response.ok:
 				if expected_statuses and response.status_code in expected_statuses:
 					return result
+				if response.status_code < 500:
+					kodi_utils.logger('simkl error', 'HTTP %d for %s' % (response.status_code, path))
+					return None
 				response.raise_for_status()
 			return result
 		except requests.exceptions.RequestException as e:
@@ -170,7 +173,7 @@ def simkl_checkin(media_type, tmdb_id, season=None, episode=None):
 		except (ValueError, TypeError): return
 		data = {'show': {'ids': {'tmdb': tmdb_id}}, 'episode': {'season': season, 'number': episode}}
 	else: return
-	return call_simkl('checkin', data=data, method='post')
+	return call_simkl('checkin', data=data, method='post', expected_statuses=(409,))
 
 def simkl_checkout():
 	"""Cancel any active Simkl checkin to avoid 409 Conflict on next checkin."""
@@ -224,32 +227,35 @@ def _fetch_all_items(args):
 	"""Fetch all items from Simkl for a given media_type and status."""
 	media_type, status = args
 	result = simkl_all_items(media_type, status)
-	if not result or not isinstance(result, list): return []
+	if result is None: return None
+	if not isinstance(result, list): return None
 	items = []
 	key = 'movie' if media_type == 'movies' else 'show'
 	for item in result:
-		media = item.get(key) or {}
-		ids = media.get('ids') or {}
-		tmdb_id = ids.get('tmdb') or ''
-		imdb_id = ids.get('imdb') or ''
-		if not tmdb_id and not imdb_id: continue
-		year = media.get('year') or ''
-		items.append({
-			'title': media.get('title') or '',
-			'release_year': str(year) if year else '',
-			'id': tmdb_id,
-			'imdb_id': imdb_id,
-			'tmdb_id': tmdb_id,
-			'simkl_id': ids.get('simkl') or '',
-			'last_watched_at': item.get('last_watched_at') or '',
-			'status': item.get('status', status),
-			'user_rating': item.get('user_rating'),
-			'mediatype': 'movie' if media_type == 'movies' else 'show'
-		})
+		try:
+			media = item.get(key) or {}
+			ids = media.get('ids') or {}
+			tmdb_id = ids.get('tmdb') or ''
+			imdb_id = ids.get('imdb') or ''
+			if not tmdb_id and not imdb_id: continue
+			year = media.get('year') or ''
+			items.append({
+				'title': media.get('title') or '',
+				'release_year': str(year) if year else '',
+				'id': tmdb_id,
+				'imdb_id': imdb_id,
+				'tmdb_id': tmdb_id,
+				'simkl_id': ids.get('simkl') or '',
+				'last_watched_at': item.get('last_watched_at') or '',
+				'status': item.get('status', status),
+				'user_rating': item.get('user_rating'),
+				'mediatype': 'movie' if media_type == 'movies' else 'show'
+			})
+		except Exception: continue
 	return items
 
 def simkl_sync_activities_thread(*args, **kwargs):
-	Thread(target=simkl_sync_activities, args=args, kwargs=kwargs).start()
+	Thread(target=simkl_sync_activities, args=args, kwargs=kwargs, daemon=True).start()
 
 def simkl_sync_activities(force_update=False):
 	if not get_setting('simkl_user', ''): return 'no account'
@@ -260,7 +266,7 @@ def simkl_sync_activities(force_update=False):
 	if not latest or not isinstance(latest, dict):
 		return 'failed'
 	success = 'not needed'
-	cached = simkl_cache.reset_activity(latest)
+	cached = simkl_cache.get_cached_activity()
 	changed = False
 	try:
 		for key in ('movies', 'tv_shows', 'anime'):
@@ -274,6 +280,7 @@ def simkl_sync_activities(force_update=False):
 	if changed:
 		success = 'success'
 		simkl_cache.clear_simkl_list_data()
+	simkl_cache.save_activity(latest)
 	return success
 
 def clear_simkl_cache():
