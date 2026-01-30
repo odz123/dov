@@ -10,10 +10,12 @@ from threading import Thread, Lock
 
 get_setting = kodi_utils.get_setting
 base_url = 'https://api.simkl.com/%s'
-timeout = 10.05
+timeout = (3.05, 10.05)
 session = requests.Session()
 _retry_kwargs = dict(
 	total=5,
+	connect=3,
+	read=2,
 	status=3,
 	backoff_factor=1.0,
 	status_forcelist=(502, 503, 504),
@@ -24,7 +26,7 @@ try:
 	retry = requests.adapters.Retry(allowed_methods=_allowed, **_retry_kwargs)
 except TypeError:
 	retry = requests.adapters.Retry(method_whitelist=_allowed, **_retry_kwargs)
-session.mount('https://api.simkl.com', requests.adapters.HTTPAdapter(pool_maxsize=100, max_retries=retry))
+session.mount('https://api.simkl.com', requests.adapters.HTTPAdapter(pool_maxsize=100, pool_connections=4, max_retries=retry))
 
 # Rate limit tracking
 _rate_limit_remaining = 1000
@@ -83,6 +85,14 @@ def _get_retry_wait(response):
 		pass
 	return 5
 
+def _rebuild_session():
+	"""Clear stale connections by closing and remounting the adapter."""
+	try:
+		session.close()
+		session.mount('https://api.simkl.com', requests.adapters.HTTPAdapter(pool_maxsize=100, pool_connections=4, max_retries=retry))
+	except Exception:
+		pass
+
 def call_simkl(path, params=None, data=None, with_auth=True, method=None, expected_statuses=None):
 	global _rate_limit_remaining
 	client_id = get_setting('simkl.client_id')
@@ -115,11 +125,21 @@ def call_simkl(path, params=None, data=None, with_auth=True, method=None, expect
 			if not response.ok:
 				if expected_statuses and response.status_code in expected_statuses:
 					return result
+				if response.status_code == 401:
+					kodi_utils.logger('simkl error', 'HTTP 401 unauthorized for %s - token may be expired' % path)
+					return None
 				if response.status_code < 500:
 					kodi_utils.logger('simkl error', 'HTTP %d for %s' % (response.status_code, path))
 					return None
 				response.raise_for_status()
 			return result
+		except requests.exceptions.ConnectionError as e:
+			kodi_utils.logger('simkl error', 'connection error: %s (attempt %d/4)' % (str(e), attempt + 1))
+			_rebuild_session()
+			if attempt < 3:
+				time.sleep(2 ** attempt)
+				continue
+			return None
 		except requests.exceptions.RequestException as e:
 			kodi_utils.logger('simkl error', '%s (attempt %d/4)' % (str(e), attempt + 1))
 			if attempt < 3:
