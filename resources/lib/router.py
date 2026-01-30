@@ -296,6 +296,9 @@ class Router:
 		elif mode == 'stremio_reconfigure_debrid':
 			from modules.stremio_manager import reconfigure_all_addons_debrid
 			reconfigure_all_addons_debrid()
+		elif mode == 'stremio_debug_loop':
+			from modules.stremio_manager import stremio_debug_loop
+			stremio_debug_loop()
 
 
 if __name__ == '__main__':
