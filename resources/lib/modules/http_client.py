@@ -255,6 +255,147 @@ def fetch_json(url, timeout=8, headers=None, max_retries=3, error_callback=None)
 	return None
 
 
+def fetch_raw(url, timeout=8, headers=None, max_retries=3):
+	"""
+	Fetch URL with automatic Cloudflare bypass, returning raw response.
+
+	Tries methods in order of effectiveness:
+	1. curl_cffi (best TLS fingerprint bypass)
+	2. cloudscraper (good JS challenge bypass)
+	3. requests with browser headers (basic)
+
+	Args:
+		url: URL to fetch
+		timeout: Request timeout in seconds
+		headers: Optional custom headers (merged with browser headers)
+		max_retries: Max retry attempts per method
+
+	Returns:
+		tuple: (response, error_message) - error_message is None on success,
+		       response may be None on complete failure
+	"""
+	if headers is None:
+		headers = get_headers_for_url(url)
+	else:
+		base_headers = get_headers_for_url(url)
+		base_headers.update(headers)
+		headers = base_headers
+
+	response = None
+	last_error = None
+	cloudflare_blocked = False
+
+	# Method 1: curl_cffi with Chrome impersonation (best for TLS fingerprinting)
+	if HAS_CURL_CFFI:
+		try:
+			for attempt in range(max_retries):
+				try:
+					response = curl_requests.get(
+						url,
+						timeout=timeout,
+						headers=headers,
+						impersonate='chrome120'
+					)
+					if response.status_code == 200:
+						content_type = response.headers.get('content-type', '')
+						if 'text/html' not in content_type:
+							return response, None
+					if response.status_code in (403, 418, 503) or 'text/html' in response.headers.get('content-type', ''):
+						cloudflare_blocked = True
+						if attempt < max_retries - 1:
+							time.sleep(0.5 * (attempt + 1))
+							continue
+					break
+				except Exception as e:
+					last_error = e
+					if attempt < max_retries - 1:
+						time.sleep(0.5 * (attempt + 1))
+						continue
+					break
+		except Exception as e:
+			last_error = e
+
+	# Method 2: cloudscraper (JS challenge solver)
+	scraper = get_scraper()
+	if scraper:
+		try:
+			for attempt in range(max_retries):
+				try:
+					response = scraper.get(url, timeout=timeout, headers=headers)
+					if response.status_code == 200:
+						content_type = response.headers.get('content-type', '')
+						if 'text/html' not in content_type:
+							mark_scraper_success()
+							return response, None
+					if response.status_code in (403, 418, 503) or 'text/html' in response.headers.get('content-type', ''):
+						cloudflare_blocked = True
+						mark_scraper_fail()
+						if attempt < max_retries - 1:
+							time.sleep(0.5 * (attempt + 1))
+							# Try with fresh session on last attempt
+							if attempt == max_retries - 2:
+								scraper = get_scraper(force_new=True)
+								if not scraper:
+									break
+							continue
+					break
+				except Exception as e:
+					last_error = e
+					mark_scraper_fail()
+					if attempt < max_retries - 1:
+						time.sleep(0.5 * (attempt + 1))
+						continue
+					break
+		except Exception as e:
+			last_error = e
+
+	# Method 3: Regular requests (fallback)
+	try:
+		for attempt in range(2):
+			try:
+				response = requests.get(url, timeout=timeout, headers=headers)
+				if response.status_code == 200:
+					content_type = response.headers.get('content-type', '')
+					if 'text/html' not in content_type:
+						return response, None
+				if response.status_code in (403, 418, 503):
+					cloudflare_blocked = True
+					if attempt == 0:
+						time.sleep(0.5)
+						continue
+				break
+			except (requests.exceptions.Timeout, requests.exceptions.ConnectionError) as e:
+				last_error = e
+				if attempt == 0:
+					time.sleep(0.5)
+					continue
+				break
+	except Exception as e:
+		last_error = e
+
+	# Build error message
+	error_msg = None
+	if response is not None:
+		if response.status_code == 403:
+			error_msg = 'Blocked by Cloudflare' if cloudflare_blocked else 'HTTP 403'
+		elif response.status_code == 418:
+			error_msg = 'Bot protection active'
+		elif response.status_code == 503:
+			error_msg = 'Service unavailable'
+		elif response.status_code in (522, 524):
+			error_msg = 'Timeout at origin'
+		elif 'text/html' in response.headers.get('content-type', ''):
+			error_msg = 'Cloudflare challenge'
+		elif response.status_code != 200:
+			error_msg = 'HTTP %d' % response.status_code
+	elif last_error:
+		error_msg = str(last_error)[:80]
+	else:
+		error_msg = 'Connection failed'
+
+	return response, error_msg
+
+
 def fetch_streams(base_url, media_type, media_id, timeout=8, error_callback=None):
 	"""
 	Fetch streams from a Stremio addon endpoint.

@@ -6,144 +6,17 @@
 	- Language filtering and selection
 	- Download and cache subtitles
 	- Integration with POV player
-	- Cloudflare bypass via cloudscraper
+	- Cloudflare bypass via shared http_client module
 """
 
 import os
 import re
-import time
-import requests
 from modules.kodi_utils import (
 	get_setting, set_property, get_property, clear_property,
 	translate_path, notification, select_dialog
 )
 import json
-
-# Try to import cloudscraper for Cloudflare bypass
-try:
-	import cloudscraper
-	HAS_CLOUDSCRAPER = True
-except ImportError:
-	HAS_CLOUDSCRAPER = False
-
-# Try to import curl_cffi for TLS fingerprint bypass
-try:
-	from curl_cffi import requests as curl_requests
-	HAS_CURL_CFFI = True
-except ImportError:
-	HAS_CURL_CFFI = False
-
-# Browser-like headers to help bypass Cloudflare and other protections
-BROWSER_HEADERS = {
-	'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
-	'Accept': 'application/json, text/plain, */*',
-	'Accept-Language': 'en-US,en;q=0.9',
-	'Accept-Encoding': 'gzip, deflate, br',
-	'Connection': 'keep-alive',
-	'Sec-Ch-Ua': '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"',
-	'Sec-Ch-Ua-Mobile': '?0',
-	'Sec-Ch-Ua-Platform': '"Windows"',
-}
-
-# Session management for cloudscraper
-_scraper_session = None
-_scraper_fail_count = 0
-
-def _get_scraper(force_new=False):
-	global _scraper_session, _scraper_fail_count
-	if not HAS_CLOUDSCRAPER:
-		return None
-	if force_new or _scraper_session is None or _scraper_fail_count >= 3:
-		try:
-			_scraper_session = cloudscraper.create_scraper(
-				browser={'browser': 'chrome', 'platform': 'windows', 'desktop': True}
-			)
-			_scraper_fail_count = 0
-		except Exception:
-			_scraper_session = None
-	return _scraper_session
-
-
-def _fetch_url(url, timeout=8):
-	"""Fetch a URL with multi-method Cloudflare bypass"""
-	global _scraper_fail_count
-
-	# Extract origin for Referer/Origin headers
-	try:
-		from urllib.parse import urlparse
-		parsed = urlparse(url)
-		origin = f"{parsed.scheme}://{parsed.netloc}"
-	except Exception:
-		origin = url.rsplit('/', 1)[0]
-
-	headers = BROWSER_HEADERS.copy()
-	headers['Referer'] = f"{origin}/"
-	headers['Origin'] = origin
-
-	# Method 1: curl_cffi with Chrome impersonation
-	if HAS_CURL_CFFI:
-		try:
-			for attempt in range(2):
-				try:
-					response = curl_requests.get(url, timeout=timeout, headers=headers, impersonate='chrome120')
-					if response.status_code == 200 and 'text/html' not in response.headers.get('content-type', ''):
-						return response
-					if response.status_code in (403, 418, 503) and attempt == 0:
-						time.sleep(0.3)
-						continue
-					break
-				except Exception:
-					if attempt == 0:
-						time.sleep(0.3)
-						continue
-					break
-		except Exception:
-			pass
-
-	# Method 2: cloudscraper
-	scraper = _get_scraper()
-	if scraper:
-		try:
-			for attempt in range(2):
-				try:
-					response = scraper.get(url, timeout=timeout, headers=headers)
-					if response.status_code == 200 and 'text/html' not in response.headers.get('content-type', ''):
-						return response
-					if response.status_code in (403, 418, 503):
-						_scraper_fail_count += 1
-						if attempt == 0:
-							time.sleep(0.3)
-							continue
-					break
-				except Exception:
-					_scraper_fail_count += 1
-					if attempt == 0:
-						time.sleep(0.3)
-						continue
-					break
-		except Exception:
-			pass
-
-	# Method 3: Regular requests fallback
-	try:
-		for attempt in range(2):
-			try:
-				response = requests.get(url, timeout=timeout, headers=headers)
-				if response.status_code == 200 and 'text/html' not in response.headers.get('content-type', ''):
-					return response
-				if response.status_code in (403, 418, 503) and attempt == 0:
-					time.sleep(0.3)
-					continue
-				break
-			except Exception:
-				if attempt == 0:
-					time.sleep(0.3)
-					continue
-				break
-	except Exception:
-		pass
-
-	return None
+from modules import http_client
 
 
 # Language code mapping (ISO 639-1 to full name)
@@ -233,10 +106,8 @@ def fetch_subtitles_from_addon(addon_url, media_type, media_id, video_hash=None,
 		else:
 			endpoint = f"{base_url}/subtitles/{media_type}/{media_id}.json"
 
-		response = _fetch_url(endpoint, timeout=8)
-
-		if response and response.status_code == 200:
-			data = response.json()
+		data = http_client.fetch_json(endpoint, timeout=8)
+		if data:
 			subtitles = data.get('subtitles', [])
 	except Exception:
 		pass
@@ -360,12 +231,16 @@ def download_subtitle(subtitle_url, filename=None):
 		filename = re.sub(r'[<>:"/\\|?*]', '_', filename)
 		filepath = os.path.join(cache_dir, filename)
 
-		# Download subtitle using multi-method approach
-		response = _fetch_url(subtitle_url, timeout=15)
+		# Download subtitle using shared http_client for Cloudflare bypass
+		response, error = http_client.fetch_raw(subtitle_url, timeout=15)
 
-		if response and response.status_code == 200:
+		if response is not None and response.status_code == 200:
 			# Handle gzip encoding if present
 			content = response.content
+
+			# Validate content is not empty
+			if not content or len(content) < 10:
+				return None
 
 			# Check if content is gzipped
 			if content[:2] == b'\x1f\x8b':
@@ -377,7 +252,7 @@ def download_subtitle(subtitle_url, filename=None):
 				f.write(content)
 
 			return filepath
-	except Exception as e:
+	except Exception:
 		pass
 
 	return None

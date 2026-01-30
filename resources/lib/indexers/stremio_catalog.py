@@ -9,107 +9,26 @@
 	- Catalog caching for performance
 	- Parallel manifest fetching
 	- Integration with POV metadata system
-	- Cloudflare bypass support
+	- Cloudflare bypass via shared http_client module
 """
 
 import sys
 import json
 import time
-import requests
 from ast import literal_eval
-from datetime import timedelta
 from threading import Thread
 from modules.kodi_utils import (
 	get_setting, set_setting, notification, make_listitem, add_items,
 	set_content, end_directory, set_view_mode, build_url, dialog,
 	get_property, set_property, clear_property, get_kodi_version
 )
+from modules import http_client
 
 KODI_VERSION = get_kodi_version()
-
-# Try to import cloudscraper for Cloudflare bypass
-try:
-	import cloudscraper
-	HAS_CLOUDSCRAPER = True
-except ImportError:
-	HAS_CLOUDSCRAPER = False
-
-# Try to import curl_cffi for TLS fingerprint bypass
-try:
-	from curl_cffi import requests as curl_requests
-	HAS_CURL_CFFI = True
-except ImportError:
-	HAS_CURL_CFFI = False
-
-# Browser-like headers
-BROWSER_HEADERS = {
-	'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
-	'Accept': 'application/json, text/plain, */*',
-	'Accept-Language': 'en-US,en;q=0.9',
-	'Accept-Encoding': 'gzip, deflate, br',
-	'Connection': 'keep-alive',
-	'Sec-Ch-Ua': '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"',
-	'Sec-Ch-Ua-Mobile': '?0',
-	'Sec-Ch-Ua-Platform': '"Windows"',
-}
 
 # Cache settings
 MANIFEST_CACHE_HOURS = 6  # Cache manifests for 6 hours
 CATALOG_CACHE_HOURS = 1   # Cache catalog contents for 1 hour
-
-_scraper_session = None
-def _get_scraper():
-	global _scraper_session
-	if HAS_CLOUDSCRAPER and _scraper_session is None:
-		try:
-			_scraper_session = cloudscraper.create_scraper(
-				browser={'browser': 'chrome', 'platform': 'windows', 'desktop': True}
-			)
-		except Exception:
-			pass
-	return _scraper_session
-
-def _fetch_json(url, timeout=10):
-	"""Fetch JSON from URL with Cloudflare bypass"""
-	try:
-		from urllib.parse import urlparse
-		parsed = urlparse(url)
-		origin = f"{parsed.scheme}://{parsed.netloc}"
-	except Exception:
-		origin = url.rsplit('/', 1)[0]
-
-	headers = BROWSER_HEADERS.copy()
-	headers['Referer'] = f"{origin}/"
-	headers['Origin'] = origin
-
-	# Try curl_cffi first
-	if HAS_CURL_CFFI:
-		try:
-			response = curl_requests.get(url, timeout=timeout, headers=headers, impersonate='chrome120')
-			if response.status_code == 200 and 'text/html' not in response.headers.get('content-type', ''):
-				return response.json()
-		except Exception:
-			pass
-
-	# Try cloudscraper
-	scraper = _get_scraper()
-	if scraper:
-		try:
-			response = scraper.get(url, timeout=timeout, headers=headers)
-			if response.status_code == 200 and 'text/html' not in response.headers.get('content-type', ''):
-				return response.json()
-		except Exception:
-			pass
-
-	# Fallback to regular requests
-	try:
-		response = requests.get(url, timeout=timeout, headers=headers)
-		if response.status_code == 200 and 'text/html' not in response.headers.get('content-type', ''):
-			return response.json()
-	except Exception:
-		pass
-
-	return None
 
 
 class StremioCache:
@@ -219,7 +138,7 @@ class StremioIndexer:
 				if cached:
 					return cached
 
-			manifest = _fetch_json(manifest_url, timeout=10)
+			manifest = http_client.fetch_json(manifest_url, timeout=10)
 			if manifest and use_cache:
 				# Cache the manifest
 				self.cache.set(cache_key, manifest, hours=MANIFEST_CACHE_HOURS)
@@ -533,7 +452,7 @@ class StremioIndexer:
 			if cached:
 				return cached
 
-			data = _fetch_json(endpoint, timeout=15)
+			data = http_client.fetch_json(endpoint, timeout=15)
 			if data:
 				metas = data.get('metas', [])
 				# Cache results
@@ -802,7 +721,7 @@ class StremioIndexer:
 			if cached:
 				return cached
 
-			data = _fetch_json(endpoint, timeout=15)
+			data = http_client.fetch_json(endpoint, timeout=15)
 			if data:
 				metas = data.get('metas', [])
 				# Cache search results for shorter time
@@ -1095,7 +1014,7 @@ class StremioIndexer:
 			if cached:
 				return cached
 
-			data = _fetch_json(endpoint, timeout=10)
+			data = http_client.fetch_json(endpoint, timeout=10)
 			if data:
 				meta = data.get('meta', {})
 				# Cache metadata
