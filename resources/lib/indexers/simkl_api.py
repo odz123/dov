@@ -2,13 +2,12 @@ import requests
 from caches import simkl_cache
 from modules import kodi_utils
 from modules.cache import check_databases
-from modules.utils import paginate_list, sort_for_article, jsondate_to_datetime
+from modules.utils import paginate_list, sort_for_article
 # logger = kodi_utils.logger
 
-import time
 from threading import Thread
 
-get_setting, js2date = kodi_utils.get_setting, jsondate_to_datetime
+get_setting = kodi_utils.get_setting
 base_url = 'https://api.simkl.com/%s'
 timeout = 10.05
 session = requests.Session()
@@ -135,12 +134,6 @@ def simkl_sync_activities_thread(*args, **kwargs):
 	Thread(target=simkl_sync_activities, args=args, kwargs=kwargs).start()
 
 def simkl_sync_activities(force_update=False):
-	def _get_timestamp(date_time):
-		return int(time.mktime(date_time.timetuple()))
-	def _compare(latest, cached, res_format='%Y-%m-%dT%H:%M:%SZ'):
-		try: result = _get_timestamp(js2date(latest, res_format)) > _get_timestamp(js2date(cached, res_format))
-		except Exception: result = True
-		return result
 	if not get_setting('simkl_user', ''): return 'no account'
 	if force_update:
 		check_databases()

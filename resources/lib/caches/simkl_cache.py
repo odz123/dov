@@ -3,13 +3,9 @@ from modules.kodi_utils import simkl_db, database_connect
 # from modules.kodi_utils import logger
 
 timeout = 20
-SELECT = 'SELECT id FROM simkl_data'
-DELETE = 'DELETE FROM simkl_data WHERE id = ?'
-DELETE_LIKE = 'DELETE FROM simkl_data WHERE id LIKE ?'
 VALID_TABLES = frozenset(('simkl_data',))
 SC_BASE_GET = 'SELECT data FROM simkl_data WHERE id = ?'
 SC_BASE_SET = 'INSERT OR REPLACE INTO simkl_data (id, data) VALUES (?, ?)'
-SC_BASE_DELETE = 'DELETE FROM simkl_data WHERE id = ?'
 
 class SimklCache:
 	def __init__(self):
