@@ -104,6 +104,7 @@ class POVPlayer(kodi_utils.xbmc_player):
 				if not self.subs_searched: self.run_subtitles()
 			if not self.media_marked: self.media_watched_marker()
 			self.run_scrobble_stop()
+			self.run_simkl_scrobble_stop()
 			ws.clear_local_bookmarks()
 		except Exception: pass
 
@@ -271,6 +272,13 @@ class POVPlayer(kodi_utils.xbmc_player):
 		try:
 			from indexers.simkl_api import simkl_checkin
 			self._safe_thread(simkl_checkin, self.media_type, self.tmdb_id, self.season, self.episode)
+		except Exception: pass
+
+	def run_simkl_scrobble_stop(self):
+		if not self.simkl_scrobble_started: return
+		try:
+			from indexers.simkl_api import simkl_checkout
+			self._safe_thread(simkl_checkout)
 		except Exception: pass
 
 	def info_next_ep(self):
