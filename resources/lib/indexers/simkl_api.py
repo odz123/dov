@@ -49,7 +49,7 @@ def _wait_for_rate_limit():
 	if wait_time > 0:
 		kodi_utils.logger('simkl', 'Rate limited, waiting %d seconds' % wait_time)
 		time.sleep(min(wait_time + 1, 60))
-		_rate_limit_remaining = 1
+	_rate_limit_remaining = 1
 
 def get_rate_limit_status():
 	return {
