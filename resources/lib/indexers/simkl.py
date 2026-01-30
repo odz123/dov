@@ -24,10 +24,11 @@ status_labels = {
 def get_simkl_watchlist(params):
 	"""Build a Kodi directory of Simkl watchlist items for a given media_type and status."""
 	def _thread_target(q):
-		while not q.empty():
-			try: target, *args = q.get()
+		while True:
+			try: target, *args = q.get_nowait()
+			except Exception: break
+			try: target(*args)
 			except Exception: pass
-			else: target(*args)
 	__handle__, _queue, is_widget = int(sys.argv[1]), SimpleQueue(), kodi_utils.external_browse()
 	max_threads = int(kodi_utils.get_setting('pov.max_threads', '100'))
 	use_alphabet = nav_jump_use_alphabet() > 0

@@ -107,7 +107,8 @@ def call_simkl(path, params=None, data=None, with_auth=True, method=None, expect
 				kodi_utils.logger('simkl', '429 rate limited on %s, waiting %d seconds (attempt %d/4)' % (path, wait, attempt + 1))
 				time.sleep(wait + 1)
 				continue
-			result = response.json() if 'json' in response.headers.get('Content-Type', '') else response.text
+			try: result = response.json() if 'json' in response.headers.get('Content-Type', '') else response.text
+			except (ValueError, Exception): result = response.text
 			if not response.ok:
 				if expected_statuses and response.status_code in expected_statuses:
 					return result
@@ -182,11 +183,15 @@ def simkl_watched_unwatched(action, media, media_id, season=None, episode=None):
 	if media == 'movies':
 		data = {'movies': [{'ids': {'tmdb': media_id}}]}
 	elif media == 'episode':
-		data = {'shows': [{'ids': {'tmdb': media_id}, 'seasons': [{'number': int(season), 'episodes': [{'number': int(episode)}]}]}]}
+		try: season, episode = int(season), int(episode)
+		except (ValueError, TypeError): return
+		data = {'shows': [{'ids': {'tmdb': media_id}, 'seasons': [{'number': season, 'episodes': [{'number': episode}]}]}]}
 	elif media == 'shows':
 		data = {'shows': [{'ids': {'tmdb': media_id}}]}
 	elif media == 'season':
-		data = {'shows': [{'ids': {'tmdb': media_id}, 'seasons': [{'number': int(season)}]}]}
+		try: season = int(season)
+		except (ValueError, TypeError): return
+		data = {'shows': [{'ids': {'tmdb': media_id}, 'seasons': [{'number': season}]}]}
 	else: return
 	result = func(data)
 	if result is not None:
@@ -216,7 +221,7 @@ def _fetch_all_items(args):
 	"""Fetch all items from Simkl for a given media_type and status."""
 	media_type, status = args
 	result = simkl_all_items(media_type, status)
-	if not result: return []
+	if not result or not isinstance(result, list): return []
 	items = []
 	key = 'movie' if media_type == 'movies' else 'show'
 	for item in result:
@@ -249,7 +254,7 @@ def simkl_sync_activities(force_update=False):
 		check_databases()
 		simkl_cache.clear_all_simkl_cache_data(refresh=False)
 	latest = simkl_get_activity()
-	if not latest:
+	if not latest or not isinstance(latest, dict):
 		return 'failed'
 	success = 'not needed'
 	cached = simkl_cache.reset_activity(latest)
