@@ -275,7 +275,13 @@ def _fetch_all_items(args):
 	if isinstance(result, dict):
 		kodi_utils.logger('simkl', '_fetch_all_items got dict response for %s/%s, keys: %s' % (media_type, status, list(result.keys())))
 		original = result
-		result = original.get(media_type) or original.get(media_type.rstrip('s')) or original.get('data') or None
+		singular = {'movies': 'movie', 'shows': 'show', 'anime': 'anime'}.get(media_type, media_type)
+		result = None
+		for try_key in (media_type, singular, 'data'):
+			v = original.get(try_key)
+			if isinstance(v, list):
+				result = v
+				break
 		if result is None:
 			for v in original.values():
 				if isinstance(v, list):
