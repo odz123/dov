@@ -286,7 +286,9 @@ def simkl_sync_activities(force_update=False):
 def clear_simkl_cache():
 	from modules.kodi_utils import path_exists, clear_property, database_connect, simkl_db
 	if not path_exists(simkl_db): return True
-	dbcon = database_connect(simkl_db, isolation_level=None)
+	try:
+		dbcon = database_connect(simkl_db, isolation_level=None)
+	except Exception: return False
 	try:
 		dbcur = dbcon.cursor()
 		dbcur.execute("""PRAGMA synchronous = OFF""")
