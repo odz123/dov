@@ -22,6 +22,7 @@ class POVPlayer(kodi_utils.xbmc_player):
 		self.nextep_started, self.play_random_continual = False, False
 		self.scrobble_started = False
 		self.simkl_scrobble_started = False
+		self.trakt_scrobble_started = False
 		self.autoplay_next_episode = False
 		self.autoplay_nextep = settings.autoplay_next_episode()
 		self.autoscrape_next_episode = False
@@ -75,6 +76,7 @@ class POVPlayer(kodi_utils.xbmc_player):
 			if self.volume_check: kodi_utils.volume_checker(get_setting('volumecheck.percent', '100'))
 			self.run_scrobble_start()
 			self.run_simkl_scrobble_start()
+			self.run_trakt_scrobble_start()
 			kodi_utils.sleep(1000)
 			while self.isPlayingVideo():
 				try:
@@ -108,6 +110,8 @@ class POVPlayer(kodi_utils.xbmc_player):
 			try: self.run_scrobble_stop()
 			except Exception: pass
 			try: self.run_simkl_scrobble_stop()
+			except Exception: pass
+			try: self.run_trakt_scrobble_stop()
 			except Exception: pass
 			ws.clear_local_bookmarks()
 		except Exception: pass
@@ -286,6 +290,24 @@ class POVPlayer(kodi_utils.xbmc_player):
 			self._safe_thread(simkl_checkout)
 		except Exception: pass
 
+	def run_trakt_scrobble_start(self):
+		if self.trakt_scrobble_started or self.watched_indicators != 1: return
+		from indexers.trakt_api import trakt_official_status
+		if trakt_official_status(self.media_type) is False: return
+		self.trakt_scrobble_started = True
+		try:
+			from indexers.trakt_api import trakt_scrobble
+			self._safe_thread(trakt_scrobble, 'start', self.media_type, self.tmdb_id, 0, self.season, self.episode)
+		except Exception: pass
+
+	def run_trakt_scrobble_stop(self):
+		if not self.trakt_scrobble_started or self.watched_indicators != 1: return
+		try:
+			from indexers.trakt_api import trakt_scrobble
+			progress = getattr(self, 'current_point', 0)
+			self._safe_thread(trakt_scrobble, 'stop', self.media_type, self.tmdb_id, progress, self.season, self.episode)
+		except Exception: pass
+
 	def info_next_ep(self):
 		self.nextep_info_gathered = True
 		try:
@@ -314,6 +336,9 @@ class POVPlayer(kodi_utils.xbmc_player):
 
 	def onPlayBackStopped(self):
 		self.playback_event = 'stop'
+
+	def onPlayBackEnded(self):
+		self.playback_event = 'ended'
 
 class Subtitles(kodi_utils.xbmc_player):
 	def __init__(self):
