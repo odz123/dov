@@ -85,6 +85,7 @@ def traktMonitor():
 	from indexers.trakt_api import trakt_sync_activities
 	from indexers.mdblist_api import mdbl_sync_activities, clear_mdbl_cache
 	from indexers.simkl_api import simkl_sync_activities
+	from caches.simkl_cache import clear_simkl_list_data
 	from indexers.tmdb_api import tmdb_clean_watchlist, clear_tmdbl_cache
 	logger('POV', 'TraktMonitor Service Starting')
 	trakt_service_string = 'TraktMonitor Service Update %s - %s'
@@ -93,6 +94,7 @@ def traktMonitor():
 		for i in ('user_lists', 'liked_lists', 'my_lists'): clear_trakt_list_contents_data(i)
 		clear_mdbl_cache()
 		clear_tmdbl_cache()
+		clear_simkl_list_data()
 		kodi_utils.set_property('pov_traktmonitor_first_run', 'true')
 	while not monitor.abortRequested():
 		while is_playing() or get_visibility('Container().isUpdating') or get_property('pov_pause_services') == 'true':
