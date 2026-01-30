@@ -96,11 +96,18 @@ def _rebuild_session():
 def call_simkl(path, params=None, data=None, with_auth=True, method=None, expected_statuses=None):
 	global _rate_limit_remaining
 	client_id = get_setting('simkl.client_id')
-	if not client_id: return None
-	headers = {'Content-Type': 'application/json', 'simkl-api-key': client_id}
+	if not client_id:
+		kodi_utils.logger('simkl error', 'no client_id configured')
+		return None
+	headers = {'simkl-api-key': client_id}
+	if data is not None:
+		headers['Content-Type'] = 'application/json'
 	if with_auth:
 		token = get_setting('simkl.token')
 		if token: headers['Authorization'] = 'Bearer %s' % token
+		else:
+			kodi_utils.logger('simkl error', 'no auth token for %s (auth required)' % path)
+			return None
 	_wait_for_rate_limit()
 	for attempt in range(4):
 		try:
@@ -120,7 +127,7 @@ def call_simkl(path, params=None, data=None, with_auth=True, method=None, expect
 				with _rate_limit_lock:
 					_rate_limit_remaining = 1
 				continue
-			try: result = response.json() if 'json' in response.headers.get('Content-Type', '') else response.text
+			try: result = response.json()
 			except (ValueError, Exception): result = response.text
 			if not response.ok:
 				if expected_statuses and response.status_code in expected_statuses:
@@ -129,7 +136,7 @@ def call_simkl(path, params=None, data=None, with_auth=True, method=None, expect
 					kodi_utils.logger('simkl error', 'HTTP 401 unauthorized for %s - token may be expired' % path)
 					return None
 				if response.status_code < 500:
-					kodi_utils.logger('simkl error', 'HTTP %d for %s' % (response.status_code, path))
+					kodi_utils.logger('simkl error', 'HTTP %d for %s: %s' % (response.status_code, path, str(result)[:200]))
 					return None
 				response.raise_for_status()
 			return result
@@ -158,7 +165,12 @@ def simkl_all_items(media_type, status):
 	status: watching, plantowatch, completed, hold, dropped
 	"""
 	url = 'sync/all-items/%s/%s' % (media_type, status)
-	return call_simkl(url, params={'extended': 'full'})
+	result = call_simkl(url, params={'extended': 'full'})
+	if result is not None:
+		rtype = type(result).__name__
+		rlen = len(result) if isinstance(result, (list, dict, str)) else 'N/A'
+		kodi_utils.logger('simkl', 'all_items %s/%s: type=%s len=%s' % (media_type, status, rtype, rlen))
+	return result
 
 def simkl_search_by_id(id_type, id_value):
 	"""Search Simkl by external ID. id_type: imdb, tmdb, tvdb, mal, etc."""
@@ -227,7 +239,9 @@ def simkl_watched_unwatched(action, media, media_id, season=None, episode=None):
 	elif media == 'season':
 		try: season = int(season)
 		except (ValueError, TypeError): return
-		data = {'shows': [{'ids': {'tmdb': media_id}, 'seasons': [{'number': season}]}]}
+		season_data = {'number': season}
+		if action == 'mark_as_watched': season_data['watched_at'] = watched_at
+		data = {'shows': [{'ids': {'tmdb': media_id}, 'seasons': [season_data]}]}
 	else: return
 	result = func(data)
 	if result is not None:
@@ -258,7 +272,24 @@ def _fetch_all_items(args):
 	media_type, status = args
 	result = simkl_all_items(media_type, status)
 	if result is None: return None
-	if not isinstance(result, list): return None
+	if isinstance(result, dict):
+		kodi_utils.logger('simkl', '_fetch_all_items got dict response for %s/%s, keys: %s' % (media_type, status, list(result.keys())))
+		original = result
+		singular = {'movies': 'movie', 'shows': 'show', 'anime': 'anime'}.get(media_type, media_type)
+		result = None
+		for try_key in (media_type, singular, 'data'):
+			v = original.get(try_key)
+			if isinstance(v, list):
+				result = v
+				break
+		if result is None:
+			for v in original.values():
+				if isinstance(v, list):
+					result = v
+					break
+	if not isinstance(result, list):
+		kodi_utils.logger('simkl', '_fetch_all_items: unexpected response type %s for %s/%s' % (type(result).__name__, media_type, status))
+		return None
 	items = []
 	key = 'movie' if media_type == 'movies' else 'show'
 	for item in result:
@@ -267,6 +298,16 @@ def _fetch_all_items(args):
 			ids = media.get('ids') or {}
 			tmdb_id = ids.get('tmdb') or ''
 			imdb_id = ids.get('imdb') or ''
+			if not tmdb_id and not imdb_id:
+				simkl_id = ids.get('simkl')
+				if simkl_id:
+					try:
+						lookup = simkl_search_by_id('simkl', simkl_id)
+						if lookup and isinstance(lookup, list) and len(lookup) > 0:
+							lookup_ids = lookup[0].get('ids') or {}
+							tmdb_id = lookup_ids.get('tmdb') or ''
+							imdb_id = lookup_ids.get('imdb') or ''
+					except Exception: pass
 			if not tmdb_id and not imdb_id: continue
 			year = media.get('year') or ''
 			items.append({
@@ -282,7 +323,9 @@ def _fetch_all_items(args):
 				'mediatype': 'movie' if media_type == 'movies' else 'show'
 			})
 		except Exception: continue
-	return items
+	if not items:
+		kodi_utils.logger('simkl', '_fetch_all_items: parsed 0 items from %d results for %s/%s' % (len(result), media_type, status))
+	return items or None
 
 def simkl_sync_activities_thread(*args, **kwargs):
 	Thread(target=simkl_sync_activities, args=args, kwargs=kwargs, daemon=True).start()
@@ -299,9 +342,12 @@ def simkl_sync_activities(force_update=False):
 	cached = simkl_cache.get_cached_activity()
 	changed = False
 	try:
-		for key in ('movies', 'tv_shows', 'anime'):
+		for key in ('movies', 'tv_shows', 'shows', 'anime'):
 			activity = latest.get(key) or {}
 			cached_activity = cached.get(key) or {}
+			if not isinstance(activity, dict) or not isinstance(cached_activity, dict):
+				changed = True
+				break
 			if activity.get('all', '') != cached_activity.get('all', ''):
 				changed = True
 				break

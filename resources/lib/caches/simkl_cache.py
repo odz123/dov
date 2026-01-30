@@ -1,8 +1,10 @@
+import time
 from ast import literal_eval
 from modules.kodi_utils import simkl_db, database_connect
 # from modules.kodi_utils import logger
 
 timeout = 20
+CACHE_TTL = 14400  # 4 hours
 VALID_TABLES = frozenset(('simkl_data',))
 SC_BASE_GET = 'SELECT data FROM simkl_data WHERE id = ?'
 SC_BASE_SET = 'INSERT OR REPLACE INTO simkl_data (id, data) VALUES (?, ?)'
@@ -46,12 +48,20 @@ def cache_simkl_object(function, string, url):
 			cache.dbcur.execute(SC_BASE_GET, (string,))
 			cached_data = cache.dbcur.fetchone()
 			if cached_data:
-				try: return literal_eval(cached_data[0])
+				try:
+					parsed = literal_eval(cached_data[0])
+					if isinstance(parsed, tuple) and len(parsed) == 2 and isinstance(parsed[0], (int, float)):
+						ts, data = parsed
+						if time.time() - ts < CACHE_TTL:
+							return data
+						cache.dbcur.execute("DELETE FROM simkl_data WHERE id = ?", (string,))
+					else:
+						return parsed
 				except (ValueError, SyntaxError):
 					cache.dbcur.execute("DELETE FROM simkl_data WHERE id = ?", (string,))
 			result = function(url)
 			if result is not None:
-				cache.dbcur.execute(SC_BASE_SET, (string, repr(result)))
+				cache.dbcur.execute(SC_BASE_SET, (string, repr((int(time.time()), result))))
 			return result
 	except Exception:
 		return result if result is not None else function(url)
@@ -100,5 +110,6 @@ def default_activities():
 	return {
 		'movies': {'all': '2022-01-01T00:00:00Z'},
 		'tv_shows': {'all': '2022-01-01T00:00:00Z'},
+		'shows': {'all': '2022-01-01T00:00:00Z'},
 		'anime': {'all': '2022-01-01T00:00:00Z'}
 	}
