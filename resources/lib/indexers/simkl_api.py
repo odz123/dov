@@ -225,19 +225,19 @@ def _fetch_all_items(args):
 	items = []
 	key = 'movie' if media_type == 'movies' else 'show'
 	for item in result:
-		media = item.get(key, {})
-		ids = media.get('ids', {})
-		tmdb_id = ids.get('tmdb', '')
-		imdb_id = ids.get('imdb', '')
+		media = item.get(key) or {}
+		ids = media.get('ids') or {}
+		tmdb_id = ids.get('tmdb') or ''
+		imdb_id = ids.get('imdb') or ''
 		if not tmdb_id and not imdb_id: continue
-		year = media.get('year', '')
+		year = media.get('year') or ''
 		items.append({
-			'title': media.get('title', ''),
+			'title': media.get('title') or '',
 			'release_year': str(year) if year else '',
 			'id': tmdb_id,
 			'imdb_id': imdb_id,
 			'tmdb_id': tmdb_id,
-			'simkl_id': ids.get('simkl', ''),
+			'simkl_id': ids.get('simkl') or '',
 			'last_watched_at': item.get('last_watched_at') or '',
 			'status': item.get('status', status),
 			'user_rating': item.get('user_rating'),
@@ -261,10 +261,10 @@ def simkl_sync_activities(force_update=False):
 	movies_changed = False
 	shows_changed = False
 	try:
-		movies_activity = latest.get('movies', {})
-		shows_activity = latest.get('tv_shows', {})
-		cached_movies = cached.get('movies', {})
-		cached_shows = cached.get('tv_shows', {})
+		movies_activity = latest.get('movies') or {}
+		shows_activity = latest.get('tv_shows') or {}
+		cached_movies = cached.get('movies') or {}
+		cached_shows = cached.get('tv_shows') or {}
 		if movies_activity.get('all', '') != cached_movies.get('all', ''):
 			movies_changed = True
 		if shows_activity.get('all', '') != cached_shows.get('all', ''):

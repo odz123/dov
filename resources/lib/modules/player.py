@@ -272,6 +272,7 @@ class POVPlayer(kodi_utils.xbmc_player):
 
 	def run_simkl_scrobble_start(self):
 		if self.simkl_scrobble_started: return
+		if not get_setting('simkl_user', ''): return
 		self.simkl_scrobble_started = True
 		try:
 			from indexers.simkl_api import simkl_checkin

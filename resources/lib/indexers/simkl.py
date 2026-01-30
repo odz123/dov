@@ -54,7 +54,7 @@ def get_simkl_watchlist(params):
 		threads = list(TaskPool.process(threads))
 		for i in threads: i.join()
 	items = movies.items + tvshows.items
-	items.sort(key=lambda k: int(k[1].getProperty('pov_sort_order')))
+	items.sort(key=lambda k: int(k[1].getProperty('pov_sort_order') or '0'))
 	content, total = max(
 		('movies', movies), ('tvshows', tvshows), key=lambda k: len(k[1].items)
 	)
@@ -81,8 +81,8 @@ def simkl_account_info():
 		if not account_info or not isinstance(account_info, dict):
 			kodi_utils.hide_busy_dialog()
 			return kodi_utils.notification('Simkl: Failed to retrieve account info')
-		user = account_info.get('user', {})
-		account = account_info.get('account', {})
+		user = account_info.get('user') or {}
+		account = account_info.get('account') or {}
 		body = []
 		append = body.append
 		append('[B]Username:[/B] %s' % user.get('name', 'N/A'))

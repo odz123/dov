@@ -58,7 +58,9 @@ def reset_activity(latest_activities):
 		with SimklCache() as cache:
 			cache.dbcur.execute(SC_BASE_GET, (string,))
 			result = cache.dbcur.fetchone()
-			if result: cached_data = literal_eval(result[0])
+			if result:
+				try: cached_data = literal_eval(result[0])
+				except (ValueError, SyntaxError): pass
 			cache.dbcur.execute(SC_BASE_SET, (string, repr(latest_activities)))
 	except Exception: pass
 	return cached_data
