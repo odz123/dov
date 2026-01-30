@@ -236,6 +236,19 @@ def trakt_progress(action, media, media_id, percent, season=None, episode=None, 
 		call_trakt(url, data=data)
 	if refresh_trakt: trakt_sync_activities()
 
+def trakt_scrobble(action, media, media_id, progress, season=None, episode=None):
+	"""Scrobble playback state to Trakt. Action can be 'start', 'pause', or 'stop'."""
+	url = 'scrobble/%s' % action
+	try: media_id = int(media_id)
+	except (ValueError, TypeError): return
+	if media in ('movie', 'movies'):
+		data = {'movie': {'ids': {'tmdb': media_id}}, 'progress': float(progress)}
+	else:
+		try: season, episode = int(season), int(episode)
+		except (ValueError, TypeError): return
+		data = {'show': {'ids': {'tmdb': media_id}}, 'episode': {'season': season, 'number': episode}, 'progress': float(progress)}
+	return call_trakt(url, data=data)
+
 def trakt_collection_lists(media_type, param1, param2):
 	# param1 = the type of list to be returned (from 'new_page' param), param2 is currently not used
 	limit = 20
