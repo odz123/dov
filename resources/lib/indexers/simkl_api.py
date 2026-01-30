@@ -1,3 +1,4 @@
+import time
 import requests
 from caches import simkl_cache
 from modules import kodi_utils
@@ -11,7 +12,18 @@ get_setting = kodi_utils.get_setting
 base_url = 'https://api.simkl.com/%s'
 timeout = 10.05
 session = requests.Session()
-retry = requests.adapters.Retry(total=None, status=1, status_forcelist=(429, 502, 503, 504))
+_retry_kwargs = dict(
+	total=5,
+	status=3,
+	backoff_factor=1.0,
+	status_forcelist=(429, 502, 503, 504),
+	respect_retry_after_header=True
+)
+_allowed = frozenset(['GET', 'POST', 'DELETE', 'HEAD', 'PUT', 'OPTIONS', 'TRACE'])
+try:
+	retry = requests.adapters.Retry(allowed_methods=_allowed, **_retry_kwargs)
+except TypeError:
+	retry = requests.adapters.Retry(method_whitelist=_allowed, **_retry_kwargs)
 session.mount('https://api.simkl.com', requests.adapters.HTTPAdapter(pool_maxsize=100, max_retries=retry))
 
 # Rate limit tracking
@@ -28,17 +40,29 @@ def _update_rate_limits(response):
 	except (ValueError, KeyError):
 		pass
 
+def _wait_for_rate_limit():
+	"""Wait if rate limited before making a request."""
+	global _rate_limit_remaining, _rate_limit_reset
+	if _rate_limit_remaining > 0:
+		return
+	wait_time = max(0, _rate_limit_reset - int(time.time()))
+	if wait_time > 0:
+		kodi_utils.logger('simkl', 'Rate limited, waiting %d seconds' % wait_time)
+		time.sleep(min(wait_time + 1, 60))
+		_rate_limit_remaining = 1
+
 def get_rate_limit_status():
 	return {
 		'remaining': _rate_limit_remaining,
 		'reset': _rate_limit_reset
 	}
 
-def call_simkl(path, params=None, data=None, with_auth=True, method=None):
+def call_simkl(path, params=None, data=None, with_auth=True, method=None, expected_statuses=None):
 	headers = {'Content-Type': 'application/json', 'simkl-api-key': get_setting('simkl.client_id')}
 	if with_auth:
 		token = get_setting('simkl.token')
 		if token: headers['Authorization'] = 'Bearer %s' % token
+	_wait_for_rate_limit()
 	try:
 		response = session.request(
 			method or ('post' if data else 'get'),
@@ -50,7 +74,10 @@ def call_simkl(path, params=None, data=None, with_auth=True, method=None):
 		)
 		_update_rate_limits(response)
 		result = response.json() if 'json' in response.headers.get('Content-Type', '') else response.text
-		if not response.ok: response.raise_for_status()
+		if not response.ok:
+			if expected_statuses and response.status_code in expected_statuses:
+				return result
+			response.raise_for_status()
 		return result
 	except requests.exceptions.RequestException as e:
 		kodi_utils.logger('simkl error', str(e))
@@ -102,7 +129,7 @@ def simkl_checkin(media_type, tmdb_id, season=None, episode=None):
 def simkl_checkout():
 	"""Cancel any active Simkl checkin to avoid 409 Conflict on next checkin."""
 	if not get_setting('simkl_user', ''): return
-	return call_simkl('checkin', method='delete')
+	return call_simkl('checkin', method='delete', expected_statuses=(404,))
 
 def simkl_watched_unwatched(action, media, media_id, season=None, episode=None):
 	"""Push watched/unwatched status to Simkl. Called in background thread."""
