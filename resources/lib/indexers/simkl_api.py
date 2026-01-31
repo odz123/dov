@@ -267,6 +267,13 @@ def simkl_watchlist_items(media_type, status, page_no, letter):
 		final_list, total_pages = original_list, 1
 	return final_list, total_pages
 
+def _extract_ids(ids_dict):
+	"""Extract tmdb and imdb IDs from an ids dict, checking multiple key formats."""
+	if not ids_dict or not isinstance(ids_dict, dict): return '', ''
+	tmdb_id = ids_dict.get('tmdb') or ids_dict.get('tmdb_id') or ids_dict.get('tmdbid') or ''
+	imdb_id = ids_dict.get('imdb') or ids_dict.get('imdb_id') or ids_dict.get('imdbid') or ''
+	return tmdb_id, imdb_id
+
 def _fetch_all_items(args):
 	"""Fetch all items from Simkl for a given media_type and status."""
 	media_type, status = args
@@ -291,38 +298,74 @@ def _fetch_all_items(args):
 		kodi_utils.logger('simkl', '_fetch_all_items: unexpected response type %s for %s/%s' % (type(result).__name__, media_type, status))
 		return None
 	items = []
+	skipped = 0
 	key = 'movie' if media_type == 'movies' else 'show'
 	for item in result:
 		try:
 			media = item.get(key) or {}
+			# Try IDs from the nested media object first (standard format: item.movie.ids)
 			ids = media.get('ids') or {}
-			tmdb_id = ids.get('tmdb') or ''
-			imdb_id = ids.get('imdb') or ''
+			tmdb_id, imdb_id = _extract_ids(ids)
+			# Fallback: try IDs directly on the item level (alternate format: item.ids)
 			if not tmdb_id and not imdb_id:
-				simkl_id = ids.get('simkl')
+				item_ids = item.get('ids') or {}
+				tmdb_id, imdb_id = _extract_ids(item_ids)
+				if not ids and item_ids: ids = item_ids
+			# Fallback: try IDs as direct fields on media or item objects
+			if not tmdb_id:
+				tmdb_id = media.get('tmdb') or media.get('tmdb_id') or item.get('tmdb') or item.get('tmdb_id') or ''
+			if not imdb_id:
+				imdb_id = media.get('imdb') or media.get('imdb_id') or item.get('imdb') or item.get('imdb_id') or ''
+			# Fallback: search Simkl by simkl_id to resolve external IDs
+			if not tmdb_id and not imdb_id:
+				simkl_id = ids.get('simkl') or ids.get('simkl_id') or ''
+				if not simkl_id:
+					simkl_id = (item.get('ids') or {}).get('simkl') or ''
 				if simkl_id:
 					try:
 						lookup = simkl_search_by_id('simkl', simkl_id)
 						if lookup and isinstance(lookup, list) and len(lookup) > 0:
 							lookup_ids = lookup[0].get('ids') or {}
-							tmdb_id = lookup_ids.get('tmdb') or ''
-							imdb_id = lookup_ids.get('imdb') or ''
+							tmdb_id, imdb_id = _extract_ids(lookup_ids)
 					except Exception: pass
-			if not tmdb_id and not imdb_id: continue
-			year = media.get('year') or ''
+			# Fallback: search TMDB by title and year
+			if not tmdb_id and not imdb_id:
+				title = media.get('title') or item.get('title') or ''
+				year = media.get('year') or item.get('year') or ''
+				if title:
+					try:
+						from indexers import tmdb_api
+						if media_type == 'movies':
+							tmdb_result = tmdb_api.movie_title_year(title, year)
+						else:
+							tmdb_result = tmdb_api.tvshow_title_year(title, year)
+						if tmdb_result:
+							tmdb_id = tmdb_result.get('id', '')
+					except Exception: pass
+			if not tmdb_id and not imdb_id:
+				skipped += 1
+				continue
+			# Ensure IDs are strings for consistent cache handling
+			if tmdb_id: tmdb_id = str(tmdb_id)
+			if imdb_id: imdb_id = str(imdb_id)
+			year = media.get('year') or item.get('year') or ''
+			title = media.get('title') or item.get('title') or ''
+			simkl_id = ids.get('simkl') or ids.get('simkl_id') or (item.get('ids') or {}).get('simkl') or ''
 			items.append({
-				'title': media.get('title') or '',
+				'title': title,
 				'release_year': str(year) if year else '',
 				'id': tmdb_id,
 				'imdb_id': imdb_id,
 				'tmdb_id': tmdb_id,
-				'simkl_id': ids.get('simkl') or '',
+				'simkl_id': str(simkl_id) if simkl_id else '',
 				'last_watched_at': item.get('last_watched_at') or '',
 				'status': item.get('status', status),
 				'user_rating': item.get('user_rating'),
 				'mediatype': 'movie' if media_type == 'movies' else 'show'
 			})
 		except Exception: continue
+	if skipped:
+		kodi_utils.logger('simkl', '_fetch_all_items: skipped %d/%d items without TMDB/IMDB IDs for %s/%s' % (skipped, len(result), media_type, status))
 	if not items:
 		kodi_utils.logger('simkl', '_fetch_all_items: parsed 0 items from %d results for %s/%s' % (len(result), media_type, status))
 	return items or None
