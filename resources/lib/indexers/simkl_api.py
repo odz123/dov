@@ -99,9 +99,7 @@ def call_simkl(path, params=None, data=None, with_auth=True, method=None, expect
 	if not client_id:
 		kodi_utils.logger('simkl error', 'no client_id configured')
 		return None
-	headers = {'simkl-api-key': client_id}
-	if data is not None:
-		headers['Content-Type'] = 'application/json'
+	headers = {'Content-Type': 'application/json', 'simkl-api-key': client_id}
 	if with_auth:
 		token = get_setting('simkl.token')
 		if token: headers['Authorization'] = 'Bearer %s' % token
@@ -112,7 +110,7 @@ def call_simkl(path, params=None, data=None, with_auth=True, method=None, expect
 	for attempt in range(4):
 		try:
 			response = session.request(
-				method or ('post' if data else 'get'),
+				method or 'get',
 				base_url % path,
 				params=params,
 				json=data,
@@ -182,20 +180,20 @@ def simkl_user_settings():
 
 def simkl_add_to_list(data):
 	"""Add items to user's watchlist/list. data should contain movies/shows arrays."""
-	return call_simkl('sync/add-to-list', data=data, method='post')
+	return call_simkl('sync/add-to-list', data=data)
 
 def simkl_history_add(data):
 	"""Mark items as watched. data should contain movies/shows arrays."""
-	return call_simkl('sync/history', data=data, method='post')
+	return call_simkl('sync/history', data=data)
 
 def simkl_history_remove(data):
 	"""Remove items from watched history."""
-	return call_simkl('sync/history/remove', data=data, method='post')
+	return call_simkl('sync/history/remove', data=data)
 
 def simkl_checkin(media_type, tmdb_id, season=None, episode=None):
 	"""Start a Simkl check-in (sets 'now watching' status).
-	Uses POST /checkin per Simkl API. The item shows as watching on the site
-	and auto-completes after the content's runtime elapses."""
+	Uses GET /checkin with JSON body per Simkl API convention.
+	The item shows as watching on the site and auto-completes after the content's runtime elapses."""
 	if not get_setting('simkl_user', ''): return
 	try: tmdb_id = int(tmdb_id)
 	except (ValueError, TypeError): return
@@ -206,13 +204,12 @@ def simkl_checkin(media_type, tmdb_id, season=None, episode=None):
 		except (ValueError, TypeError): return
 		data = {'show': {'ids': {'tmdb': tmdb_id}}, 'episode': {'season': season, 'number': episode}}
 	else: return
-	return call_simkl('checkin', data=data, method='post', expected_statuses=(409,))
+	return call_simkl('checkin', data=data, expected_statuses=(409,))
 
 def simkl_checkout():
-	"""Cancel a Simkl check-in (clears 'now watching' status).
-	Uses DELETE /checkin to stop showing the user as currently watching."""
+	"""Cancel a Simkl check-in (clears 'now watching' status)."""
 	if not get_setting('simkl_user', ''): return
-	return call_simkl('checkin', method='delete', expected_statuses=(404,))
+	return call_simkl('checkin', expected_statuses=(404,))
 
 def simkl_watched_unwatched(action, media, media_id, season=None, episode=None):
 	"""Push watched/unwatched status to Simkl. Called in background thread."""
