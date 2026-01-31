@@ -279,15 +279,16 @@ class POVPlayer(kodi_utils.xbmc_player):
 		if not get_setting('simkl_user', ''): return
 		self.simkl_scrobble_started = True
 		try:
-			from indexers.simkl_api import simkl_checkin
-			self._safe_thread(simkl_checkin, self.media_type, self.tmdb_id, self.season, self.episode)
+			from indexers.simkl_api import simkl_scrobble
+			self._safe_thread(simkl_scrobble, 'start', self.media_type, self.tmdb_id, 0, self.season, self.episode)
 		except Exception: pass
 
 	def run_simkl_scrobble_stop(self):
 		if not self.simkl_scrobble_started: return
 		try:
-			from indexers.simkl_api import simkl_checkout
-			self._safe_thread(simkl_checkout)
+			from indexers.simkl_api import simkl_scrobble
+			progress = getattr(self, 'current_point', 0)
+			self._safe_thread(simkl_scrobble, 'stop', self.media_type, self.tmdb_id, progress, self.season, self.episode)
 		except Exception: pass
 
 	def run_trakt_scrobble_start(self):

@@ -192,27 +192,22 @@ def simkl_history_remove(data):
 	"""Remove items from watched history."""
 	return call_simkl('sync/history/remove', data=data, method='post')
 
-def simkl_checkin(media_type, tmdb_id, season=None, episode=None):
-	"""Start a Simkl check-in (sets 'now watching' status).
-	Uses POST /checkin per Simkl API. The item shows as watching on the site
-	and auto-completes after the content's runtime elapses."""
+def simkl_scrobble(action, media_type, tmdb_id, progress, season=None, episode=None):
+	"""Send a scrobble event to Simkl using the /scrobble/ endpoints.
+	action: 'start', 'pause', 'stop'
+	media_type: 'movie' or 'episode'
+	progress: playback percentage (0-100)"""
 	if not get_setting('simkl_user', ''): return
 	try: tmdb_id = int(tmdb_id)
 	except (ValueError, TypeError): return
 	if media_type == 'movie':
-		data = {'movie': {'ids': {'tmdb': tmdb_id}}}
+		data = {'movie': {'ids': {'tmdb': tmdb_id}}, 'progress': progress}
 	elif media_type == 'episode':
 		try: season, episode = int(season), int(episode)
 		except (ValueError, TypeError): return
-		data = {'show': {'ids': {'tmdb': tmdb_id}}, 'episode': {'season': season, 'number': episode}}
+		data = {'show': {'ids': {'tmdb': tmdb_id}}, 'episode': {'season': season, 'number': episode}, 'progress': progress}
 	else: return
-	return call_simkl('checkin', data=data, method='post', expected_statuses=(409,))
-
-def simkl_checkout():
-	"""Cancel a Simkl check-in (clears 'now watching' status).
-	Uses DELETE /checkin to stop showing the user as currently watching."""
-	if not get_setting('simkl_user', ''): return
-	return call_simkl('checkin', method='delete', expected_statuses=(404,))
+	return call_simkl('scrobble/%s' % action, data=data, method='post', expected_statuses=(409,))
 
 def simkl_watched_unwatched(action, media, media_id, season=None, episode=None):
 	"""Push watched/unwatched status to Simkl. Called in background thread."""
