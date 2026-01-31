@@ -93,12 +93,13 @@ def _rebuild_session():
 	except Exception:
 		pass
 
-def call_simkl(path, params=None, data=None, with_auth=True, method=None, expected_statuses=None):
+def call_simkl(path, params=None, data=None, with_auth=True, method=None, expected_statuses=None, return_headers=False):
 	global _rate_limit_remaining
+	_none = (None, {}) if return_headers else None
 	client_id = get_setting('simkl.client_id')
 	if not client_id:
 		kodi_utils.logger('simkl error', 'no client_id configured')
-		return None
+		return _none
 	headers = {'simkl-api-key': client_id}
 	if data is not None:
 		headers['Content-Type'] = 'application/json'
@@ -107,7 +108,7 @@ def call_simkl(path, params=None, data=None, with_auth=True, method=None, expect
 		if token: headers['Authorization'] = 'Bearer %s' % token
 		else:
 			kodi_utils.logger('simkl error', 'no auth token for %s (auth required)' % path)
-			return None
+			return _none
 	_wait_for_rate_limit()
 	for attempt in range(4):
 		try:
@@ -131,30 +132,30 @@ def call_simkl(path, params=None, data=None, with_auth=True, method=None, expect
 			except (ValueError, Exception): result = response.text
 			if not response.ok:
 				if expected_statuses and response.status_code in expected_statuses:
-					return result
+					return (result, dict(response.headers)) if return_headers else result
 				if response.status_code == 401:
 					kodi_utils.logger('simkl error', 'HTTP 401 unauthorized for %s - token may be expired' % path)
-					return None
+					return _none
 				if response.status_code < 500:
 					kodi_utils.logger('simkl error', 'HTTP %d for %s: %s' % (response.status_code, path, str(result)[:200]))
-					return None
+					return _none
 				response.raise_for_status()
-			return result
+			return (result, dict(response.headers)) if return_headers else result
 		except requests.exceptions.ConnectionError as e:
 			kodi_utils.logger('simkl error', 'connection error: %s (attempt %d/4)' % (str(e), attempt + 1))
 			_rebuild_session()
 			if attempt < 3:
 				time.sleep(2 ** attempt)
 				continue
-			return None
+			return _none
 		except requests.exceptions.RequestException as e:
 			kodi_utils.logger('simkl error', '%s (attempt %d/4)' % (str(e), attempt + 1))
 			if attempt < 3:
 				time.sleep(2 ** attempt)
 				continue
-			return None
+			return _none
 	kodi_utils.logger('simkl error', 'all retries exhausted for %s' % path)
-	return None
+	return _none
 
 def simkl_get_activity():
 	return call_simkl('sync/activities')
@@ -163,13 +164,25 @@ def simkl_all_items(media_type, status):
 	"""Get all items of a media type with a given status.
 	media_type: movies, shows, anime
 	status: watching, plantowatch, completed, hold, dropped
+	Handles pagination to fetch all pages of results.
 	"""
 	url = 'sync/all-items/%s/%s' % (media_type, status)
-	result = call_simkl(url, params={'extended': 'full'})
-	if result is not None:
-		rtype = type(result).__name__
-		rlen = len(result) if isinstance(result, (list, dict, str)) else 'N/A'
-		kodi_utils.logger('simkl', 'all_items %s/%s: type=%s len=%s' % (media_type, status, rtype, rlen))
+	result, headers = call_simkl(url, params={'extended': 'full', 'limit': 100}, return_headers=True)
+	if result is None: return None
+	if not isinstance(result, list):
+		kodi_utils.logger('simkl', 'all_items %s/%s: non-list response type=%s' % (media_type, status, type(result).__name__))
+		return result
+	try:
+		page_count = int(headers.get('X-Pagination-Page-Count', '1'))
+	except (ValueError, TypeError):
+		page_count = 1
+	if page_count > 1:
+		for page in range(2, page_count + 1):
+			page_result = call_simkl(url, params={'extended': 'full', 'limit': 100, 'page': page})
+			if page_result is None: break
+			if isinstance(page_result, list):
+				result.extend(page_result)
+	kodi_utils.logger('simkl', 'all_items %s/%s: total=%d pages=%d' % (media_type, status, len(result), page_count))
 	return result
 
 def simkl_search_by_id(id_type, id_value):
@@ -267,6 +280,12 @@ def simkl_watchlist_items(media_type, status, page_no, letter):
 		final_list, total_pages = original_list, 1
 	return final_list, total_pages
 
+def _to_int(val):
+	"""Safely convert a value to int, return None on failure."""
+	if val is None or val == '': return None
+	try: return int(val)
+	except (ValueError, TypeError): return None
+
 def _fetch_all_items(args):
 	"""Fetch all items from Simkl for a given media_type and status."""
 	media_type, status = args
@@ -296,7 +315,7 @@ def _fetch_all_items(args):
 		try:
 			media = item.get(key) or {}
 			ids = media.get('ids') or {}
-			tmdb_id = ids.get('tmdb') or ''
+			tmdb_id = _to_int(ids.get('tmdb'))
 			imdb_id = ids.get('imdb') or ''
 			if not tmdb_id and not imdb_id:
 				simkl_id = ids.get('simkl')
@@ -305,7 +324,7 @@ def _fetch_all_items(args):
 						lookup = simkl_search_by_id('simkl', simkl_id)
 						if lookup and isinstance(lookup, list) and len(lookup) > 0:
 							lookup_ids = lookup[0].get('ids') or {}
-							tmdb_id = lookup_ids.get('tmdb') or ''
+							tmdb_id = _to_int(lookup_ids.get('tmdb'))
 							imdb_id = lookup_ids.get('imdb') or ''
 					except Exception: pass
 			if not tmdb_id and not imdb_id: continue
@@ -313,7 +332,7 @@ def _fetch_all_items(args):
 			items.append({
 				'title': media.get('title') or '',
 				'release_year': str(year) if year else '',
-				'id': tmdb_id,
+				'id': tmdb_id or imdb_id,
 				'imdb_id': imdb_id,
 				'tmdb_id': tmdb_id,
 				'simkl_id': ids.get('simkl') or '',
@@ -325,7 +344,7 @@ def _fetch_all_items(args):
 		except Exception: continue
 	if not items:
 		kodi_utils.logger('simkl', '_fetch_all_items: parsed 0 items from %d results for %s/%s' % (len(result), media_type, status))
-	return items or None
+	return items
 
 def simkl_sync_activities_thread(*args, **kwargs):
 	Thread(target=simkl_sync_activities, args=args, kwargs=kwargs, daemon=True).start()
@@ -342,7 +361,7 @@ def simkl_sync_activities(force_update=False):
 	cached = simkl_cache.get_cached_activity()
 	changed = False
 	try:
-		for key in ('movies', 'tv_shows', 'shows', 'anime'):
+		for key in ('movies', 'tv_shows', 'anime'):
 			activity = latest.get(key) or {}
 			cached_activity = cached.get(key) or {}
 			if not isinstance(activity, dict) or not isinstance(cached_activity, dict):

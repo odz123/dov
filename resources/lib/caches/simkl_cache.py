@@ -64,7 +64,9 @@ def cache_simkl_object(function, string, url):
 				cache.dbcur.execute(SC_BASE_SET, (string, repr((int(time.time()), result))))
 			return result
 	except Exception:
-		return result if result is not None else function(url)
+		if result is not None: return result
+		try: return function(url)
+		except Exception: return None
 
 def get_cached_activity():
 	"""Read the cached activity data without modifying it."""
@@ -110,6 +112,5 @@ def default_activities():
 	return {
 		'movies': {'all': '2022-01-01T00:00:00Z'},
 		'tv_shows': {'all': '2022-01-01T00:00:00Z'},
-		'shows': {'all': '2022-01-01T00:00:00Z'},
 		'anime': {'all': '2022-01-01T00:00:00Z'}
 	}

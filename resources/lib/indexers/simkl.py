@@ -44,10 +44,18 @@ def get_simkl_watchlist(params):
 	movies, tvshows = Movies({'id_type': 'trakt_dict'}), TVShows({'id_type': 'trakt_dict'})
 	for idx, tag in enumerate(results, 1):
 		mtype = tag.get('mediatype', '')
+		tmdb_id = tag.get('tmdb_id')
+		imdb_id = tag.get('imdb_id', '')
+		if tmdb_id is not None and tmdb_id != '':
+			try: tmdb_id = int(tmdb_id)
+			except (ValueError, TypeError): tmdb_id = ''
+		else:
+			tmdb_id = ''
+		ids = {'imdb': imdb_id, 'tmdb': tmdb_id}
 		if mtype == 'movie':
-			_queue.put((movies.build_movie_content, idx, {'imdb': tag.get('imdb_id', ''), 'tmdb': tag.get('tmdb_id', '')}))
+			_queue.put((movies.build_movie_content, idx, ids))
 		elif mtype == 'show':
-			_queue.put((tvshows.build_tvshow_content, idx, {'imdb': tag.get('imdb_id', ''), 'tmdb': tag.get('tmdb_id', '')}))
+			_queue.put((tvshows.build_tvshow_content, idx, ids))
 	if _queue.qsize() > 0:
 		max_threads = min(_queue.qsize(), max_threads)
 		threads = (Thread(target=_thread_target, args=(_queue,)) for i in range(max_threads))
