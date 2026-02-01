@@ -357,9 +357,14 @@ class Subtitles(kodi_utils.xbmc_player):
 				filtered = filter_subtitles_by_language(stremio_subs, self.language1)
 				if not filtered: return False
 				if self.subs_action == 'auto':
-					selected = filtered[0]
+					# Only auto-select if the best match is actually the preferred language
+					first = filtered[0]
+					lang_name = first.get('language_name', '').lower()
+					if lang_name != self.language1.lower():
+						return False
+					selected = first
 				elif self.subs_action == 'select' and len(filtered) > 1:
-					labels = [f"{s.get('lang', 'Unknown')} - {s.get('id', '')}" for s in filtered]
+					labels = [s.get('language_name', s.get('lang', 'Unknown')) for s in filtered]
 					self.pause()
 					choice = kodi_utils.dialog.select('Stremio Subtitles', labels)
 					self.pause()

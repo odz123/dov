@@ -398,14 +398,6 @@ class SourceSelect:
 						if self.progress_dialog: self.progress_dialog.update(format_line % (line1, line2, name), percent)
 						else: progressDialogBG.update(percent, name)
 					except Exception: pass
-				# Handle Stremio externalUrl sources - open in system browser
-				if item.get('external_url'):
-					try:
-						import webbrowser
-						webbrowser.open(item['url'])
-						notification('Opening in browser...', 2000)
-					except Exception: pass
-					continue
 				if 'unrestricted_link' in item:
 					link = item['unrestricted_link']
 					sleep(500)
@@ -415,8 +407,13 @@ class SourceSelect:
 					yield link
 		try:
 			self._kill_progress_dialog()
+			# Handle Stremio externalUrl: if user manually selected an external URL, show it and return
+			if source and source.get('external_url'):
+				kodi_utils.ok_dialog(heading='External URL', text=source.get('url', ''))
+				return
 			if autoplay:
-				items = [i for i in results if not 'Uncached' in i.get('cache_provider', '')]
+				# Filter out external URL sources from autoplay (they can't be auto-played)
+				items = [i for i in results if not 'Uncached' in i.get('cache_provider', '') and not i.get('external_url')]
 				# Stremio bingeGroup: prefer sources with matching binge_group for next-episode autoplay
 				preferred_binge_group = self.meta.get('stremio_binge_group')
 				if preferred_binge_group and items:
