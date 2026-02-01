@@ -420,8 +420,11 @@ class StremioIndexer:
 					if extra_name in ('genre', 'skip', 'search'):
 						continue  # Genre handled above, skip in browse, search elsewhere
 					if extra_name and extra_item.get('options'):
+						# Per SDK spec: optionsLimit specifies max selectable options (default: 1)
+						options_limit = extra_item.get('optionsLimit', 1)
 						filter_listitem = make_listitem()
-						filter_listitem.setLabel(f"  Filter by {extra_name.capitalize()}")
+						multi_label = ' (multi-select)' if options_limit and options_limit > 1 else ''
+						filter_listitem.setLabel(f"  Filter by {extra_name.capitalize()}{multi_label}")
 						if KODI_VERSION < 20:
 							filter_listitem.setInfo('video', {'title': f"Filter {item['name']} by {extra_name}"})
 						else:
@@ -434,7 +437,8 @@ class StremioIndexer:
 							'catalog_type': item['catalog_type'],
 							'catalog_id': item['catalog_id'],
 							'filter_name': extra_name,
-							'filter_options': json.dumps(extra_item.get('options', []))
+							'filter_options': json.dumps(extra_item.get('options', [])),
+							'options_limit': str(options_limit) if options_limit else '1'
 						})
 						listitems.append((filter_url, filter_listitem, True))
 
@@ -443,12 +447,14 @@ class StremioIndexer:
 		end_directory(self.__handle__)
 
 	def filter_catalog(self):
-		"""Show filter options for a catalog"""
+		"""Show filter options for a catalog.
+		Supports optionsLimit from Stremio SDK: when > 1, allows multi-select via dialog."""
 		addon_url = self.params_get('addon_url', '')
 		catalog_type = self.params_get('catalog_type', 'movie')
 		catalog_id = self.params_get('catalog_id', '')
 		filter_name = self.params_get('filter_name', '')
 		filter_options = self.params_get('filter_options', '[]')
+		options_limit = int(self.params_get('options_limit', '1'))
 
 		try:
 			options = json.loads(filter_options)
@@ -461,6 +467,40 @@ class StremioIndexer:
 			end_directory(self.__handle__)
 			return
 
+		# Per SDK spec: optionsLimit > 1 means multiple values can be selected
+		# Use a multi-select dialog to let users pick multiple options
+		if options_limit > 1:
+			from modules.kodi_utils import execute_builtin
+			str_options = [str(o) for o in options]
+			selected = dialog.multiselect(
+				f'Select {filter_name.capitalize()} (max {options_limit})',
+				str_options
+			)
+			if selected is not None and selected:
+				# Limit to optionsLimit selections
+				selected = selected[:options_limit]
+				selected_values = [str_options[i] for i in selected]
+				# Stremio SDK: multiple values joined with comma in the extra parameter
+				filter_value = ','.join(selected_values)
+				url = build_url({
+					'mode': 'stremio_catalog',
+					'stremio_mode': 'browse_catalog',
+					'addon_url': addon_url,
+					'catalog_type': catalog_type,
+					'catalog_id': catalog_id,
+					'filter_name': filter_name,
+					'filter_value': filter_value
+				})
+				# End current directory before navigating to avoid Kodi warnings
+				set_content(self.__handle__, 'files')
+				end_directory(self.__handle__)
+				execute_builtin(f'Container.Update({url})')
+			else:
+				set_content(self.__handle__, 'files')
+				end_directory(self.__handle__)
+			return
+
+		# Single-select: show as list items (original behavior)
 		listitems = []
 		for option in options:
 			listitem = make_listitem()
