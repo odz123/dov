@@ -1,7 +1,7 @@
 # created by Venom for Fenomscrapers (updated 3-02-2022)
 """
 	Fenomscrapers Project
-	Uses shared http_client module for Cloudflare bypass
+	Uses shared http_client module
 """
 
 import re
@@ -36,7 +36,7 @@ class source:
 			if url.endswith('/manifest.json'):
 				url = url[:-14]
 			return url
-		# Fallback to default (may be blocked by Cloudflare)
+		# Fallback to default
 		return "https://torrentio.strem.fun"
 # Currently supports YTS(+), EZTV(+), RARBG(+), 1337x(+), ThePirateBay(+), KickassTorrents(+), TorrentGalaxy(+), HorribleSubs(+), NyaaSi(+), NyaaPantsu(+), Rutor(+), Comando(+), ComoEuBaixo(+), Lapumia(+), OndeBaixa(+), Torrent9(+).
 
@@ -65,12 +65,8 @@ class source:
 				media_id = imdb
 			if 'timeout' in data: self.timeout = int(data['timeout'])
 
-			# Use shared http_client for Cloudflare bypass
 			def error_callback(msg):
-				if 'Cloudflare' in msg and not getSetting('torrentio.url', '').strip():
-					source_utils.scraper_error('TORRENTIO: Cloudflare blocked. Get your configured URL from torrentio.strem.fun/configure')
-				else:
-					source_utils.scraper_error('TORRENTIO: %s - %s' % (self.base_link, msg))
+				source_utils.scraper_error('TORRENTIO: %s - %s' % (self.base_link, msg))
 
 			files = http_client.fetch_streams(
 				self.base_link, media_type, media_id,

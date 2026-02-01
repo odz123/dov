@@ -6,7 +6,7 @@
 	- Language filtering and selection
 	- Download and cache subtitles
 	- Integration with POV player
-	- Cloudflare bypass via shared http_client module
+	- HTTP client via shared http_client module
 """
 
 import os
@@ -231,7 +231,7 @@ def download_subtitle(subtitle_url, filename=None):
 		filename = re.sub(r'[<>:"/\\|?*]', '_', filename)
 		filepath = os.path.join(cache_dir, filename)
 
-		# Download subtitle using shared http_client for Cloudflare bypass
+		# Download subtitle using shared http_client
 		response, error = http_client.fetch_raw(subtitle_url, timeout=15)
 
 		if response is not None and response.status_code == 200:

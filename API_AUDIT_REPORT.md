@@ -315,11 +315,6 @@ This document provides a comprehensive audit of all external APIs used in the PO
 - `behaviorHints.videoSize` support ✅
 - Subtitle integration ✅
 
-**Cloudflare Bypass**:
-- curl_cffi with Chrome impersonation ✅
-- cloudscraper as fallback ✅
-- Standard requests as final fallback ✅
-
 **Notes**: Comprehensive Stremio protocol implementation with modern features.
 
 ---
@@ -379,4 +374,4 @@ All major metadata APIs (TMDB, Trakt, MDBList) demonstrate excellent implementat
 
 The debrid service APIs are functional and current, with the AllDebrid deprecation being the only notable concern.
 
-The Stremio addon protocol implementation is comprehensive and supports all modern features including behaviorHints, proxy headers, and multiple bypass methods for Cloudflare protection.
+The Stremio addon protocol implementation is comprehensive and supports all modern features including behaviorHints and proxy headers.
