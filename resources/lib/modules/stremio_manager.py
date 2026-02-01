@@ -220,8 +220,8 @@ def validate_stremio_addon(url, return_config_info=False):
 			elif res_name == 'meta':
 				supports_meta = True
 
-		if not supports_stream and not supports_catalog:
-			return None, "Addon does not provide stream or catalog resources"
+		if not supports_stream and not supports_catalog and not supports_subtitles and not supports_meta:
+			return None, "Addon does not provide any recognized resources (stream, catalog, meta, subtitles)"
 
 		# Check supported types - accept all Stremio content types
 		types = manifest.get('types', [])
@@ -237,18 +237,37 @@ def validate_stremio_addon(url, return_config_info=False):
 		is_adult = behavior_hints.get('adult', False)
 		is_p2p = behavior_hints.get('p2p', False)
 
-		# Extract per-resource type filtering from manifest resource objects
+		# Extract per-resource type and idPrefixes filtering from manifest resource objects
 		# Resources can be objects with per-resource type/idPrefix filtering
 		stream_types = []
 		catalog_types = []
+		meta_types = []
+		subtitles_types = []
+		stream_id_prefixes = []
+		meta_id_prefixes = []
+		subtitles_id_prefixes = []
+		supports_addon_catalog = False
+
 		for res in resources:
 			if isinstance(res, dict):
 				res_name = res.get('name', '')
 				res_types = res.get('types', [])
-				if res_name == 'stream' and res_types:
-					stream_types = res_types
-				elif res_name == 'catalog' and res_types:
-					catalog_types = res_types
+				res_id_prefixes = res.get('idPrefixes', [])
+				if res_name == 'stream':
+					if res_types: stream_types = res_types
+					if res_id_prefixes: stream_id_prefixes = res_id_prefixes
+				elif res_name == 'catalog':
+					if res_types: catalog_types = res_types
+				elif res_name == 'meta':
+					if res_types: meta_types = res_types
+					if res_id_prefixes: meta_id_prefixes = res_id_prefixes
+				elif res_name == 'subtitles':
+					if res_types: subtitles_types = res_types
+					if res_id_prefixes: subtitles_id_prefixes = res_id_prefixes
+				elif res_name == 'addon_catalog':
+					supports_addon_catalog = True
+			elif isinstance(res, str) and res == 'addon_catalog':
+				supports_addon_catalog = True
 
 		addon_info = {
 			'url': base_url,
@@ -262,6 +281,7 @@ def validate_stremio_addon(url, return_config_info=False):
 			'supports_catalog': supports_catalog,
 			'supports_subtitles': supports_subtitles,
 			'supports_meta': supports_meta,
+			'supports_addon_catalog': supports_addon_catalog,
 			'configurable': configurable,
 			'configuration_required': configuration_required,
 			'is_adult': is_adult,
@@ -274,11 +294,21 @@ def validate_stremio_addon(url, return_config_info=False):
 			addon_info['stream_types'] = stream_types
 		if catalog_types:
 			addon_info['catalog_types'] = catalog_types
+		if meta_types:
+			addon_info['meta_types'] = meta_types
+		if subtitles_types:
+			addon_info['subtitles_types'] = subtitles_types
 
-		# Extract idPrefixes for stream filtering
+		# Extract idPrefixes for filtering - manifest-level and per-resource
 		id_prefixes = manifest.get('idPrefixes', [])
 		if id_prefixes:
 			addon_info['id_prefixes'] = id_prefixes
+		if stream_id_prefixes:
+			addon_info['stream_id_prefixes'] = stream_id_prefixes
+		if meta_id_prefixes:
+			addon_info['meta_id_prefixes'] = meta_id_prefixes
+		if subtitles_id_prefixes:
+			addon_info['subtitles_id_prefixes'] = subtitles_id_prefixes
 
 		# If the URL already had configuration, preserve it
 		if existing_config:
@@ -711,12 +741,17 @@ def view_addon_details(addon):
 	if addon.get('supports_catalog'): resources.append('Catalog')
 	if addon.get('supports_meta'): resources.append('Meta')
 	if addon.get('supports_subtitles'): resources.append('Subtitles')
+	if addon.get('supports_addon_catalog'): resources.append('Addon Catalog')
 	resources_str = ', '.join(resources) if resources else 'Streams only'
 	flags = []
 	if addon.get('is_p2p'): flags.append('P2P')
 	if addon.get('is_adult'): flags.append('Adult')
 	if addon.get('configuration_required'): flags.append('Config Required')
 	flags_str = ' | '.join(flags) if flags else 'None'
+
+	# Show per-resource type filtering info
+	id_prefixes = ', '.join(addon.get('id_prefixes', [])) or 'All'
+	stream_types = ', '.join(addon.get('stream_types', [])) or 'All'
 
 	text = (
 		f"[B]Name:[/B] {addon.get('name', 'Unknown')}\n"
@@ -725,6 +760,8 @@ def view_addon_details(addon):
 		f"[B]URL:[/B] {addon.get('url', 'N/A')}\n"
 		f"[B]Content Types:[/B] {content_types}\n"
 		f"[B]Resources:[/B] {resources_str}\n"
+		f"[B]ID Prefixes:[/B] {id_prefixes}\n"
+		f"[B]Stream Types:[/B] {stream_types}\n"
 		f"[B]Catalogs:[/B] {'Yes' if addon.get('supports_catalog', False) else 'No'}\n"
 		f"[B]Subtitles:[/B] {'Yes' if addon.get('supports_subtitles', False) else 'No'}\n"
 		f"[B]Flags:[/B] {flags_str}\n"

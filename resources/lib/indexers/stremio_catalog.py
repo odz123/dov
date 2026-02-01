@@ -1,15 +1,17 @@
 # Stremio Catalog Indexer for POV
 """
-	Enhanced browsing of content catalogs from Stremio addons
+	Full Stremio SDK catalog browsing for POV
 	Features:
 	- List available catalogs from addons
-	- Browse catalog contents (movies, series)
+	- Browse catalog contents (movies, series, anime, tv, channel, other)
 	- Search functionality across catalogs
-	- Genre/extra filtering support
-	- Catalog caching for performance
+	- Genre/extra filtering support with extraRequired handling
+	- Catalog caching with addon-specified cacheMaxAge support
 	- Parallel manifest fetching
 	- Integration with POV metadata system
 	- HTTP client via shared http_client module
+	- addon_catalog resource: discover and install addons from addon catalogs
+	- posterShape handling (square, poster, landscape)
 """
 
 import sys
@@ -143,6 +145,10 @@ class StremioIndexer:
 			self.filter_catalog()
 		elif mode == 'open_item':
 			self.open_item()
+		elif mode == 'addon_catalog':
+			self.browse_addon_catalog()
+		elif mode == 'install_addon':
+			self.install_addon_from_catalog()
 
 	def get_stremio_addons(self):
 		"""Get list of configured Stremio addons"""
@@ -310,9 +316,19 @@ class StremioIndexer:
 			# Check for extra filters (genres, etc.)
 			extra = catalog.get('extra', [])
 			has_filters = bool(extra)
+
+			# Per Stremio SDK: skip catalogs where search is required (search-only catalogs)
+			# These catalogs should only appear in search, not in browsable lists
+			has_required_search = any(
+				e.get('name') == 'search' and e.get('isRequired', False)
+				for e in extra
+			)
+			if has_required_search:
+				continue
+
 			filter_info = ''
 			if has_filters:
-				filter_types = [e.get('name', '') for e in extra if e.get('name')]
+				filter_types = [e.get('name', '') for e in extra if e.get('name') and e.get('name') != 'skip']
 				if filter_types:
 					filter_info = f" (Filters: {', '.join(filter_types[:3])})"
 
@@ -490,8 +506,13 @@ class StremioIndexer:
 			data = http_client.fetch_json(endpoint, timeout=15)
 			if data:
 				metas = data.get('metas', [])
-				# Cache results
-				self.cache.set(cache_key, metas, hours=CATALOG_CACHE_HOURS)
+				# Honor cacheMaxAge from response if available (per Stremio SDK)
+				cache_max_age = data.get('cacheMaxAge', 0)
+				if cache_max_age and cache_max_age > 0:
+					cache_hours = cache_max_age / 3600.0
+				else:
+					cache_hours = CATALOG_CACHE_HOURS
+				self.cache.set(cache_key, metas, hours=cache_hours)
 				return metas
 		except Exception:
 			pass
@@ -1103,6 +1124,156 @@ class StremioIndexer:
 		)
 
 		ok_dialog(heading=name, text=text)
+
+
+	def browse_addon_catalog(self):
+		"""Browse addon_catalog resource - discover and install addons from other addons.
+		Per Stremio SDK: addon_catalog resource returns {addons: [{transportUrl, manifest}]}."""
+		addon_url = self.params_get('addon_url', '')
+
+		if not addon_url:
+			# Find all addons that support addon_catalog
+			addons = self.get_stremio_addons()
+			addon_catalog_addons = [a for a in addons if a.get('supports_addon_catalog', False)]
+
+			if not addon_catalog_addons:
+				notification('No addons with addon catalog support found', 2000)
+				set_content(self.__handle__, 'files')
+				end_directory(self.__handle__)
+				return
+
+			# If only one, browse it directly; otherwise list them
+			if len(addon_catalog_addons) == 1:
+				addon_url = addon_catalog_addons[0].get('config_url', '') or addon_catalog_addons[0].get('url', '')
+			else:
+				items = []
+				for addon in addon_catalog_addons:
+					url = addon.get('config_url', '') or addon.get('url', '')
+					items.append({
+						'name': addon.get('name', 'Unknown'),
+						'url': url,
+						'description': 'Browse addon catalogs',
+						'mode': 'stremio_catalog',
+						'stremio_mode': 'addon_catalog',
+						'addon_url': url
+					})
+				self._build_addon_list(items)
+				return
+
+		# Fetch manifest to get addonCatalogs
+		manifest = self.fetch_manifest(addon_url)
+		if not manifest:
+			notification('Failed to fetch addon manifest', 2000)
+			set_content(self.__handle__, 'files')
+			end_directory(self.__handle__)
+			return
+
+		addon_catalogs = manifest.get('addonCatalogs', manifest.get('catalogs', []))
+
+		# Fetch each addon catalog
+		base_url = addon_url.rstrip('/')
+		if base_url.endswith('/manifest.json'):
+			base_url = base_url[:-14]
+
+		all_addons = []
+		for catalog in addon_catalogs:
+			cat_type = catalog.get('type', '')
+			cat_id = catalog.get('id', '')
+			if not cat_id:
+				continue
+
+			endpoint = f"{base_url}/addon_catalog/{cat_type}/{cat_id}.json"
+			data = http_client.fetch_json(endpoint, timeout=10)
+			if data and 'addons' in data:
+				for addon_entry in data['addons']:
+					addon_manifest = addon_entry.get('manifest', {})
+					transport_url = addon_entry.get('transportUrl', '')
+					if addon_manifest and transport_url:
+						addon_manifest['_transportUrl'] = transport_url
+						all_addons.append(addon_manifest)
+
+		if not all_addons:
+			notification('No addons found in catalog', 2000)
+			set_content(self.__handle__, 'files')
+			end_directory(self.__handle__)
+			return
+
+		# Build list of discoverable addons
+		listitems = []
+		for addon_manifest in all_addons:
+			listitem = make_listitem()
+			name = addon_manifest.get('name', 'Unknown Addon')
+			version = addon_manifest.get('version', '')
+			description = addon_manifest.get('description', '')
+			types = ', '.join(addon_manifest.get('types', []))
+			transport_url = addon_manifest.get('_transportUrl', '')
+
+			label = f"{name} v{version}" if version else name
+			listitem.setLabel(label)
+
+			if KODI_VERSION < 20:
+				listitem.setInfo('video', {'title': name, 'plot': f"{description}\nTypes: {types}"})
+			else:
+				videoinfo = listitem.getVideoInfoTag(offscreen=True)
+				videoinfo.setTitle(name)
+				videoinfo.setPlot(f"{description}\nTypes: {types}")
+
+			# Set logo as art if available
+			logo = addon_manifest.get('logo', '')
+			background = addon_manifest.get('background', '')
+			if logo or background:
+				art = {}
+				if logo: art['icon'] = logo
+				if background: art['fanart'] = background
+				listitem.setArt(art)
+
+			url = build_url({
+				'mode': 'stremio_catalog',
+				'stremio_mode': 'install_addon',
+				'install_url': transport_url,
+				'addon_name': name
+			})
+			listitems.append((url, listitem, False))
+
+		add_items(self.__handle__, listitems)
+		set_content(self.__handle__, 'files')
+		end_directory(self.__handle__)
+
+	def install_addon_from_catalog(self):
+		"""Install a Stremio addon discovered from an addon_catalog resource."""
+		from modules.kodi_utils import ok_dialog, confirm_dialog
+		from modules.stremio_manager import validate_stremio_addon, get_stremio_addons, save_stremio_addons
+
+		install_url = self.params_get('install_url', '')
+		addon_name = self.params_get('addon_name', 'Unknown')
+
+		if not install_url:
+			notification('No addon URL provided', 2000)
+			return
+
+		# Confirm installation
+		if not confirm_dialog(heading='Install Stremio Addon', text=f"Install '{addon_name}' from addon catalog?"):
+			return
+
+		notification('Validating addon...', 2000)
+
+		# Validate and add the addon
+		addon_info, error = validate_stremio_addon(install_url)
+
+		if error:
+			ok_dialog(heading='Error', text=f'Failed to install addon:\n{error}')
+			return
+
+		# Check if already exists
+		addons = get_stremio_addons()
+		for existing in addons:
+			if existing.get('id') == addon_info.get('id') or existing.get('url') == addon_info.get('url'):
+				notification(f"'{addon_info['name']}' is already installed", 2000)
+				return
+
+		addons.append(addon_info)
+		save_stremio_addons(addons)
+		notification(f"Installed: {addon_info['name']}", 2000)
 
 
 def stremio_catalog_menu():

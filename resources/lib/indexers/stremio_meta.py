@@ -9,6 +9,12 @@
 	- Caching support for Stremio metadata
 	- Fallback/supplement to TMDB metadata
 	- Support for movies and TV series
+	- Full Stremio SDK meta format support:
+	  - Meta links array (actors, directors, writers, genres)
+	  - Trailers with YouTube playback
+	  - behaviorHints.defaultVideoId for stream fetching
+	  - Video available flag for episode filtering
+	  - Video embedded streams support
 """
 
 import time
@@ -229,10 +235,20 @@ class StremioMetaProvider:
 
 		def fetch_one(addon):
 			addon_url = addon.get('config_url', '') or addon.get('url', '')
-			if addon_url:
-				meta = self.fetch_meta(addon_url, media_type, media_id)
-				if meta:
-					results.append(meta)
+			if not addon_url:
+				return
+			# Check idPrefixes filtering (per-resource meta idPrefixes, then manifest-level)
+			meta_id_prefixes = addon.get('meta_id_prefixes', [])
+			id_prefixes = meta_id_prefixes if meta_id_prefixes else addon.get('id_prefixes', [])
+			if id_prefixes and not any(media_id.startswith(p) for p in id_prefixes):
+				return
+			# Check per-resource meta types filtering
+			meta_types = addon.get('meta_types', [])
+			if meta_types and media_type not in meta_types:
+				return
+			meta = self.fetch_meta(addon_url, media_type, media_id)
+			if meta:
+				results.append(meta)
 
 		for addon in addons:
 			t = Thread(target=fetch_one, args=(addon,))
@@ -270,6 +286,8 @@ class StremioMetaProvider:
 			if meta.get('cast'): score += 5
 			if meta.get('director'): score += 3
 			if meta.get('videos'): score += 5  # For series
+			if meta.get('links'): score += 5  # Modern SDK links
+			if meta.get('trailers'): score += 3  # YouTube trailers
 			return score
 
 		return max(results, key=score_meta)
@@ -342,6 +360,54 @@ class StremioMetaProvider:
 
 		return pov_meta
 
+	def _parse_links(self, links):
+		"""Parse Stremio SDK links array to extract cast, directors, writers, genres.
+		Links array is the modern way Stremio provides this data (replacing deprecated
+		cast/director/genres arrays). Each link has: name, category, url."""
+		result = {'cast': [], 'directors': [], 'writers': [], 'genres': []}
+		if not links or not isinstance(links, list):
+			return result
+		for link in links:
+			if not isinstance(link, dict):
+				continue
+			name = link.get('name', '')
+			category = link.get('category', '')
+			if not name or not category:
+				continue
+			cat_lower = category.lower()
+			if cat_lower == 'actor':
+				result['cast'].append({'name': name, 'role': '', 'thumbnail': ''})
+			elif cat_lower == 'director':
+				result['directors'].append(name)
+			elif cat_lower == 'writer':
+				result['writers'].append(name)
+			elif cat_lower == 'genre':
+				result['genres'].append(name)
+		return result
+
+	def _parse_trailers(self, trailers):
+		"""Parse Stremio SDK trailers array. Each trailer has: source (YouTube ID), type.
+		Returns (first_trailer_url, all_trailers_list)."""
+		if not trailers or not isinstance(trailers, list):
+			return '', []
+		all_trailers = []
+		first_url = ''
+		for trailer in trailers:
+			if not isinstance(trailer, dict):
+				continue
+			source = trailer.get('source', '')
+			trailer_type = trailer.get('type', 'Trailer')
+			if source:
+				yt_url = f"plugin://plugin.video.youtube/play/?video_id={source}"
+				all_trailers.append({
+					'source': source,
+					'type': trailer_type,
+					'url': yt_url
+				})
+				if not first_url:
+					first_url = yt_url
+		return first_url, all_trailers
+
 	def _convert_movie_meta(self, stremio_meta, imdb_id):
 		"""Convert Stremio movie metadata to POV format"""
 		try:
@@ -356,8 +422,8 @@ class StremioMetaProvider:
 			if year:
 				year = str(year)
 
-			# Process genres
-			genres_list = meta_get('genres', [])
+			# Process genres - from both 'genres' array and 'links' array
+			genres_list = list(meta_get('genres', []) or [])
 			genre = ', '.join(self._normalize_genres(genres_list))
 
 			# Process runtime
@@ -401,7 +467,7 @@ class StremioMetaProvider:
 				except (ValueError, TypeError):
 					votes = 0
 
-			# Process cast
+			# Process cast from deprecated 'cast' array
 			cast = []
 			cast_list = meta_get('cast', [])
 			if cast_list:
@@ -415,7 +481,7 @@ class StremioMetaProvider:
 							'thumbnail': person.get('profile', person.get('photo', ''))
 						})
 
-			# Process director
+			# Process director from deprecated 'director' array
 			director = ''
 			director_data = meta_get('director', [])
 			if director_data:
@@ -424,7 +490,7 @@ class StremioMetaProvider:
 				elif isinstance(director_data, str):
 					director = director_data
 
-			# Process writer
+			# Process writer from deprecated 'writer' array
 			writer = ''
 			writer_data = meta_get('writer', [])
 			if writer_data:
@@ -432,6 +498,28 @@ class StremioMetaProvider:
 					writer = ', '.join(writer_data[:3])
 				elif isinstance(writer_data, str):
 					writer = writer_data
+
+			# Parse links array (modern Stremio SDK way to provide cast/director/writer/genre)
+			links_data = self._parse_links(meta_get('links', []))
+			if links_data['cast'] and not cast:
+				cast = links_data['cast']
+			if links_data['directors'] and not director:
+				director = links_data['directors'][0]
+			if links_data['writers'] and not writer:
+				writer = ', '.join(links_data['writers'][:3])
+			if links_data['genres'] and not genres_list:
+				genre = ', '.join(self._normalize_genres(links_data['genres']))
+
+			# Parse trailers (YouTube IDs)
+			trailers_raw = meta_get('trailers', [])
+			trailer_url, all_trailers = self._parse_trailers(trailers_raw)
+			# Fallback to legacy 'trailer' field
+			if not trailer_url:
+				trailer_url = meta_get('trailer', '')
+
+			# Extract behaviorHints
+			behavior_hints = meta_get('behaviorHints', {}) or {}
+			default_video_id = behavior_hints.get('defaultVideoId', '')
 
 			# Build POV metadata
 			rootname = f'{title} ({year})' if year else title
@@ -464,8 +552,8 @@ class StremioMetaProvider:
 				'writer': writer,
 				'country': meta_get('country', []),
 				'country_codes': [],
-				'trailer': meta_get('trailer', ''),
-				'all_trailers': meta_get('trailers', []),
+				'trailer': trailer_url,
+				'all_trailers': all_trailers,
 				'cast': cast,
 				'extra_info': {
 					'status': meta_get('status', 'N/A'),
@@ -479,6 +567,10 @@ class StremioMetaProvider:
 				'meta_language': 'en',
 				'stremio_source': True,  # Flag to indicate Stremio source
 			}
+
+			# Store defaultVideoId for stream fetching (SDK behaviorHints)
+			if default_video_id:
+				pov_meta['default_video_id'] = default_video_id
 
 			# Add default fanart data
 			pov_meta.update(DEFAULT_FANART_DATA)
@@ -502,8 +594,8 @@ class StremioMetaProvider:
 			if year:
 				year = str(year)
 
-			# Process genres
-			genres_list = meta_get('genres', [])
+			# Process genres - from both 'genres' array and 'links' array
+			genres_list = list(meta_get('genres', []) or [])
 			genre = ', '.join(self._normalize_genres(genres_list))
 
 			# Process runtime
@@ -538,7 +630,7 @@ class StremioMetaProvider:
 				except (ValueError, TypeError):
 					votes = 0
 
-			# Process cast
+			# Process cast from deprecated 'cast' array
 			cast = []
 			cast_list = meta_get('cast', [])
 			if cast_list:
@@ -552,7 +644,7 @@ class StremioMetaProvider:
 							'thumbnail': person.get('profile', person.get('photo', ''))
 						})
 
-			# Process director/creator
+			# Process director/creator from deprecated arrays
 			director = ''
 			creator_data = meta_get('director', meta_get('creator', []))
 			if creator_data:
@@ -561,15 +653,47 @@ class StremioMetaProvider:
 				elif isinstance(creator_data, str):
 					director = creator_data
 
+			# Process writer from deprecated array
+			writer = ''
+			writer_data = meta_get('writer', [])
+			if writer_data:
+				if isinstance(writer_data, list):
+					writer = ', '.join(writer_data[:3])
+				elif isinstance(writer_data, str):
+					writer = writer_data
+
+			# Parse links array (modern Stremio SDK way to provide cast/director/writer/genre)
+			links_data = self._parse_links(meta_get('links', []))
+			if links_data['cast'] and not cast:
+				cast = links_data['cast']
+			if links_data['directors'] and not director:
+				director = links_data['directors'][0]
+			if links_data['writers'] and not writer:
+				writer = ', '.join(links_data['writers'][:3])
+			if links_data['genres'] and not genres_list:
+				genre = ', '.join(self._normalize_genres(links_data['genres']))
+
+			# Parse trailers (YouTube IDs)
+			trailers_raw = meta_get('trailers', [])
+			trailer_url, all_trailers = self._parse_trailers(trailers_raw)
+			if not trailer_url:
+				trailer_url = meta_get('trailer', '')
+
+			# Extract behaviorHints
+			behavior_hints = meta_get('behaviorHints', {}) or {}
+			default_video_id = behavior_hints.get('defaultVideoId', '')
+
 			# Process videos (episodes) to extract season info
 			videos = meta_get('videos', [])
 			season_data = []
 			total_seasons = 0
-			total_aired_eps = len(videos)
+			# Filter to only available episodes (per SDK: video.available flag)
+			available_videos = [v for v in videos if v.get('available', True)]
+			total_aired_eps = len(available_videos)
 
-			if videos:
+			if available_videos:
 				seasons_set = set()
-				for video in videos:
+				for video in available_videos:
 					season_num = video.get('season', 0)
 					if season_num and season_num > 0:
 						seasons_set.add(season_num)
@@ -577,7 +701,7 @@ class StremioMetaProvider:
 				if seasons_set:
 					total_seasons = max(seasons_set)
 					for s in sorted(seasons_set):
-						season_eps = [v for v in videos if v.get('season') == s]
+						season_eps = [v for v in available_videos if v.get('season') == s]
 						season_data.append({
 							'season_number': s,
 							'episode_count': len(season_eps),
@@ -615,11 +739,11 @@ class StremioMetaProvider:
 				'mpaa': meta_get('certification', ''),
 				'studio': meta_get('productionCompany', ''),
 				'director': director,
-				'writer': '',
+				'writer': writer,
 				'country': meta_get('country', []),
 				'country_codes': [],
-				'trailer': meta_get('trailer', ''),
-				'all_trailers': meta_get('trailers', []),
+				'trailer': trailer_url,
+				'all_trailers': all_trailers,
 				'cast': cast,
 				'extra_info': {
 					'status': status,
@@ -637,6 +761,10 @@ class StremioMetaProvider:
 				'season_data': season_data,
 				'stremio_source': True,  # Flag to indicate Stremio source
 			}
+
+			# Store defaultVideoId for stream fetching (SDK behaviorHints)
+			if default_video_id:
+				pov_meta['default_video_id'] = default_video_id
 
 			# Add default fanart data
 			pov_meta.update(DEFAULT_FANART_DATA)
@@ -688,8 +816,8 @@ class StremioMetaProvider:
 		if not videos:
 			return None
 
-		# Filter to requested season
-		season_episodes = [v for v in videos if v.get('season') == season_num]
+		# Filter to requested season, respecting video.available flag
+		season_episodes = [v for v in videos if v.get('season') == season_num and v.get('available', True)]
 		if not season_episodes:
 			return None
 
@@ -704,7 +832,7 @@ class StremioMetaProvider:
 					ep_rating = float(ep_rating_val)
 				except (ValueError, TypeError):
 					ep_rating = 0
-			episodes.append({
+			ep_data = {
 				'title': ep_get('title', ep_get('name', f'Episode {ep_get("episode", "")}')),
 				'plot': ep_get('overview', ep_get('description', '')),
 				'premiered': ep_get('released', ep_get('firstAired', '')),
@@ -719,7 +847,19 @@ class StremioMetaProvider:
 				'guest_stars': [],
 				'mediatype': 'episode',
 				'episode_type': ''
-			})
+			}
+
+			# Per Stremio SDK: video.id is used for stream requests
+			video_id = ep_get('id', '')
+			if video_id:
+				ep_data['stremio_video_id'] = video_id
+
+			# Per Stremio SDK: video.streams contains exclusive embedded streams
+			video_streams = ep_get('streams', [])
+			if video_streams:
+				ep_data['stremio_embedded_streams'] = video_streams
+
+			episodes.append(ep_data)
 
 		# Cache result
 		if episodes:
