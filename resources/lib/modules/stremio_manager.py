@@ -354,7 +354,8 @@ def stremio_addon_manager():
 		kwargs = {
 			'items': json.dumps(items),
 			'heading': 'Stremio Addon Manager',
-			'multi_line': 'true'
+			'multi_line': 'true',
+			'show_buttons': 'true'
 		}
 
 		selection = select_dialog(list(range(len(labels))), **kwargs)
