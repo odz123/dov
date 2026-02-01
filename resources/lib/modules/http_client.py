@@ -42,7 +42,7 @@ def _create_chrome_adapter():
 				try:
 					ctx = create_urllib3_context(ciphers=CHROME_CIPHERS)
 					ctx.minimum_version = ssl.TLSVersion.TLSv1_2
-					ctx.set_alpn_protocols(['h2', 'http/1.1'])
+					ctx.set_alpn_protocols(['http/1.1'])
 					kwargs['ssl_context'] = ctx
 				except Exception:
 					pass
@@ -52,7 +52,7 @@ def _create_chrome_adapter():
 				try:
 					ctx = create_urllib3_context(ciphers=CHROME_CIPHERS)
 					ctx.minimum_version = ssl.TLSVersion.TLSv1_2
-					ctx.set_alpn_protocols(['h2', 'http/1.1'])
+					ctx.set_alpn_protocols(['http/1.1'])
 					proxy_kwargs['ssl_context'] = ctx
 				except Exception:
 					pass
@@ -301,15 +301,15 @@ def _urllib_fallback_raw(url, timeout=8):
 		except Exception:
 			pass
 
-		# Return a simple response-like object
+		# Return a simple response-like object compatible with requests.Response
 		class UrllibResponse:
 			def __init__(self, data, content_type):
 				self.status_code = 200
 				self.headers = {'content-type': content_type}
-				self._data = data
+				self.content = data
 				self.text = data.decode('utf-8', errors='ignore')
 			def json(self):
-				return json.loads(self._data.decode('utf-8', errors='ignore'))
+				return json.loads(self.content.decode('utf-8', errors='ignore'))
 
 		return UrllibResponse(data, content_type)
 	except Exception:
