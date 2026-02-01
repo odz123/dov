@@ -51,6 +51,15 @@ class Select(BaseDialog):
 	def onAction(self, action):
 		chosen_listitem = self.get_listitem(self.window_id)
 		if action in self.selection_actions:
+			focus_id = self.getFocusId()
+			if focus_id == 10:
+				if self.multi_choice == 'true':
+					self.selected = sorted(self.chosen_indexes)
+				else:
+					self.selected = self.get_position(self.window_id)
+				return self.close()
+			elif focus_id == 11:
+				return self.close()
 			position = self.get_position(self.window_id)
 			if self.multi_choice == 'true':
 				if chosen_listitem.getProperty('tikiskins.check_status') == 'checked':
