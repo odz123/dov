@@ -382,6 +382,7 @@ class SourceSelect:
 		else: return self.display_results(results)
 
 	def play_file(self, results, source=None, autoplay=False, background=False):
+		resolved_source_item = [None]  # Mutable container to capture resolved source item
 		def _process():
 			for count, item in enumerate(items, 1):
 				if not background:
@@ -397,15 +398,29 @@ class SourceSelect:
 						if self.progress_dialog: self.progress_dialog.update(format_line % (line1, line2, name), percent)
 						else: progressDialogBG.update(percent, name)
 					except Exception: pass
+				# Handle Stremio externalUrl sources - open in system browser
+				if item.get('external_url'):
+					try:
+						import webbrowser
+						webbrowser.open(item['url'])
+						notification('Opening in browser...', 2000)
+					except Exception: pass
+					continue
 				if 'unrestricted_link' in item:
 					link = item['unrestricted_link']
 					sleep(500)
 				else: link = Source(item, self.meta).resolve_sources()
-				if link is not None: yield link
+				if link is not None:
+					resolved_source_item[0] = item
+					yield link
 		try:
 			self._kill_progress_dialog()
 			if autoplay:
 				items = [i for i in results if not 'Uncached' in i.get('cache_provider', '')]
+				# Stremio bingeGroup: prefer sources with matching binge_group for next-episode autoplay
+				preferred_binge_group = self.meta.get('stremio_binge_group')
+				if preferred_binge_group and items:
+					items.sort(key=lambda x: x.get('binge_group') == preferred_binge_group, reverse=True)
 				if self.filters_ignored: notification(32686)
 			else:
 				source_index = results.index(source) if source in results else 0
@@ -425,6 +440,17 @@ class SourceSelect:
 			url = next(_process(), None)
 			if not self.full_screen: progressDialogBG.close()
 			if not url: self._kill_progress_dialog()
+			# Store Stremio source properties in meta for player consumption
+			src = resolved_source_item[0]
+			if src:
+				if src.get('stremio_subtitles'):
+					self.meta['stremio_subtitles'] = src['stremio_subtitles']
+				if src.get('binge_group'):
+					self.meta['stremio_binge_group'] = src['binge_group']
+				if src.get('video_hash'):
+					self.meta['stremio_video_hash'] = src['video_hash']
+				if src.get('provider', '').startswith('stremio'):
+					self.meta['stremio_source'] = True
 			return POVPlayer().run(url, self.meta, progress_media)
 		except Exception: pass
 

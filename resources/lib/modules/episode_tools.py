@@ -86,6 +86,9 @@ def nextep_playback_info(meta):
 			'tmdb_id': tmdb_id, 'tvshowtitle': meta_get('rootname')
 		}
 		if custom_title: url_params['custom_title'] = custom_title
+		# Carry Stremio bingeGroup forward for next-episode source preference
+		binge_group = meta_get('stremio_binge_group')
+		if binge_group: url_params['stremio_binge_group'] = binge_group
 		return url_params
 	meta_get = meta.get
 	tmdb_id, current_season, current_episode = meta_get('tmdb_id'), int(meta_get('season')), int(meta_get('episode'))
