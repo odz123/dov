@@ -164,8 +164,10 @@ class source:
 		# - Some addons: name="Movie.2023.1080p.WEB", title="HD Stream" or no title
 		# Strategy: Use behaviorHints.filename if available, else pick the field
 		# that looks most like a release name (contains quality/codec markers)
-		if behavior_hints.get('filename'):
-			info['name'] = behavior_hints['filename']
+		# Per SDK spec: filename can appear in behaviorHints or at top level
+		bh_filename = behavior_hints.get('filename') or stream.get('filename')
+		if bh_filename:
+			info['name'] = bh_filename
 		else:
 			# Get first line from both fields
 			name_line = stream_name.split('\n')[0].strip() if stream_name else ''
@@ -229,14 +231,16 @@ class source:
 			except Exception:
 				pass
 
-		# Check behaviorHints for size (videoSize in bytes)
-		if not info['size'] and behavior_hints.get('videoSize'):
-			try:
-				video_size = int(behavior_hints['videoSize'])
-				info['size'] = round(video_size / (1024 * 1024 * 1024), 2)
-				info['size_str'] = f"{info['size']:.2f} GB"
-			except Exception:
-				pass
+		# Check behaviorHints for size (videoSize in bytes), then top-level per SDK spec
+		if not info['size']:
+			video_size = behavior_hints.get('videoSize') or stream.get('videoSize')
+			if video_size:
+				try:
+					video_size = int(video_size)
+					info['size'] = round(video_size / (1024 * 1024 * 1024), 2)
+					info['size_str'] = f"{info['size']:.2f} GB"
+				except Exception:
+					pass
 
 		# Extract quality
 		quality_match = RE_QUALITY.search(full_text) or RE_QUALITY.search(info['name'])
@@ -265,6 +269,11 @@ class source:
 		audio_match = RE_AUDIO.search(full_text) or RE_AUDIO.search(info['name'])
 		if audio_match:
 			info['audio'] = audio_match.group(1).upper()
+
+		# Extract videoHash for subtitle matching (per SDK spec: top-level or behaviorHints)
+		video_hash = behavior_hints.get('videoHash') or stream.get('videoHash')
+		if video_hash:
+			info['video_hash'] = video_hash
 
 		# Extract subtitles if available
 		if 'subtitles' in stream:
@@ -504,6 +513,10 @@ class source:
 		# Add notWebReady flag for streams requiring special handling
 		if stream_info.get('not_web_ready'):
 			item['not_web_ready'] = True
+
+		# Add videoHash for subtitle matching (per SDK spec)
+		if stream_info.get('video_hash'):
+			item['video_hash'] = stream_info['video_hash']
 
 		# Add geo-filtering info (ISO 3166-1 alpha-3 country codes)
 		if stream_info.get('country_whitelist'):

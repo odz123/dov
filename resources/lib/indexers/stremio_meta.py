@@ -288,6 +288,9 @@ class StremioMetaProvider:
 			if meta.get('videos'): score += 5  # For series
 			if meta.get('links'): score += 5  # Modern SDK links
 			if meta.get('trailers'): score += 3  # YouTube trailers
+			if meta.get('language'): score += 2  # Per SDK spec
+			if meta.get('country'): score += 2  # Per SDK spec
+			if meta.get('awards'): score += 2  # Per SDK spec
 			return score
 
 		return max(results, key=score_meta)
@@ -521,6 +524,19 @@ class StremioMetaProvider:
 			behavior_hints = meta_get('behaviorHints', {}) or {}
 			default_video_id = behavior_hints.get('defaultVideoId', '')
 
+			# Process language (per SDK spec: spoken language string)
+			language = meta_get('language', '')
+			if isinstance(language, list):
+				language = language[0] if language else ''
+
+			# Process country (per SDK spec: country of origin string)
+			country = meta_get('country', [])
+			if isinstance(country, str):
+				country = [country] if country else []
+
+			# Process awards (per SDK spec: awards description string)
+			awards = meta_get('awards', '')
+
 			# Build POV metadata
 			rootname = f'{title} ({year})' if year else title
 
@@ -550,8 +566,10 @@ class StremioMetaProvider:
 				'studio': meta_get('productionCompany', ''),
 				'director': director,
 				'writer': writer,
-				'country': meta_get('country', []),
+				'country': country,
 				'country_codes': [],
+				'language': language,
+				'awards': awards,
 				'trailer': trailer_url,
 				'all_trailers': all_trailers,
 				'cast': cast,
@@ -709,6 +727,19 @@ class StremioMetaProvider:
 							'air_date': season_eps[0].get('released', '') if season_eps else ''
 						})
 
+			# Process language (per SDK spec: spoken language string)
+			language = meta_get('language', '')
+			if isinstance(language, list):
+				language = language[0] if language else ''
+
+			# Process country (per SDK spec: country of origin string)
+			country = meta_get('country', [])
+			if isinstance(country, str):
+				country = [country] if country else []
+
+			# Process awards (per SDK spec: awards description string)
+			awards = meta_get('awards', '')
+
 			# Build POV metadata
 			rootname = f'{title} ({year})' if year else title
 			status = meta_get('status', 'N/A')
@@ -740,8 +771,10 @@ class StremioMetaProvider:
 				'studio': meta_get('productionCompany', ''),
 				'director': director,
 				'writer': writer,
-				'country': meta_get('country', []),
+				'country': country,
 				'country_codes': [],
+				'language': language,
+				'awards': awards,
 				'trailer': trailer_url,
 				'all_trailers': all_trailers,
 				'cast': cast,
@@ -927,6 +960,9 @@ def update_addon_meta_support(addon_info, manifest):
 	Update addon info with meta support flag based on manifest.
 	Called when adding/updating addons in stremio_manager.
 
+	Per Stremio SDK: resources can be simple strings or objects with
+	name, types, and idPrefixes for per-resource filtering.
+
 	Args:
 		addon_info: Addon info dict to update
 		manifest: Addon manifest dict
@@ -935,14 +971,30 @@ def update_addon_meta_support(addon_info, manifest):
 		dict: Updated addon info
 	"""
 	resources = manifest.get('resources', [])
-	supports_meta = 'meta' in resources or any(
-		isinstance(r, dict) and r.get('name') == 'meta' for r in resources
-	)
+	supports_meta = False
+	meta_types = []
+	meta_id_prefixes = []
+
+	for r in resources:
+		if isinstance(r, str) and r == 'meta':
+			supports_meta = True
+		elif isinstance(r, dict) and r.get('name') == 'meta':
+			supports_meta = True
+			# Per SDK spec: per-resource type and idPrefixes filtering
+			if r.get('types'):
+				meta_types = r['types']
+			if r.get('idPrefixes'):
+				meta_id_prefixes = r['idPrefixes']
+
 	addon_info['supports_meta'] = supports_meta
 
-	# Also check for specific meta types
+	# Use per-resource meta types if available, else manifest-level types
 	types = manifest.get('types', [])
-	addon_info['meta_types'] = types
+	addon_info['meta_types'] = meta_types if meta_types else types
+
+	# Store per-resource meta idPrefixes for filtering
+	if meta_id_prefixes:
+		addon_info['meta_id_prefixes'] = meta_id_prefixes
 
 	return addon_info
 
@@ -970,7 +1022,8 @@ def merge_metadata(tmdb_meta, stremio_meta, prefer_stremio=False):
 	# Fields to potentially fill from Stremio if missing in TMDB
 	fill_fields = [
 		'poster', 'fanart', 'clearlogo', 'tmdblogo', 'plot', 'tagline',
-		'trailer', 'director', 'writer', 'cast', 'genre', 'rating'
+		'trailer', 'director', 'writer', 'cast', 'genre', 'rating',
+		'language', 'awards'
 	]
 
 	for field in fill_fields:

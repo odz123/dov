@@ -2,6 +2,13 @@
 """
 	Fenomscrapers Project
 	Uses shared http_client module
+	Full Stremio SDK stream support:
+	- infoHash, url, ytId, nzbUrl, externalUrl
+	- fileIdx, fileMustInclude
+	- behaviorHints: proxyHeaders, bingeGroup, filename, videoSize, notWebReady, countryWhitelist
+	- sources (tracker URLs)
+	- subtitles (embedded)
+	- description field (modern SDK)
 """
 
 import re
@@ -11,6 +18,9 @@ from modules import http_client
 
 # Debrid domain patterns for detecting pre-resolved URLs (e.g., when addon is configured with debrid)
 _RE_DEBRID_URL = re.compile(r'(real-?debrid|realdebrid|alldebrid|premiumize|torbox|debrid-link|easydebrid|offcloud)', re.I)
+_RE_INFO = re.compile(r'👤.*')
+_RE_SEEDERS = re.compile(r'(\d+)', re.I)
+_RE_SIZE = re.compile(r'((?:\d+[,.]?\d*)\s*(?:GB|GiB|Gb|MB|MiB|Mb))', re.I)
 
 
 class source:
@@ -79,7 +89,6 @@ class source:
 			if not files:
 				return sources
 
-			_INFO = re.compile(r'👤.*')
 			undesirables = source_utils.get_undesirables()
 			check_foreign_audio = source_utils.check_foreign_audio()
 		except Exception as e:
@@ -91,23 +100,28 @@ class source:
 				package, episode_start = None, 0
 				hash = file.get('infoHash')
 				direct_url = file.get('url')
+				yt_id = file.get('ytId')
+				nzb_url = file.get('nzbUrl')
+				external_url = file.get('externalUrl')
 
-				# Skip results without either infoHash or url
-				if not hash and not direct_url:
+				# Skip results without any valid source per Stremio SDK
+				if not hash and not direct_url and not yt_id and not nzb_url and not external_url:
 					continue
 
-				# Check if this is a debrid-resolved direct link
+				# Determine stream type
 				is_debrid_direct = False
-				if direct_url and not hash:
-					is_debrid_direct = True
-				elif direct_url and hash:
-					# Both hash and URL present - common when addon is configured with debrid
-					# (cached torrents return both infoHash and debrid-resolved URL)
-					# Prefer the resolved URL over re-resolving the torrent
-					if _RE_DEBRID_URL.search(direct_url):
-						is_debrid_direct = True
+				is_youtube = bool(yt_id)
+				is_usenet = bool(nzb_url) and not direct_url and not hash
+				is_external = bool(external_url) and not direct_url and not hash and not yt_id
 
-				# Extract behaviorHints
+				if not is_youtube and not is_usenet and not is_external:
+					if direct_url and not hash:
+						is_debrid_direct = True
+					elif direct_url and hash:
+						if _RE_DEBRID_URL.search(direct_url):
+							is_debrid_direct = True
+
+				# Extract behaviorHints (full SDK support)
 				behavior_hints = file.get('behaviorHints', {}) or {}
 
 				# Extract proxy headers for authenticated streams
@@ -117,19 +131,30 @@ class source:
 					if ph.get('request'):
 						proxy_headers = ph['request']
 
-				# Extract tracker URLs from sources field
+				# Extract tracker URLs from sources field (for torrent peer discovery)
 				trackers = []
 				if 'sources' in file and isinstance(file['sources'], list):
 					for src in file['sources']:
 						if isinstance(src, str) and src.startswith('tracker:'):
 							trackers.append(src[8:])
 
-				file_title = file.get('title', '').split('\n')
-				file_info_matches = [x for x in file_title if _INFO.match(x)]
+				# Extract fileIdx for multi-file torrents per SDK spec
+				file_idx = file.get('fileIdx')
+
+				# Extract fileMustInclude regex for matching video files in archives/torrents
+				file_must_include = file.get('fileMustInclude')
+
+				# Use description field (modern SDK) in addition to deprecated title field
+				file_title = file.get('title', '') or file.get('description', '')
+				file_title = file_title.split('\n')
+				file_info_matches = [x for x in file_title if _RE_INFO.match(x)]
 				file_info = file_info_matches[0] if file_info_matches else ''
 
 				# Use behaviorHints.filename for best name detection
 				bh_filename = behavior_hints.get('filename', '')
+				# Also check top-level filename per SDK spec
+				if not bh_filename:
+					bh_filename = file.get('filename', '')
 				if bh_filename:
 					name = source_utils.clean_name(bh_filename)
 				else:
@@ -142,7 +167,7 @@ class source:
 				# Title validation - Stremio/Torrentio filters by IMDB ID so content is correct
 				# We use lenient validation since many results have simplified names
 				title_check = source_utils.check_title(title, aliases, name, hdlr, year)
-				if not title_check and not is_debrid_direct:
+				if not title_check and not is_debrid_direct and not is_youtube and not is_external:
 					if total_seasons is not None:
 						# TV show - try pack detection first
 						valid, last_season = source_utils.filter_show_pack(title, aliases, imdb, year, season, name, total_seasons)
@@ -170,8 +195,14 @@ class source:
 				if source_utils.remove_lang(name_info, check_foreign_audio): continue
 				if undesirables and source_utils.remove_undesirables(name_info, undesirables): continue
 
-				# Build URL based on stream type
-				if is_debrid_direct:
+				# Build URL based on stream type per Stremio SDK
+				if is_youtube:
+					url = f"plugin://plugin.video.youtube/play/?video_id={yt_id}"
+				elif is_external:
+					url = external_url
+				elif is_usenet:
+					url = nzb_url
+				elif is_debrid_direct:
 					url = direct_url
 				elif hash:
 					from urllib.parse import quote_plus
@@ -181,26 +212,26 @@ class source:
 						url += '&tr=%s' % quote_plus(tracker)
 				else:
 					url = direct_url
-				# if not episode_title: #filter for eps returned in movie query (rare but movie and show exists for Run in 2020)
-					# ep_strings = [r'(?:\.|\-)s\d{2}e\d{2}(?:\.|\-|$)', r'(?:\.|\-)s\d{2}(?:\.|\-|$)', r'(?:\.|\-)season(?:\.|\-)\d{1,2}(?:\.|\-|$)']
-					# name_lower = name.lower()
-					# if any(re.search(item, name_lower) for item in ep_strings): continue
 
 				try:
-					seeders = int(re.search(r'(\d+)', file_info).group(1))
+					seeders = int(_RE_SEEDERS.search(file_info).group(1)) if file_info else 0
 					# Only apply seeder filter to torrents, not direct links
-					if hash and self.min_seeders > seeders: continue
+					if hash and not is_debrid_direct and self.min_seeders > seeders: continue
 				except Exception: seeders = 0
 
 				quality, info = source_utils.get_release_quality(name_info, url)
 				try:
-					size = re.search(r'((?:\d+\,\d+\.\d+|\d+\.\d+|\d+\,\d+|\d+)\s*(?:GB|GiB|Gb|MB|MiB|Mb))', file_info).group(0)
-					dsize, isize = source_utils._size(size)
-					info.insert(0, isize)
+					size = _RE_SIZE.search(file_info)
+					if size:
+						size = size.group(0)
+						dsize, isize = source_utils._size(size)
+						info.insert(0, isize)
+					else:
+						raise ValueError
 				except Exception:
 					dsize = 0
-					# Fallback to behaviorHints.videoSize (file size in bytes per SDK spec)
-					video_size = behavior_hints.get('videoSize')
+					# Fallback to behaviorHints.videoSize, then top-level videoSize (per SDK spec)
+					video_size = behavior_hints.get('videoSize') or file.get('videoSize')
 					if video_size:
 						try:
 							size_str = '%.2f GB' % (int(video_size) / 1073741824)
@@ -210,21 +241,70 @@ class source:
 				info = ' | '.join(info)
 
 				# Build item based on stream type
-				if is_debrid_direct:
+				if is_youtube:
+					item = {
+						'source': 'youtube', 'language': 'en', 'direct': True, 'debridonly': False,
+						'provider': 'torrentio', 'url': url, 'name': name, 'name_info': name_info,
+						'quality': quality, 'info': info, 'size': dsize, 'seeders': 0
+					}
+				elif is_external:
+					item = {
+						'source': 'external', 'language': 'en', 'direct': True, 'debridonly': False,
+						'provider': 'torrentio', 'url': url, 'name': name, 'name_info': name_info,
+						'quality': quality, 'info': info, 'size': dsize, 'seeders': 0,
+						'external_url': True
+					}
+				elif is_usenet:
+					item = {
+						'source': 'usenet', 'language': 'en', 'direct': False, 'debridonly': True,
+						'provider': 'torrentio', 'url': url, 'name': name, 'name_info': name_info,
+						'quality': quality, 'info': info, 'size': dsize, 'seeders': 0
+					}
+				elif is_debrid_direct:
 					item = {
 						'source': 'debrid_direct', 'language': 'en', 'direct': True, 'debridonly': False,
 						'provider': 'torrentio', 'url': url, 'name': name, 'name_info': name_info,
-						'quality': quality, 'info': info, 'size': dsize, 'seeders': seeders
+						'quality': quality, 'info': info, 'size': dsize, 'seeders': seeders,
+						'debrid_resolved': True
 					}
-					# Add proxy headers for authenticated debrid streams
-					if proxy_headers:
-						item['proxy_headers'] = proxy_headers
 				else:
 					item = {
 						'source': 'torrent', 'language': 'en', 'direct': False, 'debridonly': True,
 						'provider': 'torrentio', 'hash': hash, 'url': url, 'name': name, 'name_info': name_info,
 						'quality': quality, 'info': info, 'size': dsize, 'seeders': seeders
 					}
+
+				# Add proxy headers for authenticated streams
+				if proxy_headers:
+					item['proxy_headers'] = proxy_headers
+
+				# Add fileIdx for multi-file torrents (per SDK spec)
+				if file_idx is not None:
+					item['file_idx'] = file_idx
+
+				# Add fileMustInclude regex for video file matching (per SDK spec)
+				if file_must_include:
+					item['file_must_include'] = file_must_include
+
+				# Add bingeGroup for autoplay optimization (per SDK spec)
+				binge_group = behavior_hints.get('bingeGroup')
+				if binge_group:
+					item['binge_group'] = binge_group
+
+				# Add notWebReady flag (per SDK spec)
+				if behavior_hints.get('notWebReady'):
+					item['not_web_ready'] = True
+
+				# Add geo-filtering hints (ISO 3166-1 alpha-3 country codes, per SDK spec)
+				if behavior_hints.get('countryWhitelist'):
+					item['country_whitelist'] = behavior_hints['countryWhitelist']
+				if behavior_hints.get('countryBlacklist'):
+					item['country_blacklist'] = behavior_hints['countryBlacklist']
+
+				# Add embedded subtitles from stream (per SDK spec)
+				if file.get('subtitles'):
+					item['stremio_subtitles'] = file['subtitles']
+
 				if package: item.update({'package': package, 'true_size': True})
 				if package == 'show': item.update({'last_season': last_season})
 				if episode_start: item.update({'episode_start': episode_start, 'episode_end': episode_end}) # for partial season packs
@@ -232,4 +312,3 @@ class source:
 			except Exception:
 				source_utils.scraper_error('TORRENTIO')
 		return sources
-

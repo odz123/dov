@@ -326,6 +326,19 @@ class StremioIndexer:
 			if has_required_search:
 				continue
 
+			# Per Stremio SDK: genres can come from the catalog object or from extra options
+			catalog_genres = catalog.get('genres', [])
+			has_genre_extra = False
+			genre_options = catalog_genres  # SDK genres field on catalog object
+
+			for e in extra:
+				if e.get('name') == 'genre':
+					has_genre_extra = True
+					# Extra options override catalog-level genres
+					if e.get('options'):
+						genre_options = e['options']
+					break
+
 			filter_info = ''
 			if has_filters:
 				filter_types = [e.get('name', '') for e in extra if e.get('name') and e.get('name') != 'skip']
@@ -340,7 +353,9 @@ class StremioIndexer:
 				'mode': 'stremio_catalog',
 				'stremio_mode': 'browse_catalog',
 				'extra': extra,
-				'has_filters': has_filters
+				'has_filters': has_filters,
+				'has_genre_filter': has_genre_extra or bool(genre_options),
+				'genre_options': genre_options
 			})
 
 		if not items:
@@ -378,12 +393,32 @@ class StremioIndexer:
 			url = build_url(params)
 			listitems.append((url, listitem, True))
 
-			# Add filter entry if filters are available
+			# Add genre filter entry if genres are available (Stremio SDK genre support)
+			if item.get('has_genre_filter') and item.get('genre_options'):
+				genre_listitem = make_listitem()
+				genre_listitem.setLabel(f"  [B]Browse by Genre[/B]")
+				if KODI_VERSION < 20:
+					genre_listitem.setInfo('video', {'title': f"Browse {item['name']} by Genre"})
+				else:
+					gi = genre_listitem.getVideoInfoTag(offscreen=True)
+					gi.setTitle(f"Browse {item['name']} by Genre")
+				genre_url = build_url({
+					'mode': 'stremio_catalog',
+					'stremio_mode': 'filter_catalog',
+					'addon_url': item['addon_url'],
+					'catalog_type': item['catalog_type'],
+					'catalog_id': item['catalog_id'],
+					'filter_name': 'genre',
+					'filter_options': json.dumps(item['genre_options'])
+				})
+				listitems.append((genre_url, genre_listitem, True))
+
+			# Add other filter entries (non-genre, non-skip extras with options)
 			if item.get('has_filters') and item.get('extra'):
 				for extra_item in item['extra']:
 					extra_name = extra_item.get('name', '')
-					if extra_name in ('genre', 'skip'):  # Common filter types
-						continue  # Skip will be handled in browse
+					if extra_name in ('genre', 'skip', 'search'):
+						continue  # Genre handled above, skip in browse, search elsewhere
 					if extra_name and extra_item.get('options'):
 						filter_listitem = make_listitem()
 						filter_listitem.setLabel(f"  Filter by {extra_name.capitalize()}")

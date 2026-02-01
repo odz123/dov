@@ -3,9 +3,9 @@
 	Fenomscrapers Project
 """
 
-import requests
 from fenom import source_utils
 from fenom.control import setting as getSetting
+from modules import http_client
 
 
 class source:
@@ -51,8 +51,11 @@ class source:
 				params = {'sid': imdb}
 			# log_utils.log('url = %s' % url)
 			if 'timeout' in data: self.timeout = int(data['timeout'])
-			results = requests.get(url, params=params, timeout=self.timeout)
-			response_json = results.json()
+			from urllib.parse import urlencode
+			full_url = '%s?%s' % (url, urlencode(params))
+			response_json = http_client.fetch_json(full_url, timeout=self.timeout)
+			if not response_json:
+				return sources
 			files = response_json.get('data', {}).get('items', [])
 			undesirables = source_utils.get_undesirables()
 			check_foreign_audio = source_utils.check_foreign_audio()

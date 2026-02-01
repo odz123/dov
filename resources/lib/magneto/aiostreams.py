@@ -13,12 +13,21 @@
 	1. Use pre-configured public instances
 	2. Provide a custom AIOStreams URL (self-hosted or ElfHosted)
 	3. Provide their own user data configuration from the AIOStreams configure page
+
+	Full Stremio SDK stream support:
+	- infoHash, url, ytId, nzbUrl, externalUrl
+	- fileIdx, fileMustInclude
+	- behaviorHints: proxyHeaders, bingeGroup, filename, videoSize, notWebReady, countryWhitelist
+	- sources (tracker URLs)
+	- subtitles (embedded)
+	- description field (modern SDK)
+	- Uses shared http_client module
 """
 
 import re
-import requests
 from fenom import source_utils
 from fenom.control import setting as getSetting
+from modules import http_client
 
 # Debrid domain patterns for detecting pre-resolved URLs (e.g., when addon is configured with debrid)
 _RE_DEBRID_URL = re.compile(r'(real-?debrid|realdebrid|alldebrid|premiumize|torbox|debrid-link|easydebrid|offcloud)', re.I)
@@ -30,13 +39,6 @@ PUBLIC_INSTANCES = (
 	"https://aiostreamsfortheweebs.midnightignite.me",  # Midnightignite instance
 	"https://aiostreams.elfhosted.com"         # ElfHosted instance (requires subscription)
 )
-
-# Browser-like headers for HTTP requests
-BROWSER_HEADERS = {
-	'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
-	'Accept': 'application/json, text/plain, */*',
-	'Accept-Language': 'en-US,en;q=0.9',
-}
 
 # Default user data configuration (Comet + MediaFusion enabled)
 DEFAULT_USER_DATA = (
@@ -50,8 +52,8 @@ DEFAULT_USER_DATA = (
 	'Q29tZXQiLA0KICAgICAgICAidGltZW91dCI6IDEwMDAwLA0KICAgICAgICAicmVzb3VyY2VzIjogWyJz'
 	'dHJlYW0iXSwNCiAgICAgICAgImluY2x1ZGVQMlAiOiB0cnVlLA0KICAgICAgICAicmVtb3ZlVHJhc2gi'
 	'OiBmYWxzZQ0KICAgICAgfQ0KICAgIH0sDQogICAgew0KICAgICAgInR5cGUiOiAibWVkaWFmdXNpb24i'
-	'LA0KICAgICAgImluc3RhbmNlSWQiOiAiNDUwIiwNCiAgICAgICJlbmFibGVkIjogdHJ1ZSwNCiAgICAg'
-	'ICJvcHRpb25zIjogew0KICAgICAgICAibmFtZSI6ICJNZWRpYUZ1c2lvbiIsDQogICAgICAgICJ0aW1l'
+	'LA0KICAgICAgImluc3RhbmNlSWQiOiAiNDUwIiwNCiAgICAgICJlbmFibGVkIjogdHJ1ZSwNCiAgMDo'
+	'gICJvcHRpb25zIjogew0KICAgICAgICAibmFtZSI6ICJNZWRpYUZ1c2lvbiIsDQogICAgICAgICJ0aW1l'
 	'b3V0IjogMTAwMDAsDQogICAgICAgICJyZXNvdXJjZXMiOiBbInN0cmVhbSJdLA0KICAgICAgICAidXNl'
 	'Q2FjaGVkUmVzdWx0c09ubHkiOiB0cnVlLA0KICAgICAgICAiZW5hYmxlV2F0Y2hsaXN0Q2F0YWxvZ3Mi'
 	'OiBmYWxzZSwNCiAgICAgICAgImRvd25sb2FkVmlhQnJvd3NlciI6IGZhbHNlLA0KICAgICAgICAiY29u'
@@ -131,18 +133,19 @@ class source:
 				hdlr = year
 				url = '%s%s' % (self.base_link, self.movieSearch_link)
 				params = {'type': 'movie', 'id': '%s' % imdb}
-			# log_utils.log('url = %s' % url)
 			if 'timeout' in data: self.timeout = int(data['timeout'])
 
 			base_headers = self._headers()
 
-			results = requests.get(url, params=params, timeout=self.timeout, headers=base_headers)
+			# Use http_client for centralized session management, TLS fingerprinting, and retry logic
+			from urllib.parse import urlencode
+			full_url = '%s?%s' % (url, urlencode(params))
+			response = http_client.fetch_json(full_url, timeout=self.timeout, headers=base_headers)
 
-			if results.status_code != 200:
-				source_utils.scraper_error('AIOSTREAMS: HTTP %s from %s' % (results.status_code, self.base_link))
+			if not response:
+				source_utils.scraper_error('AIOSTREAMS: No response from %s' % self.base_link)
 				return sources
 
-			response = results.json()
 			# Handle API response format: {"success": bool, "data": {"results": [...], "errors": [...]}}
 			if not response.get('success', True):
 				error = response.get('error', {})
@@ -153,12 +156,6 @@ class source:
 				return sources
 			undesirables = source_utils.get_undesirables()
 			check_foreign_audio = source_utils.check_foreign_audio()
-		except requests.exceptions.Timeout:
-			source_utils.scraper_error('AIOSTREAMS: Timeout connecting to %s' % self.base_link)
-			return sources
-		except requests.exceptions.ConnectionError:
-			source_utils.scraper_error('AIOSTREAMS: Connection error to %s' % self.base_link)
-			return sources
 		except Exception as e:
 			source_utils.scraper_error('AIOSTREAMS: %s' % str(e))
 			return sources
@@ -168,23 +165,28 @@ class source:
 				package, episode_start = None, 0
 				hash = file.get('infoHash')
 				direct_url = file.get('url')
+				yt_id = file.get('ytId')
+				nzb_url = file.get('nzbUrl')
+				external_url = file.get('externalUrl')
 
-				# Skip results without either infoHash or url
-				if not hash and not direct_url:
+				# Skip results without any valid source per Stremio SDK
+				if not hash and not direct_url and not yt_id and not nzb_url and not external_url:
 					continue
 
-				# Check if this is a debrid-resolved direct link
+				# Determine stream type
 				is_debrid_direct = False
-				if direct_url and not hash:
-					is_debrid_direct = True
-				elif direct_url and hash:
-					# Both hash and URL present - common when addon is configured with debrid
-					# (cached torrents return both infoHash and debrid-resolved URL)
-					# Prefer the resolved URL over re-resolving the torrent
-					if _RE_DEBRID_URL.search(direct_url):
-						is_debrid_direct = True
+				is_youtube = bool(yt_id)
+				is_usenet = bool(nzb_url) and not direct_url and not hash
+				is_external = bool(external_url) and not direct_url and not hash and not yt_id
 
-				# Extract behaviorHints
+				if not is_youtube and not is_usenet and not is_external:
+					if direct_url and not hash:
+						is_debrid_direct = True
+					elif direct_url and hash:
+						if _RE_DEBRID_URL.search(direct_url):
+							is_debrid_direct = True
+
+				# Extract behaviorHints (full SDK support)
 				behavior_hints = file.get('behaviorHints', {}) or {}
 
 				# Extract proxy headers for authenticated streams
@@ -194,15 +196,23 @@ class source:
 					if ph.get('request'):
 						proxy_headers = ph['request']
 
-				# Extract tracker URLs from sources field
+				# Extract tracker URLs from sources field (for torrent peer discovery)
 				trackers = []
 				if 'sources' in file and isinstance(file['sources'], list):
 					for src in file['sources']:
 						if isinstance(src, str) and src.startswith('tracker:'):
 							trackers.append(src[8:])
 
-				# Get filename - prioritize behaviorHints.filename per SDK spec
+				# Extract fileIdx for multi-file torrents per SDK spec
+				file_idx = file.get('fileIdx')
+
+				# Extract fileMustInclude regex for matching video files
+				file_must_include = file.get('fileMustInclude')
+
+				# Get filename - prioritize behaviorHints.filename, then top-level filename per SDK spec
 				bh_filename = behavior_hints.get('filename', '')
+				if not bh_filename:
+					bh_filename = file.get('filename', '')
 				if bh_filename:
 					name = source_utils.clean_name(bh_filename)
 				else:
@@ -211,16 +221,12 @@ class source:
 					name = source_utils.clean_name(file_title[0])
 
 				# Title validation - AIOStreams filters by IMDB ID so content is correct
-				# We use lenient validation since many results have simplified names
-				# For debrid-resolved direct links, be extra lenient as they often have minimal names
 				if is_debrid_direct and not name:
-					# Use a placeholder name for direct links without names
 					name = 'Direct.Link'
 
 				title_check = source_utils.check_title(title, aliases, name, hdlr, year)
-				if not title_check and not is_debrid_direct:
+				if not title_check and not is_debrid_direct and not is_youtube and not is_external:
 					if total_seasons is not None:
-						# TV show - try pack detection first
 						valid, last_season = source_utils.filter_show_pack(title, aliases, imdb, year, season, name, total_seasons)
 						if valid:
 							package = 'show'
@@ -229,48 +235,49 @@ class source:
 							if valid:
 								package = 'season'
 							else:
-								# Lenient fallback - allow short names or names with quality info
 								name_len = len(name.replace('.', '').replace('-', '').replace(' ', ''))
 								has_quality_info = any(q in name.lower() for q in ('1080', '720', '2160', '4k', 'hdr', 'web', 'bluray'))
 								if name_len > 30 and not has_quality_info:
 									continue
 					else:
-						# Movie - lenient validation
 						name_len = len(name.replace('.', '').replace('-', '').replace(' ', ''))
 						has_quality_info = any(q in name.lower() for q in ('1080', '720', '2160', '4k', 'hdr', 'web', 'bluray'))
 						if name_len > 30 and not has_quality_info:
-							# Check if year is somewhere in the name
 							if year not in name and str(int(year)-1) not in name and str(int(year)+1) not in name:
 								continue
 				name_info = source_utils.info_from_name(name, title, year, hdlr, episode_title)
 				if source_utils.remove_lang(name_info, check_foreign_audio): continue
 				if undesirables and source_utils.remove_undesirables(name_info, undesirables): continue
 
-				# Build URL based on stream type
-				if is_debrid_direct:
-					url = direct_url
+				# Build URL based on stream type per Stremio SDK
+				if is_youtube:
+					stream_url = f"plugin://plugin.video.youtube/play/?video_id={yt_id}"
+				elif is_external:
+					stream_url = external_url
+				elif is_usenet:
+					stream_url = nzb_url
+				elif is_debrid_direct:
+					stream_url = direct_url
 				elif hash:
 					from urllib.parse import quote_plus
-					url = 'magnet:?xt=urn:btih:%s&dn=%s' % (hash, name)
-					# Add tracker URLs for peer discovery
+					stream_url = 'magnet:?xt=urn:btih:%s&dn=%s' % (hash, name)
 					for tracker in trackers:
-						url += '&tr=%s' % quote_plus(tracker)
+						stream_url += '&tr=%s' % quote_plus(tracker)
 				else:
-					url = direct_url
+					stream_url = direct_url
 
 				try:
 					seeders = file.get('seeders', 0)
 					if seeders is None: seeders = 0
-					# Only apply seeder filter to torrents, not direct links
-					if hash and self.min_seeders > seeders: continue
+					if hash and not is_debrid_direct and self.min_seeders > seeders: continue
 				except Exception: seeders = 0
 
-				quality, info = source_utils.get_release_quality(name_info, url)
+				quality, info = source_utils.get_release_quality(name_info, stream_url)
 				try:
 					size = file.get('size', 0)
-					# Fallback to behaviorHints.videoSize (file size in bytes per SDK spec)
+					# Fallback to behaviorHints.videoSize, then top-level videoSize (per SDK spec)
 					if not size:
-						size = behavior_hints.get('videoSize', 0)
+						size = behavior_hints.get('videoSize') or file.get('videoSize', 0)
 					if size:
 						size_str = '%.2f GB' % (float(size) / 1073741824)
 						dsize, isize = source_utils._size(size_str)
@@ -281,31 +288,79 @@ class source:
 				info = ' | '.join(info)
 
 				# Build item based on stream type
-				if is_debrid_direct:
+				if is_youtube:
+					item = {
+						'source': 'youtube', 'language': 'en', 'direct': True, 'debridonly': False,
+						'provider': 'aiostreams', 'url': stream_url, 'name': name, 'name_info': name_info,
+						'quality': quality, 'info': info, 'size': dsize, 'seeders': 0
+					}
+				elif is_external:
+					item = {
+						'source': 'external', 'language': 'en', 'direct': True, 'debridonly': False,
+						'provider': 'aiostreams', 'url': stream_url, 'name': name, 'name_info': name_info,
+						'quality': quality, 'info': info, 'size': dsize, 'seeders': 0,
+						'external_url': True
+					}
+				elif is_usenet:
+					item = {
+						'source': 'usenet', 'language': 'en', 'direct': False, 'debridonly': True,
+						'provider': 'aiostreams', 'url': stream_url, 'name': name, 'name_info': name_info,
+						'quality': quality, 'info': info, 'size': dsize, 'seeders': 0
+					}
+				elif is_debrid_direct:
 					item = {
 						'source': 'debrid_direct', 'language': 'en', 'direct': True, 'debridonly': False,
-						'provider': 'aiostreams', 'url': url, 'name': name, 'name_info': name_info,
-						'quality': quality, 'info': info, 'size': dsize, 'seeders': seeders
+						'provider': 'aiostreams', 'url': stream_url, 'name': name, 'name_info': name_info,
+						'quality': quality, 'info': info, 'size': dsize, 'seeders': seeders,
+						'debrid_resolved': True
 					}
-					# Add proxy headers for authenticated debrid streams
-					if proxy_headers:
-						item['proxy_headers'] = proxy_headers
 				else:
 					item = {
 						'source': 'torrent', 'language': 'en', 'direct': False, 'debridonly': True,
-						'provider': 'aiostreams', 'hash': hash, 'url': url, 'name': name, 'name_info': name_info,
+						'provider': 'aiostreams', 'hash': hash, 'url': stream_url, 'name': name, 'name_info': name_info,
 						'quality': quality, 'info': info, 'size': dsize, 'seeders': seeders
 					}
+
+				# Add proxy headers for authenticated streams
+				if proxy_headers:
+					item['proxy_headers'] = proxy_headers
+
+				# Add fileIdx for multi-file torrents (per SDK spec)
+				if file_idx is not None:
+					item['file_idx'] = file_idx
+
+				# Add fileMustInclude regex for video file matching (per SDK spec)
+				if file_must_include:
+					item['file_must_include'] = file_must_include
+
+				# Add bingeGroup for autoplay optimization (per SDK spec)
+				binge_group = behavior_hints.get('bingeGroup')
+				if binge_group:
+					item['binge_group'] = binge_group
+
+				# Add notWebReady flag (per SDK spec)
+				if behavior_hints.get('notWebReady'):
+					item['not_web_ready'] = True
+
+				# Add geo-filtering hints (ISO 3166-1 alpha-3 country codes, per SDK spec)
+				if behavior_hints.get('countryWhitelist'):
+					item['country_whitelist'] = behavior_hints['countryWhitelist']
+				if behavior_hints.get('countryBlacklist'):
+					item['country_blacklist'] = behavior_hints['countryBlacklist']
+
+				# Add embedded subtitles from stream (per SDK spec)
+				if file.get('subtitles'):
+					item['stremio_subtitles'] = file['subtitles']
+
 				if package: item['package'] = package
 				if package == 'show': item.update({'last_season': last_season})
-				if episode_start: item.update({'episode_start': episode_start, 'episode_end': episode_end}) # for partial season packs
+				if episode_start: item.update({'episode_start': episode_start, 'episode_end': episode_end})
 				sources_append(item)
 			except Exception:
 				source_utils.scraper_error('AIOSTREAMS')
 		return sources
 
 	def _headers(self):
-		headers = BROWSER_HEADERS.copy()
+		headers = http_client.BROWSER_HEADERS.copy()
 		headers['x-aiostreams-user-data'] = self._get_user_data()
 		return headers
-
