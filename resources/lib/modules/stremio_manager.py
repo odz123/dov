@@ -223,11 +223,12 @@ def validate_stremio_addon(url, return_config_info=False):
 		if not supports_stream and not supports_catalog:
 			return None, "Addon does not provide stream or catalog resources"
 
-		# Check supported types
+		# Check supported types - accept all Stremio content types
 		types = manifest.get('types', [])
-		has_movie_or_series = 'movie' in types or 'series' in types
-		if not has_movie_or_series:
-			return None, "Addon does not support movies or series"
+		supported_types = ('movie', 'series', 'anime', 'tv', 'channel', 'other')
+		has_supported_type = any(t in types for t in supported_types)
+		if not has_supported_type:
+			return None, "Addon does not support any recognized media types"
 
 		# Check if addon has a configure page
 		behavior_hints = manifest.get('behaviorHints', {})
@@ -240,8 +241,8 @@ def validate_stremio_addon(url, return_config_info=False):
 			'version': manifest.get('version', '1.0.0'),
 			'description': manifest.get('description', ''),
 			'types': types,
-			'has_movies': 'movie' in types,
-			'has_series': 'series' in types,
+			'has_movies': any(t in types for t in ('movie', 'anime', 'other')),
+			'has_series': any(t in types for t in ('series', 'anime', 'tv', 'other')),
 			'supports_catalog': supports_catalog,
 			'supports_subtitles': supports_subtitles,
 			'supports_meta': supports_meta,

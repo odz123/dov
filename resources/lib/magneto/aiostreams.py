@@ -174,6 +174,23 @@ class source:
 				if direct_url and not hash:
 					is_debrid_direct = True
 
+				# Extract behaviorHints
+				behavior_hints = file.get('behaviorHints', {}) or {}
+
+				# Extract proxy headers for authenticated streams
+				proxy_headers = None
+				if 'proxyHeaders' in behavior_hints:
+					ph = behavior_hints['proxyHeaders']
+					if ph.get('request'):
+						proxy_headers = ph['request']
+
+				# Extract tracker URLs from sources field
+				trackers = []
+				if 'sources' in file and isinstance(file['sources'], list):
+					for src in file['sources']:
+						if isinstance(src, str) and src.startswith('tracker:'):
+							trackers.append(src[8:])
+
 				# Get filename from various possible fields
 				file_title = file.get('folderName') or file.get('filename') or file.get('name', '')
 				file_title = file_title.replace('┈➤', '\n').split('\n')
@@ -218,7 +235,11 @@ class source:
 
 				# Build URL based on stream type
 				if hash:
+					from urllib.parse import quote_plus
 					url = 'magnet:?xt=urn:btih:%s&dn=%s' % (hash, name)
+					# Add tracker URLs for peer discovery
+					for tracker in trackers:
+						url += '&tr=%s' % quote_plus(tracker)
 				else:
 					url = direct_url
 
@@ -244,10 +265,13 @@ class source:
 				# Build item based on stream type
 				if is_debrid_direct:
 					item = {
-						'source': 'direct', 'language': 'en', 'direct': True, 'debridonly': False,
+						'source': 'debrid_direct', 'language': 'en', 'direct': True, 'debridonly': False,
 						'provider': 'aiostreams', 'url': url, 'name': name, 'name_info': name_info,
 						'quality': quality, 'info': info, 'size': dsize, 'seeders': seeders
 					}
+					# Add proxy headers for authenticated debrid streams
+					if proxy_headers:
+						item['proxy_headers'] = proxy_headers
 				else:
 					item = {
 						'source': 'torrent', 'language': 'en', 'direct': False, 'debridonly': True,

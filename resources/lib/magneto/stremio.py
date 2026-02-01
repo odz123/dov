@@ -73,7 +73,9 @@ class source:
 			'external_url': None,
 			'codec': '',
 			'hdr': '',
-			'audio': ''
+			'audio': '',
+			'trackers': [],
+			'not_web_ready': False
 		}
 
 		# Determine stream type and extract source
@@ -97,9 +99,23 @@ class source:
 			info['stream_type'] = 'youtube'
 			info['url'] = f"plugin://plugin.video.youtube/play/?video_id={stream['ytId']}"
 
+		# Handle nzbUrl for usenet streams
+		if 'nzbUrl' in stream and not info['url'] and not info['hash']:
+			info['url'] = stream['nzbUrl']
+			info['stream_type'] = 'usenet'
+
 		if 'externalUrl' in stream:
 			info['external_url'] = stream['externalUrl']
 			info['stream_type'] = 'external'
+
+		# Extract tracker URLs from sources field (for torrent peer discovery)
+		if 'sources' in stream and isinstance(stream['sources'], list):
+			for src in stream['sources']:
+				if isinstance(src, str):
+					if src.startswith('tracker:'):
+						info['trackers'].append(src[8:])
+					elif src.startswith('dht:'):
+						pass  # DHT nodes not needed for magnet links
 
 		# Get stream name/title for parsing
 		stream_name = stream.get('name', '') or ''
@@ -115,6 +131,10 @@ class source:
 			proxy_headers = behavior_hints['proxyHeaders']
 			if proxy_headers.get('request'):
 				info['proxy_headers'] = proxy_headers['request']
+
+		# Extract notWebReady flag (stream requires special handling)
+		if behavior_hints.get('notWebReady'):
+			info['not_web_ready'] = True
 
 		# Extract binge group for autoplay optimization
 		if 'bingeGroup' in behavior_hints:
@@ -289,7 +309,7 @@ class source:
 		package, episode_start, episode_end, last_season = None, 0, 0, 0
 
 		# Skip if no valid source
-		if not stream_info['hash'] and not stream_info['url'] and not stream_info['youtube_id']:
+		if not stream_info['hash'] and not stream_info['url'] and not stream_info['youtube_id'] and not stream_info.get('external_url'):
 			return None
 
 		# Skip external URLs (Netflix, etc.) - can't play directly
@@ -361,8 +381,17 @@ class source:
 
 		# Build source URL and determine type
 		if stream_info['stream_type'] == 'torrent':
+			from urllib.parse import quote_plus
 			url = 'magnet:?xt=urn:btih:%s&dn=%s' % (stream_info['hash'], name or stream_info['hash'])
+			# Add tracker URLs from sources field for peer discovery
+			for tracker in stream_info.get('trackers', []):
+				url += '&tr=%s' % quote_plus(tracker)
 			source_type = 'torrent'
+			is_direct = False
+			is_debridonly = True
+		elif stream_info['stream_type'] == 'usenet':
+			url = stream_info['url']
+			source_type = 'usenet'
 			is_direct = False
 			is_debridonly = True
 		elif stream_info['stream_type'] == 'youtube':
@@ -419,6 +448,10 @@ class source:
 		# Add debrid resolved flag
 		if stream_info['is_debrid_resolved']:
 			item['debrid_resolved'] = True
+
+		# Add notWebReady flag for streams requiring special handling
+		if stream_info.get('not_web_ready'):
+			item['not_web_ready'] = True
 
 		# Add pack info
 		if package:
@@ -497,7 +530,20 @@ class source:
 				addon_info = addon if isinstance(addon, dict) else {'url': addon}
 				is_debrid_addon = self._is_debrid_configured_addon(addon)
 
-				streams = self._fetch_streams(fetch_url, media_type, media_id, addon_info)
+				# Determine which content types to query for this addon
+				addon_types = addon_info.get('types', []) if isinstance(addon_info, dict) else []
+				fetch_types = [media_type]
+				# If addon doesn't declare movie/series but has anime/tv/other, also try those
+				if addon_types and media_type not in addon_types:
+					alt_types = [t for t in addon_types if t in ('anime', 'tv', 'channel', 'other')]
+					fetch_types = alt_types if alt_types else [media_type]
+
+				streams = []
+				for ft in fetch_types:
+					result = self._fetch_streams(fetch_url, ft, media_id, addon_info)
+					if result:
+						streams.extend(result)
+						break  # Got results, no need to try other types
 
 				for stream in streams:
 					try:
