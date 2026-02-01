@@ -334,9 +334,10 @@ def paginate_list(item_list, page, letter, limit=20):
 		start_list = [chr(i) for i in range(97, 123)]
 		letter_index = start_list.index(letter)
 		base_list = [element for element in list(chain.from_iterable([val for val in zip_longest(start_list[letter_index:], start_list[:letter_index][::-1])])) if element is not None]
+		start_index = 0
 		for i in base_list:
 			start_index = _get_start_index(i)
-			if start_index: break
+			if start_index is not None: break
 		item_list = item_list[start_index:]
 	pages = list(chunks(item_list, limit))
 	total_pages = len(pages)

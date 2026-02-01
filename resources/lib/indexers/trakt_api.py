@@ -454,7 +454,7 @@ def trakt_add_to_list(params):
 	else:
 		key = 'shows'
 		media_ids = [(imdb_id, 'imdb'), (tvdb_id, 'tvdb'), (tmdb_id, 'tmdb')]
-		media_id, media_key = next(item for item in media_ids if item[0] != 'None')
+		media_id, media_key = next((item for item in media_ids if item[0] != 'None'), (tmdb_id, 'tmdb'))
 		if media_id in (tmdb_id, tvdb_id): media_id = int(media_id)
 	selected = get_trakt_list_selection(highlight=params.get('highlight'))
 	if selected is None: return
@@ -470,7 +470,7 @@ def trakt_remove_from_list(params):
 	else:
 		key = 'shows'
 		media_ids = [(imdb_id, 'imdb'), (tvdb_id, 'tvdb'), (tmdb_id, 'tmdb')]
-		media_id, media_key = next(item for item in media_ids if item[0] != 'None')
+		media_id, media_key = next((item for item in media_ids if item[0] != 'None'), (tmdb_id, 'tmdb'))
 		if media_id in (tmdb_id, tvdb_id): media_id = int(media_id)
 	selected = get_trakt_list_selection(highlight=params.get('highlight'))
 	if selected is None: return

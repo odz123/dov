@@ -328,7 +328,7 @@ class DebridCheck:
 		)
 		else: threads = (
 			Thread(target=tio_check_cache, args=(self.imdb, self.season, self.episode, checked_hashes, lock)),
-			Thread(target=dmm_check_cache, args=(unchecked_hashes, self.imdb, checked_hashes))
+			Thread(target=dmm_check_cache, args=(unchecked_hashes, self.imdb, checked_hashes, lock))
 		)
 		for i in threads: i.start()
 		for i in threads: i.join()
@@ -397,7 +397,7 @@ def tio_check_cache(imdb, season, episode, collector, lock):
 			collector.extend(found_hashes)
 	except Exception as e: kodi_utils.logger('tio error', str(e))
 
-def dmm_check_cache(unchecked_hashes_chunk, imdb, collector): # DMM API Allows max 100 hashes per request.
+def dmm_check_cache(unchecked_hashes_chunk, imdb, collector, lock): # DMM API Allows max 100 hashes per request.
 	""" do not thread multiple calls, abusing the api will get it turned off
 		100 sample size should be enough """
 	from magneto.dmm import get_secret
@@ -409,6 +409,7 @@ def dmm_check_cache(unchecked_hashes_chunk, imdb, collector): # DMM API Allows m
 	try:
 		results = session.post(url, json=data, timeout=7.05)
 		files = results.json()['available']
-		collector.extend(file['hash'] for file in files if 'hash' in file)
+		with lock:
+			collector.extend(file['hash'] for file in files if 'hash' in file)
 	except Exception as e: kodi_utils.logger('dmm error', str(e))
 

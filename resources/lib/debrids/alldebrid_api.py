@@ -134,6 +134,7 @@ class AllDebridAPI:
 		url = 'v4.1/magnet/status'
 		string = 'pov_ad_user_cloud'
 		result = cache_object(self._get, string, url, False, 0.5)
+		if not result or 'magnets' not in result: return result
 		if completed: result['magnets'] = [i for i in result['magnets'] if i['statusCode'] == 4]
 		return result
 
