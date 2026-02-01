@@ -289,13 +289,16 @@ def validate_stremio_addon(url, return_config_info=False):
 			'config_url': ''  # Will be set during configuration
 		}
 
-		# Store manifest background and logo for display (per SDK spec)
+		# Store manifest background, logo, and contactEmail for display (per SDK spec)
 		manifest_background = manifest.get('background', '')
 		manifest_logo = manifest.get('logo', '')
+		manifest_contact = manifest.get('contactEmail', '')
 		if manifest_background:
 			addon_info['background'] = manifest_background
 		if manifest_logo:
 			addon_info['logo'] = manifest_logo
+		if manifest_contact:
+			addon_info['contactEmail'] = manifest_contact
 
 		# Store config array for configurable addons (per SDK spec)
 		# Config objects: {key, type, default, title, options, required}
@@ -804,6 +807,7 @@ def view_addon_details(addon):
 		f"[B]Flags:[/B] {flags_str}\n"
 		f"[B]Debrid:[/B] {debrid_status}\n"
 		f"[B]Debrid Service:[/B] {debrid_service.capitalize() if debrid_service != 'None' else 'None'}\n"
+		f"[B]Contact:[/B] {addon.get('contactEmail', 'N/A')}\n"
 		f"[B]Description:[/B] {addon.get('description', 'N/A')}"
 	)
 	ok_dialog(heading='Addon Details', text=text)
