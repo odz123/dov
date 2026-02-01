@@ -50,7 +50,7 @@
 				</control>
 			</control>
 			<control type="group">
-				<visible>String.IsEqual(Window.Property(tikiskins.dialog.multi_choice),false)</visible>
+				<visible>String.IsEqual(Window.Property(tikiskins.dialog.multi_choice),false) + !String.IsEqual(Window.Property(tikiskins.dialog.show_buttons),true)</visible>
 				<top>130</top>
 				<left>260r</left>
 				<control type="group">
@@ -84,7 +84,7 @@
 				</control>
 			</control>
 			<control type="group">
-				<visible>String.IsEqual(Window.Property(tikiskins.dialog.multi_choice),true)</visible>
+				<visible>String.IsEqual(Window.Property(tikiskins.dialog.multi_choice),true) | String.IsEqual(Window.Property(tikiskins.dialog.show_buttons),true)</visible>
 				<top>130</top>
 				<left>260r</left>
 				<control type="button" id="10">
@@ -105,7 +105,7 @@
 					<align>center</align>
 				</control>
 				<control type="button" id="11">
-					<description>Cancel</description>
+					<description>Close</description>
 					<top>150</top>
 					<width>240</width>
 					<height>60</height>
@@ -113,7 +113,7 @@
 					<ondown>10</ondown>
 					<onleft>2025</onleft>
 					<onright>2025</onright>
-					<label>[B]Cancel[/B]</label>
+					<label>[B]$INFO[Window.Property(tikiskins.dialog.close_label)][/B]</label>
 					<font>font12</font>
 					<textcolor>FFB7B4BB</textcolor>
 					<focusedcolor>$INFO[Window.Property(tikiskins.dialog.highlight)]</focusedcolor>
@@ -306,4 +306,3 @@
 		</control>
 	</controls>
 </window>
-

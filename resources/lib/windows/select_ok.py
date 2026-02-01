@@ -12,6 +12,7 @@ class Select(BaseDialog):
 		self.multi_choice = self.kwargs.get('multi_choice', 'false')
 		self.preselect = self.kwargs.get('preselect', [])
 		self.multi_line = self.kwargs.get('multi_line', 'false')
+		self.show_buttons = self.kwargs.get('show_buttons', 'false')
 		self.highlight = self.kwargs.get('highlight', 'dodgerblue')
 		self.items = json.loads(self.kwargs['items'])
 		self.heading = self.kwargs.get('heading', '')
@@ -39,7 +40,10 @@ class Select(BaseDialog):
 
 	def onClick(self, controlID):
 		if controlID == 10:
-			self.selected = sorted(self.chosen_indexes)
+			if self.multi_choice == 'true':
+				self.selected = sorted(self.chosen_indexes)
+			else:
+				self.selected = self.get_position(self.window_id)
 			self.close()
 		elif controlID == 11:
 			self.close()
@@ -83,8 +87,13 @@ class Select(BaseDialog):
 	def set_properties(self):
 		self.setProperty('tikiskins.dialog.multi_choice', self.multi_choice)
 		self.setProperty('tikiskins.dialog.multi_line', self.multi_line)
+		self.setProperty('tikiskins.dialog.show_buttons', self.show_buttons)
 		self.setProperty('tikiskins.dialog.highlight', self.highlight)
 		self.setProperty('tikiskins.dialog.heading', self.heading)
+		if self.multi_choice == 'true':
+			self.setProperty('tikiskins.dialog.close_label', 'Cancel')
+		else:
+			self.setProperty('tikiskins.dialog.close_label', 'Close')
 
 class YesNo(BaseDialog):
 	def __init__(self, *args, **kwargs):
