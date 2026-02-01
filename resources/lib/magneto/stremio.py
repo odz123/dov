@@ -14,7 +14,7 @@
 """
 
 import re
-from threading import Thread
+from threading import Thread, Lock
 from fenom import source_utils
 from fenom.control import setting as getSetting
 from modules import http_client
@@ -489,8 +489,6 @@ class source:
 		if not self.addons:
 			return sources
 
-		sources_append = sources.append
-
 		try:
 			title = data['tvshowtitle'] if 'tvshowtitle' in data else data['title']
 			title = title.replace('&', 'and').replace('Special Victims Unit', 'SVU').replace('/', ' ')
@@ -530,7 +528,6 @@ class source:
 			sorted_addons = debrid_addons + other_addons
 
 		# Process addons in parallel using threads for performance
-		from threading import Lock
 		sources_lock = Lock()
 
 		def _scrape_addon(addon):

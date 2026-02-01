@@ -36,13 +36,34 @@ _SERIES_LIKE_TYPES = ('series', 'anime', 'tv', 'channel', 'other')
 
 
 class StremioCache:
-	"""Simple caching layer for Stremio catalog data"""
+	"""Simple caching layer for Stremio catalog data using Kodi window properties.
+	Tracks all cache keys in a registry property so they can be cleared."""
+
+	_REGISTRY_KEY = 'pov_stremio_cache_keys'
 
 	@staticmethod
 	def _make_cache_key(prefix, *args):
 		"""Create a cache key from prefix and args"""
 		key_parts = [str(a).replace('/', '_').replace(':', '_') for a in args]
 		return f"pov_stremio_{prefix}_{'_'.join(key_parts)}"
+
+	@staticmethod
+	def _register_key(key):
+		"""Track a cache key in the registry for later clearing"""
+		try:
+			registry = get_property(StremioCache._REGISTRY_KEY)
+			if registry:
+				keys = json.loads(registry)
+			else:
+				keys = []
+			if key not in keys:
+				keys.append(key)
+				set_property(StremioCache._REGISTRY_KEY, json.dumps(keys))
+		except Exception:
+			try:
+				set_property(StremioCache._REGISTRY_KEY, json.dumps([key]))
+			except Exception:
+				pass
 
 	@staticmethod
 	def get(key):
@@ -64,6 +85,7 @@ class StremioCache:
 			expires = int(time.time() + (hours * 3600))
 			cachedata = repr((expires, data))
 			set_property(key, cachedata)
+			StremioCache._register_key(key)
 		except Exception:
 			pass
 
@@ -74,14 +96,19 @@ class StremioCache:
 
 	@staticmethod
 	def clear_all():
-		"""Clear all Stremio catalog cache - called via cache clearing"""
-		# Clear known cache key prefixes from window properties
-		prefixes = ('pov_stremio_manifest_', 'pov_stremio_catalog_', 'pov_stremio_search_', 'pov_stremio_meta_')
-		for prefix in prefixes:
-			try:
-				clear_property(prefix)
-			except Exception:
-				pass
+		"""Clear all Stremio catalog cache by iterating tracked keys"""
+		try:
+			registry = get_property(StremioCache._REGISTRY_KEY)
+			if registry:
+				keys = json.loads(registry)
+				for key in keys:
+					try:
+						clear_property(key)
+					except Exception:
+						pass
+			clear_property(StremioCache._REGISTRY_KEY)
+		except Exception:
+			pass
 
 
 class StremioIndexer:
