@@ -135,22 +135,33 @@ def extract_base_url_and_config(url):
 	return base_url, config_string, has_debrid_config
 
 
-def get_stremio_addons():
-	"""Get list of configured Stremio addons"""
+def _parse_addons_str(addons_str):
+	"""Parse addons string, trying JSON first then falling back to ast.literal_eval for backward compatibility"""
+	try:
+		addons = json.loads(addons_str)
+		return addons if isinstance(addons, list) else []
+	except (json.JSONDecodeError, ValueError):
+		pass
 	try:
 		import ast
-		addons_str = get_setting('stremio.addons', '')
-		if addons_str:
-			addons = ast.literal_eval(addons_str)
-			return addons if isinstance(addons, list) else []
+		addons = ast.literal_eval(addons_str)
+		return addons if isinstance(addons, list) else []
 	except Exception:
 		pass
 	return []
 
 
+def get_stremio_addons():
+	"""Get list of configured Stremio addons"""
+	addons_str = get_setting('stremio.addons', '')
+	if addons_str:
+		return _parse_addons_str(addons_str)
+	return []
+
+
 def save_stremio_addons(addons):
 	"""Save Stremio addons list to settings"""
-	set_setting('stremio.addons', repr(addons))
+	set_setting('stremio.addons', json.dumps(addons))
 	clear_settings_cache()
 	clear_property('pov_settings')
 
