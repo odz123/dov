@@ -9,6 +9,9 @@ from fenom import source_utils
 from fenom.control import setting as getSetting
 from modules import http_client
 
+# Debrid domain patterns for detecting pre-resolved URLs (e.g., when addon is configured with debrid)
+_RE_DEBRID_URL = re.compile(r'(real-?debrid|realdebrid|alldebrid|premiumize|torbox|debrid-link|easydebrid|offcloud)', re.I)
+
 
 class source:
 	timeout = 8
@@ -97,18 +100,40 @@ class source:
 				is_debrid_direct = False
 				if direct_url and not hash:
 					is_debrid_direct = True
+				elif direct_url and hash:
+					# Both hash and URL present - common when addon is configured with debrid
+					# (cached torrents return both infoHash and debrid-resolved URL)
+					# Prefer the resolved URL over re-resolving the torrent
+					if _RE_DEBRID_URL.search(direct_url):
+						is_debrid_direct = True
+
+				# Extract behaviorHints
+				behavior_hints = file.get('behaviorHints', {}) or {}
+
+				# Extract proxy headers for authenticated streams
+				proxy_headers = None
+				if 'proxyHeaders' in behavior_hints:
+					ph = behavior_hints['proxyHeaders']
+					if ph.get('request'):
+						proxy_headers = ph['request']
+
+				# Extract tracker URLs from sources field
+				trackers = []
+				if 'sources' in file and isinstance(file['sources'], list):
+					for src in file['sources']:
+						if isinstance(src, str) and src.startswith('tracker:'):
+							trackers.append(src[8:])
 
 				file_title = file.get('title', '').split('\n')
 				file_info_matches = [x for x in file_title if _INFO.match(x)]
 				file_info = file_info_matches[0] if file_info_matches else ''
-				# try:
-					# index = file_title.index(file_info)
-					# if index == 1: combo = file_title[0].replace(' ', '.')
-					# else: combo = ''.join(file_title[0:2]).replace(' ', '.')
-					# if '🇷🇺' in file_title[index+1] and not any(value in combo for value in ('.en.', '.eng.', 'english')): continue
-				# except Exception: pass
 
-				name = source_utils.clean_name(file_title[0]) if file_title else ''
+				# Use behaviorHints.filename for best name detection
+				bh_filename = behavior_hints.get('filename', '')
+				if bh_filename:
+					name = source_utils.clean_name(bh_filename)
+				else:
+					name = source_utils.clean_name(file_title[0]) if file_title else ''
 
 				# For debrid-resolved direct links, be extra lenient as they often have minimal names
 				if is_debrid_direct and not name:
@@ -146,8 +171,14 @@ class source:
 				if undesirables and source_utils.remove_undesirables(name_info, undesirables): continue
 
 				# Build URL based on stream type
-				if hash:
+				if is_debrid_direct:
+					url = direct_url
+				elif hash:
+					from urllib.parse import quote_plus
 					url = 'magnet:?xt=urn:btih:%s&dn=%s' % (hash, name)
+					# Add tracker URLs for peer discovery
+					for tracker in trackers:
+						url += '&tr=%s' % quote_plus(tracker)
 				else:
 					url = direct_url
 				# if not episode_title: #filter for eps returned in movie query (rare but movie and show exists for Run in 2020)
@@ -166,16 +197,28 @@ class source:
 					size = re.search(r'((?:\d+\,\d+\.\d+|\d+\.\d+|\d+\,\d+|\d+)\s*(?:GB|GiB|Gb|MB|MiB|Mb))', file_info).group(0)
 					dsize, isize = source_utils._size(size)
 					info.insert(0, isize)
-				except Exception: dsize = 0
+				except Exception:
+					dsize = 0
+					# Fallback to behaviorHints.videoSize (file size in bytes per SDK spec)
+					video_size = behavior_hints.get('videoSize')
+					if video_size:
+						try:
+							size_str = '%.2f GB' % (int(video_size) / 1073741824)
+							dsize, isize = source_utils._size(size_str)
+							info.insert(0, isize)
+						except Exception: pass
 				info = ' | '.join(info)
 
 				# Build item based on stream type
 				if is_debrid_direct:
 					item = {
-						'source': 'direct', 'language': 'en', 'direct': True, 'debridonly': False,
+						'source': 'debrid_direct', 'language': 'en', 'direct': True, 'debridonly': False,
 						'provider': 'torrentio', 'url': url, 'name': name, 'name_info': name_info,
 						'quality': quality, 'info': info, 'size': dsize, 'seeders': seeders
 					}
+					# Add proxy headers for authenticated debrid streams
+					if proxy_headers:
+						item['proxy_headers'] = proxy_headers
 				else:
 					item = {
 						'source': 'torrent', 'language': 'en', 'direct': False, 'debridonly': True,

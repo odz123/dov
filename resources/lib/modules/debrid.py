@@ -104,7 +104,14 @@ class Source:
 				# Check if this is a direct playable URL (e.g., Stremio direct/debrid_direct/youtube)
 				# These sources have 'direct' = True and no 'hash', and don't need debrid resolution
 				if getattr(self, 'direct', False) and not hasattr(self, 'hash'):
-					return self.url
+					url = self.url
+					# Apply proxy headers for authenticated streams (Stremio debrid-direct)
+					# Kodi format: url|Header1=value1&Header2=value2
+					proxy_headers = getattr(self, 'proxy_headers', None)
+					if proxy_headers and isinstance(proxy_headers, dict):
+						from urllib.parse import urlencode
+						url = '%s|%s' % (url, urlencode(proxy_headers))
+					return url
 				if self.meta['media_type'] == 'episode':
 					title = self.meta.get('ep_name') or self.meta.get('title')
 					season = self.meta.get('custom_season') or self.meta.get('season')
