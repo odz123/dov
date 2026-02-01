@@ -9,7 +9,7 @@
 	- Catalog caching for performance
 	- Parallel manifest fetching
 	- Integration with POV metadata system
-	- Cloudflare bypass via shared http_client module
+	- HTTP client via shared http_client module
 """
 
 import sys
@@ -121,7 +121,7 @@ class StremioIndexer:
 		return []
 
 	def fetch_manifest(self, addon_url, use_cache=True):
-		"""Fetch addon manifest with caching and Cloudflare bypass"""
+		"""Fetch addon manifest with caching"""
 		try:
 			base_url = addon_url.rstrip('/')
 			if base_url.endswith('/manifest.json'):
@@ -427,7 +427,7 @@ class StremioIndexer:
 		self._build_meta_list(metas, addon_url, catalog_type, catalog_id, skip, filter_name, filter_value)
 
 	def fetch_catalog(self, addon_url, catalog_type, catalog_id, skip=0, filter_name='', filter_value=''):
-		"""Fetch catalog contents from addon with caching and Cloudflare bypass"""
+		"""Fetch catalog contents from addon with caching"""
 		try:
 			base_url = addon_url.rstrip('/')
 			if base_url.endswith('/manifest.json'):
@@ -1000,7 +1000,7 @@ class StremioIndexer:
 			pass
 
 	def fetch_meta(self, addon_url, meta_type, meta_id):
-		"""Fetch detailed metadata for an item with Cloudflare bypass"""
+		"""Fetch detailed metadata for an item"""
 		try:
 			base_url = addon_url.rstrip('/')
 			if base_url.endswith('/manifest.json'):

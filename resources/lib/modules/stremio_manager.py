@@ -6,7 +6,7 @@
 	- Addon configuration URLs (for addons like Torrentio)
 	- Popular addon presets
 	- Connection testing
-	- Cloudflare bypass via shared http_client module
+	- HTTP client via shared http_client module
 """
 
 import json
@@ -18,24 +18,9 @@ from modules import http_client
 
 
 def _fetch_url(url, timeout=10):
-	"""Fetch a URL with Cloudflare bypass via shared http_client.
-	Returns (response, error_message) tuple for compatibility."""
-	response, error_msg = http_client.fetch_raw(url, timeout=timeout)
-	if error_msg is None:
-		return response, None
-	# Provide user-friendly error messages for the addon manager UI
-	if response is not None:
-		if response.status_code == 403:
-			return response, 'Blocked by Cloudflare - addon needs configuration'
-		elif response.status_code == 418:
-			return response, 'Bot protection - use configured addon URL'
-		elif response.status_code == 503:
-			return response, 'Service unavailable - addon may be down'
-		elif response.status_code in (522, 524):
-			return response, 'Addon server timeout'
-		elif 'text/html' in response.headers.get('content-type', ''):
-			return response, 'Cloudflare challenge - use configured URL'
-	return response, error_msg or 'Connection failed'
+	"""Fetch a URL via shared http_client.
+	Returns (response, error_message) tuple."""
+	return http_client.fetch_raw(url, timeout=timeout)
 
 
 # Debrid service definitions
@@ -202,10 +187,10 @@ def validate_stremio_addon(url, return_config_info=False):
 			error_msg = error or ("HTTP %d" % response.status_code if response else "Connection failed")
 			return None, "Failed to fetch manifest: %s" % error_msg
 
-		# Check for HTML response (Cloudflare)
+		# Check for HTML response (not JSON)
 		content_type = response.headers.get('content-type', '')
 		if 'text/html' in content_type:
-			return None, "Blocked by Cloudflare - addon needs debrid configuration"
+			return None, "Received HTML instead of JSON - addon may need configuration"
 
 		manifest = response.json()
 
@@ -618,7 +603,6 @@ def enter_config_url(addon_idx):
 			manifest_url = f"{extracted_base}/manifest.json"
 			config_url = extracted_base
 
-		# Use _fetch_url for Cloudflare bypass
 		response, error = _fetch_url(manifest_url, timeout=10)
 
 		if response is not None and response.status_code == 200:
@@ -631,8 +615,8 @@ def enter_config_url(addon_idx):
 				save_stremio_addons(addons)
 				notification('Configuration URL saved', 2000)
 			else:
-				ok_dialog(heading='Error', text='Blocked by Cloudflare - configuration may still work')
-				# Still save it since it might work with proper headers during playback
+				ok_dialog(heading='Error', text='Received HTML instead of JSON - configuration may still work')
+				# Still save it since it might work during playback
 				addon['config_url'] = config_url
 				addons[addon_idx] = addon
 				save_stremio_addons(addons)
@@ -889,7 +873,7 @@ def stremio_debug_loop():
 					else:
 						attempt['status'] = 'fail'
 						attempt['http_code'] = response.status_code
-						attempt['error'] = 'Cloudflare challenge'
+						attempt['error'] = 'HTML response (not JSON)'
 						addon_results['fail_count'] += 1
 				else:
 					attempt['status'] = 'fail'

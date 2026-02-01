@@ -261,25 +261,6 @@ for i in (
 
 **Problem:** Creates 12-13 threads on dialog initialization with no synchronization.
 
-### 5.5 Race Condition in CloudFlare Cookie Fetch (NEW)
-
-**File:** `resources/lib/fenom/client.py:352-361`
-
-```python
-def get(self, netloc, ua, timeout):
-    for i in list(range(0, 15)):  # Creates 15 threads!
-        threads.append(Thread(target=self.get_cookie, args=(...)))
-    for i in threads: i.start()
-    for i in list(range(0, 30)):  # Sleep loop instead of join!
-        if self.cookie is not None: return self.cookie
-        sleep(1)
-```
-
-**Issues:**
-- Creates 15 threads for a single cookie
-- Uses `sleep()` loop instead of `.join()`
-- Reads `self.cookie` without synchronization
-
 ---
 
 ## 6. Caching & Memory Issues (MEDIUM-HIGH IMPACT)
@@ -1267,26 +1248,7 @@ dbcur.execute("SELECT ... LIMIT ? OFFSET ?", (page_size, offset))
 
 ## 31. Blocking Sleep Loops (NEW)
 
-### 31.1 CloudFlare Cookie Polling
-
-**File:** `resources/lib/fenom/client.py:354-360`
-
-```python
-for i in list(range(0, 30)):
-    if self.cookie is not None: return self.cookie
-    sleep(1)  # Blocks for up to 30 seconds
-```
-
-**Problem:** Main thread blocks up to 30 seconds polling for cookie. Should use event-based waiting.
-
-**Fix:** Use threading.Event:
-```python
-cookie_event = threading.Event()
-# In thread: cookie_event.set() when cookie found
-# In main: cookie_event.wait(timeout=30)
-```
-
-### 31.2 Container Content Polling
+### 31.1 Container Content Polling
 
 **File:** `resources/lib/modules/kodi_utils.py:282-285`
 

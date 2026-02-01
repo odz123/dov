@@ -172,7 +172,7 @@ class StremioMetaProvider:
 		return None
 
 	def _fetch_json(self, url, timeout=None):
-		"""Fetch JSON from URL with Cloudflare bypass"""
+		"""Fetch JSON from URL"""
 		try:
 			from modules.http_client import fetch_json
 			return fetch_json(url, timeout=timeout or self.timeout)

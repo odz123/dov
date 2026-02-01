@@ -8,7 +8,7 @@
 	- Multiple stream types (torrent, direct, YouTube)
 	- Subtitle integration
 	- bingeGroup for autoplay optimization
-	- Cloudflare bypass via shared http_client module
+	- HTTP client via shared http_client module
 """
 
 import re
@@ -235,7 +235,7 @@ class source:
 		return info
 
 	def _fetch_streams(self, addon_url, media_type, media_id, addon_info=None):
-		"""Fetch streams from a Stremio addon with enhanced error handling and Cloudflare bypass"""
+		"""Fetch streams from a Stremio addon with error handling"""
 		def error_callback(msg):
 			source_utils.scraper_error('STREMIO: %s - %s' % (addon_url, msg))
 

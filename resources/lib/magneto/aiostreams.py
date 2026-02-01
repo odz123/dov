@@ -15,24 +15,9 @@
 	3. Provide their own user data configuration from the AIOStreams configure page
 """
 
-import time
 import requests
 from fenom import source_utils
 from fenom.control import setting as getSetting
-
-# Try to import curl_cffi for TLS fingerprint bypass (strongest method)
-try:
-	from curl_cffi import requests as curl_requests
-	HAS_CURL_CFFI = True
-except ImportError:
-	HAS_CURL_CFFI = False
-
-# Try to import cloudscraper for Cloudflare bypass
-try:
-	import cloudscraper
-	HAS_CLOUDSCRAPER = True
-except ImportError:
-	HAS_CLOUDSCRAPER = False
 
 # Pre-configured public instances
 # Note: Public instances may have rate limits or require configuration
@@ -42,48 +27,12 @@ PUBLIC_INSTANCES = (
 	"https://aiostreams.elfhosted.com"         # ElfHosted instance (requires subscription)
 )
 
-# Browser-like headers to help bypass blocks
+# Browser-like headers for HTTP requests
 BROWSER_HEADERS = {
 	'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
 	'Accept': 'application/json, text/plain, */*',
 	'Accept-Language': 'en-US,en;q=0.9',
-	'Sec-Ch-Ua': '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"',
-	'Sec-Ch-Ua-Mobile': '?0',
-	'Sec-Ch-Ua-Platform': '"Windows"',
 }
-
-# Cloudscraper session management - refresh stale sessions
-_scraper_session = None
-_scraper_request_count = 0
-_scraper_fail_count = 0
-_SCRAPER_MAX_REQUESTS = 50  # Refresh session after this many requests
-_SCRAPER_MAX_FAILS = 3  # Refresh session after consecutive failures
-
-def _get_scraper(force_new=False):
-	global _scraper_session, _scraper_request_count, _scraper_fail_count
-	if not HAS_CLOUDSCRAPER:
-		return None
-	# Create new session if needed
-	if force_new or _scraper_session is None or _scraper_request_count >= _SCRAPER_MAX_REQUESTS or _scraper_fail_count >= _SCRAPER_MAX_FAILS:
-		try:
-			_scraper_session = cloudscraper.create_scraper(
-				browser={'browser': 'chrome', 'platform': 'windows', 'desktop': True},
-				delay=1
-			)
-			_scraper_request_count = 0
-			_scraper_fail_count = 0
-		except Exception:
-			_scraper_session = None
-	return _scraper_session
-
-def _mark_scraper_success():
-	global _scraper_request_count, _scraper_fail_count
-	_scraper_request_count += 1
-	_scraper_fail_count = 0
-
-def _mark_scraper_fail():
-	global _scraper_fail_count
-	_scraper_fail_count += 1
 
 # Default user data configuration (Comet + MediaFusion enabled)
 DEFAULT_USER_DATA = (
@@ -181,130 +130,12 @@ class source:
 			# log_utils.log('url = %s' % url)
 			if 'timeout' in data: self.timeout = int(data['timeout'])
 
-			# Extract origin for Referer/Origin headers
-			try:
-				from urllib.parse import urlparse
-				parsed = urlparse(self.base_link)
-				origin = f"{parsed.scheme}://{parsed.netloc}"
-			except Exception:
-				origin = self.base_link
-
 			base_headers = self._headers()
-			base_headers['Referer'] = f"{origin}/"
-			base_headers['Origin'] = origin
 
-			# Try multiple methods in order of effectiveness:
-			# 1. curl_cffi (best TLS fingerprint bypass)
-			# 2. cloudscraper (good JS challenge bypass)
-			# 3. requests with browser headers (basic)
-			results = None
-			cloudflare_blocked = False
+			results = requests.get(url, params=params, timeout=self.timeout, headers=base_headers)
 
-			# Method 1: curl_cffi with Chrome impersonation
-			if HAS_CURL_CFFI:
-				try:
-					for attempt in range(3):
-						try:
-							results = curl_requests.get(url, params=params, timeout=self.timeout, headers=base_headers, impersonate='chrome120')
-							if results.status_code == 200:
-								content_type = results.headers.get('content-type', '')
-								if 'text/html' not in content_type:
-									break
-							if results.status_code in (403, 418, 503) or 'text/html' in results.headers.get('content-type', ''):
-								cloudflare_blocked = True
-								if attempt < 2:
-									time.sleep(0.5 * (attempt + 1))
-									continue
-							break
-						except Exception:
-							if attempt < 2:
-								time.sleep(0.5 * (attempt + 1))
-								continue
-							raise
-					if results and results.status_code == 200 and 'text/html' not in results.headers.get('content-type', ''):
-						pass  # Success, continue to parsing
-					else:
-						results = None  # Reset to try next method
-				except Exception:
-					results = None
-
-			# Method 2: cloudscraper (JS challenge solver)
-			if results is None:
-				scraper = _get_scraper()
-				if scraper:
-					try:
-						for attempt in range(3):
-							try:
-								results = scraper.get(url, params=params, timeout=self.timeout, headers=base_headers)
-								if results.status_code == 200:
-									content_type = results.headers.get('content-type', '')
-									if 'text/html' not in content_type:
-										_mark_scraper_success()
-										break
-								if results.status_code in (403, 418, 503) or 'text/html' in results.headers.get('content-type', ''):
-									cloudflare_blocked = True
-									_mark_scraper_fail()
-									if attempt < 2:
-										time.sleep(0.5 * (attempt + 1))
-										if attempt == 1:
-											scraper = _get_scraper(force_new=True)
-											if not scraper:
-												break
-										continue
-								break
-							except Exception:
-								_mark_scraper_fail()
-								if attempt < 2:
-									time.sleep(0.5 * (attempt + 1))
-									continue
-								raise
-						if results and results.status_code == 200 and 'text/html' not in results.headers.get('content-type', ''):
-							pass  # Success
-						else:
-							results = None
-					except Exception:
-						results = None
-
-			# Method 3: Regular requests (fallback)
-			if results is None:
-				try:
-					for attempt in range(2):
-						try:
-							results = requests.get(url, params=params, timeout=self.timeout, headers=base_headers)
-							if results.status_code == 200:
-								content_type = results.headers.get('content-type', '')
-								if 'text/html' not in content_type:
-									break
-							if results.status_code in (403, 418, 503):
-								cloudflare_blocked = True
-								if attempt == 0:
-									time.sleep(0.5)
-									continue
-							break
-						except (requests.exceptions.Timeout, requests.exceptions.ConnectionError):
-							if attempt == 0:
-								time.sleep(0.5)
-								continue
-							raise
-				except Exception:
-					pass
-
-			if results is None or results.status_code != 200:
-				if results is not None:
-					if results.status_code == 403:
-						source_utils.scraper_error('AIOSTREAMS: Cloudflare blocked %s - try custom instance' % self.base_link)
-					elif results.status_code == 418:
-						source_utils.scraper_error('AIOSTREAMS: Bot protection at %s - configure user data' % self.base_link)
-					elif results.status_code == 503:
-						source_utils.scraper_error('AIOSTREAMS: Service unavailable at %s' % self.base_link)
-					else:
-						source_utils.scraper_error('AIOSTREAMS: HTTP %s from %s' % (results.status_code, self.base_link))
-				return sources
-
-			# Check for HTML response (Cloudflare challenge)
-			content_type = results.headers.get('content-type', '')
-			if 'text/html' in content_type:
-				source_utils.scraper_error('AIOSTREAMS: Cloudflare challenge at %s' % self.base_link)
+			if results.status_code != 200:
+				source_utils.scraper_error('AIOSTREAMS: HTTP %s from %s' % (results.status_code, self.base_link))
 				return sources
 
 			response = results.json()

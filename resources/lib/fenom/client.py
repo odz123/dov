@@ -112,65 +112,21 @@ def request(url, close=True, redirect=True, error=False, proxy=None, post=None, 
 			except Exception: ignore = False
 
 			if not ignore:
-				if response.code in (301, 307, 308, 503, 403): # 403:Forbidden added 3/3/21 for cloudflare, fails on bad User-Agent
-					cf_result = response.read(5242880)
-					try: encoding = response.headers["Content-Encoding"]
-					except Exception: encoding = None
-					if encoding == 'gzip': cf_result = gzip.GzipFile(fileobj=BytesIO(cf_result)).read()
-
-					if flare and 'cloudflare' in str(response.info()).lower():
+				if error is False:
+					from fenom import log_utils
+					log_utils.error('Request-Error url=(%s)' % url)
+					return None
+				elif error is True and response.code in (401, 404, 405): # no point in continuing after this exception runs with these response.code's
+					try: response_headers = dict([(item[0].title(), item[1]) for item in list(response.info().items())]) # behaves differently 18 to 19. 18 I had 3 "Set-Cookie:" it combined all 3 values into 1 key. In 19 only the last keys value was present.
+					except Exception:
 						from fenom import log_utils
-						log_utils.log('client module calling cfscrape: url=%s' % url, level=log_utils.LOGDEBUG)
-						try:
-							from fenom import cfscrape
-							if isinstance(post, dict): data = post
-							else:
-								try: data = parse_qs(post)
-								except Exception: data = None
-							scraper = cfscrape.CloudScraper()
-							if response.code == 403: # possible bad User-Agent in headers, let cfscrape assign
-								response = scraper.request(method='GET' if post is None else 'POST', url=url, data=data, timeout=int(timeout))
-							else: response = scraper.request(method='GET' if post is None else 'POST', url=url, headers=headers, data=data, timeout=int(timeout))
-							result = response.content
-							flare = 'cloudflare' # Used below
-							try: cookies = response.request._cookies
-							except Exception: log_utils.error()
-							if response.status_code == 403: # if cfscrape server still responds with 403
-								log_utils.log('cfscrape-Error url=(%s): %s' % (url, 'HTTP Error 403: Forbidden'), __name__, level=log_utils.LOGDEBUG)
-								return None
-						except Exception:
-							log_utils.error()
-					elif 'cf-browser-verification' in str(cf_result):
-						netloc = '%s://%s' % (urlparse(url).scheme, urlparse(url).netloc)
-						ua = headers['User-Agent']
-						cf = cache.get(cfcookie().get, 168, netloc, ua, timeout)
-						headers['Cookie'] = cf
-						req = urllib2.Request(url, data=post)
-						_add_request_header(req, headers)
-						response = urllib2.urlopen(req, timeout=int(timeout))
-					else:
-						if error is False:
-							from fenom import log_utils
-							log_utils.error('Request-Error url=(%s)' % url)
-							return None
-				else:
-					if error is False:
-						from fenom import log_utils
-						log_utils.error('Request-Error url=(%s)' % url)
-						return None
-					elif error is True and response.code in (401, 404, 405): # no point in continuing after this exception runs with these response.code's
-						try: response_headers = dict([(item[0].title(), item[1]) for item in list(response.info().items())]) # behaves differently 18 to 19. 18 I had 3 "Set-Cookie:" it combined all 3 values into 1 key. In 19 only the last keys value was present.
-						except Exception:
-							from fenom import log_utils
-							log_utils.error()
-							response_headers = response.headers
-						return (str(response), str(response.code), response_headers)
+						log_utils.error()
+						response_headers = response.headers
+					return (str(response), str(response.code), response_headers)
 
 		if output == 'cookie':
 			result = None
 			try: result = '; '.join(['%s=%s' % (i.name, i.value) for i in cookies])
-			except Exception: pass
-			try: result = cf
 			except Exception: pass
 			if close == True: response.close()
 			return result
@@ -195,10 +151,9 @@ def request(url, close=True, redirect=True, error=False, proxy=None, post=None, 
 			except Exception: content = 0
 			if close == True: response.close()
 			return content
-		if flare != 'cloudflare':
-			if limit == '0': result = response.read(224 * 1024)
-			elif limit is not None: result = response.read(int(limit) * 1024)
-			else: result = response.read(5242880)
+		if limit == '0': result = response.read(224 * 1024)
+		elif limit is not None: result = response.read(int(limit) * 1024)
+		else: result = response.read(5242880)
 
 		try: encoding = response.headers["Content-Encoding"]
 		except Exception: encoding = None
@@ -235,10 +190,8 @@ def request(url, close=True, redirect=True, error=False, proxy=None, post=None, 
 				log_utils.error()
 				response_headers = response.headers
 			try: response_code = str(response.code)
-			except Exception: response_code = str(response.status_code) # object from CFScrape Requests object.
+			except Exception: response_code = ''
 			try: cookie = '; '.join(['%s=%s' % (i.name, i.value) for i in cookies])
-			except Exception: pass
-			try: cookie = cf
 			except Exception: pass
 			if close is True: response.close()
 			return (result, response_code, response_headers, headers, cookie)
@@ -345,120 +298,6 @@ def randomagent():
 
 def agent():
 	return 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.123 Safari/537.36' # works on glodls
-
-class cfcookie:
-	def __init__(self):
-		self.cookie = None
-		self._lock = None
-
-	def get(self, netloc, ua, timeout):
-		from threading import Thread, Lock, Event
-		# Use proper synchronization instead of 15 threads with race condition
-		self._lock = Lock()
-		self._done = Event()
-		max_retries = 3
-
-		for attempt in range(max_retries):
-			if self.cookie is not None:
-				return self.cookie
-			try:
-				self.get_cookie(netloc, ua, timeout)
-				if self.cookie is not None:
-					return self.cookie
-			except Exception:
-				pass
-			if attempt < max_retries - 1:
-				sleep(1)  # Brief pause between retries
-
-		return self.cookie
-
-	def get_cookie(self, netloc, ua, timeout):
-		try:
-			headers = {'User-Agent': ua}
-			req = urllib2.Request(netloc)
-			_add_request_header(req, headers)
-
-			try: response = urllib2.urlopen(req, timeout=int(timeout))
-			except HTTPError as response:
-				result = response.read(5242880)
-				try: encoding = response.headers["Content-Encoding"]
-				except Exception: encoding = None
-				if encoding == 'gzip': result = gzip.GzipFile(fileobj=BytesIO(result)).read()
-
-			jschl_match = re.findall(r'name\s*=\s*["\']jschl_vc["\']\s*value\s*=\s*["\'](.+?)["\']/>', result, re.I)
-			if not jschl_match: return result
-			jschl = jschl_match[0]
-			init_match = re.findall(r'setTimeout\(function\(\){\s*.*?.*:(.*?)};', result, re.I)
-			if not init_match: return result
-			init = init_match[-1]
-			builder_match = re.findall(r"challenge-form\'\);\s*(.*)a.v", result, re.I)
-			if not builder_match: return result
-			builder = builder_match[0]
-			decryptVal = self.parseJSString(init)
-			lines = builder.split(';')
-
-			for line in lines:
-				if len(line) > 0 and '=' in line:
-					sections = line.split('=')
-					line_val = self.parseJSString(sections[1])
-					# Safe arithmetic operation instead of eval()
-					operator = sections[0][-1] if sections[0] else '+'
-					if operator == '+':
-						decryptVal = int(decryptVal + line_val)
-					elif operator == '-':
-						decryptVal = int(decryptVal - line_val)
-					elif operator == '*':
-						decryptVal = int(decryptVal * line_val)
-					elif operator == '/':
-						decryptVal = int(decryptVal / line_val) if line_val != 0 else decryptVal
-					else:
-						decryptVal = int(decryptVal + line_val)
-
-			answer = decryptVal + len(urlparse(netloc).netloc)
-			query = '%s/cdn-cgi/l/chk_jschl?jschl_vc=%s&jschl_answer=%s' % (netloc, jschl, answer)
-
-			if 'type="hidden" name="pass"' in result:
-				passval_match = re.findall(r'name\s*=\s*["\']pass["\']\s*value\s*=\s*["\'](.*?)["\']', result, re.I)
-				if passval_match:
-					passval = passval_match[0]
-					query = '%s/cdn-cgi/l/chk_jschl?pass=%s&jschl_vc=%s&jschl_answer=%s' % (netloc, quote_plus(passval), jschl, answer)
-					sleep(6)
-
-			cookies = cookiejar.LWPCookieJar()
-			handlers = [urllib2.HTTPHandler(), urllib2.HTTPSHandler(), urllib2.HTTPCookieProcessor(cookies)]
-			opener = urllib2.build_opener(*handlers)
-			opener = urllib2.install_opener(opener)
-			try:
-				req = urllib2.Request(query)
-				_add_request_header(req, headers)
-				response = urllib2.urlopen(req, timeout=int(timeout))
-			except Exception: pass
-			cookie = '; '.join(['%s=%s' % (i.name, i.value) for i in cookies])
-			if 'cf_clearance' in cookie:
-				if self._lock:
-					with self._lock:
-						self.cookie = cookie
-				else:
-					self.cookie = cookie
-		except Exception:
-			from fenom import log_utils
-			log_utils.error()
-
-	def parseJSString(self, s):
-		try:
-			from ast import literal_eval
-			offset = 1 if s[0] == '+' else 0
-			# Safe parsing of JS-like number expressions without using eval()
-			parsed = s.replace('!+[]', '1').replace('!![]', '1').replace('[]', '0')[offset:]
-			# Remove any remaining parentheses and concatenate digits
-			parsed = ''.join(c for c in parsed if c.isdigit())
-			val = int(parsed) if parsed else 0
-			return val
-		except Exception:
-			from fenom import log_utils
-			log_utils.error()
-			return 0
-
 
 class bfcookie:
 	def __init__(self):
