@@ -49,15 +49,21 @@ class source:
 
 	def _load_addons(self):
 		"""Load configured Stremio addons from settings"""
-		addons = []
-		try:
-			import ast
-			addons_str = getSetting('stremio.addons', '')
-			if addons_str:
+		import json
+		addons_str = getSetting('stremio.addons', '')
+		if addons_str:
+			try:
+				addons = json.loads(addons_str)
+				return addons if isinstance(addons, list) else []
+			except (json.JSONDecodeError, ValueError):
+				pass
+			try:
+				import ast
 				addons = ast.literal_eval(addons_str)
-		except Exception:
-			pass
-		return addons if isinstance(addons, list) else []
+				return addons if isinstance(addons, list) else []
+			except Exception:
+				pass
+		return []
 
 	def _parse_stream_info(self, stream, addon_info=None):
 		"""Parse stream object to extract metadata with full SDK support"""

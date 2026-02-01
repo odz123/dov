@@ -70,14 +70,19 @@ def get_language_name(code):
 
 def get_stremio_addons_with_subtitles():
 	"""Get list of configured Stremio addons that support subtitles"""
-	try:
-		import ast
-		addons_str = get_setting('stremio.addons', '')
-		if addons_str:
+	addons_str = get_setting('stremio.addons', '')
+	if addons_str:
+		try:
+			addons = json.loads(addons_str)
+			return [a for a in addons if a.get('supports_subtitles', False)]
+		except (json.JSONDecodeError, ValueError):
+			pass
+		try:
+			import ast
 			addons = ast.literal_eval(addons_str)
 			return [a for a in addons if a.get('supports_subtitles', False)]
-	except Exception:
-		pass
+		except Exception:
+			pass
 	return []
 
 

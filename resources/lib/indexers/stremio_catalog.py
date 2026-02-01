@@ -156,13 +156,18 @@ class StremioIndexer:
 
 	def get_stremio_addons(self):
 		"""Get list of configured Stremio addons"""
-		try:
-			addons_str = get_setting('stremio.addons', '')
-			if addons_str:
+		addons_str = get_setting('stremio.addons', '')
+		if addons_str:
+			try:
+				addons = json.loads(addons_str)
+				return addons if isinstance(addons, list) else []
+			except (json.JSONDecodeError, ValueError):
+				pass
+			try:
 				addons = literal_eval(addons_str)
 				return addons if isinstance(addons, list) else []
-		except Exception:
-			pass
+			except Exception:
+				pass
 		return []
 
 	def fetch_manifest(self, addon_url, use_cache=True):

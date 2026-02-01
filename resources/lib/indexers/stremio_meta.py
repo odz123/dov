@@ -18,6 +18,7 @@
 	  - Video-level trailers (per SDK spec)
 """
 
+import json
 import time
 from ast import literal_eval
 from threading import Thread
@@ -120,15 +121,22 @@ class StremioMetaProvider:
 		if self._addons is not None:
 			return self._addons
 
-		try:
-			addons_str = get_setting('stremio.addons', '')
-			if addons_str:
+		addons_str = get_setting('stremio.addons', '')
+		if addons_str:
+			try:
+				addons = json.loads(addons_str)
+				if isinstance(addons, list):
+					self._addons = addons
+					return addons
+			except (json.JSONDecodeError, ValueError):
+				pass
+			try:
 				addons = literal_eval(addons_str)
 				if isinstance(addons, list):
 					self._addons = addons
 					return addons
-		except Exception:
-			pass
+			except Exception:
+				pass
 		self._addons = []
 		return []
 
