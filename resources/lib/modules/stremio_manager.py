@@ -12,7 +12,8 @@
 import json
 from modules.kodi_utils import (
 	notification, ok_dialog, confirm_dialog, select_dialog,
-	get_setting, set_setting, dialog, local_string
+	get_setting, set_setting, dialog, local_string,
+	clear_settings_cache, clear_property
 )
 from modules import http_client
 
@@ -82,6 +83,9 @@ def extract_base_url_and_config(url):
 	from urllib.parse import urlparse, unquote
 
 	url = url.strip().rstrip('/')
+	# Handle stremio:// protocol URLs (used by Stremio share links)
+	if url.startswith('stremio://'):
+		url = url.replace('stremio://', 'https://', 1)
 	if not url.startswith(('http://', 'https://')):
 		url = 'https://' + url
 
@@ -147,6 +151,8 @@ def get_stremio_addons():
 def save_stremio_addons(addons):
 	"""Save Stremio addons list to settings"""
 	set_setting('stremio.addons', repr(addons))
+	clear_settings_cache()
+	clear_property('pov_settings')
 
 
 def get_enabled_debrid_services():
