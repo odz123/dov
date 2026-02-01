@@ -387,6 +387,32 @@ def fetch_manifest(base_url, timeout=3):
 	return fetch_json(endpoint, timeout=timeout)
 
 
+def fetch_meta(base_url, media_type, meta_id, timeout=8, error_callback=None):
+	"""
+	Fetch metadata from a Stremio addon endpoint.
+
+	Args:
+		base_url: Base addon URL (will strip /manifest.json if present)
+		media_type: Content type (e.g., 'movie', 'series')
+		meta_id: Content ID (e.g., IMDB ID)
+		timeout: Request timeout
+		error_callback: Optional function(error_message) for logging
+
+	Returns:
+		dict: Meta object, or None on failure
+	"""
+	url = base_url.rstrip('/')
+	if url.endswith('/manifest.json'):
+		url = url[:-14]
+
+	endpoint = f"{url}/meta/{media_type}/{meta_id}.json"
+
+	data = fetch_json(endpoint, timeout=timeout, error_callback=error_callback)
+	if data:
+		return data.get('meta')
+	return None
+
+
 # Reusable session for general API requests
 _api_session = None
 _api_session_lock = Lock()

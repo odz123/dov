@@ -230,9 +230,25 @@ def validate_stremio_addon(url, return_config_info=False):
 		if not has_supported_type:
 			return None, "Addon does not support any recognized media types"
 
-		# Check if addon has a configure page
-		behavior_hints = manifest.get('behaviorHints', {})
+		# Check if addon has a configure page and behaviorHints
+		behavior_hints = manifest.get('behaviorHints', {}) or {}
 		configurable = behavior_hints.get('configurable', False)
+		configuration_required = behavior_hints.get('configurationRequired', False)
+		is_adult = behavior_hints.get('adult', False)
+		is_p2p = behavior_hints.get('p2p', False)
+
+		# Extract per-resource type filtering from manifest resource objects
+		# Resources can be objects with per-resource type/idPrefix filtering
+		stream_types = []
+		catalog_types = []
+		for res in resources:
+			if isinstance(res, dict):
+				res_name = res.get('name', '')
+				res_types = res.get('types', [])
+				if res_name == 'stream' and res_types:
+					stream_types = res_types
+				elif res_name == 'catalog' and res_types:
+					catalog_types = res_types
 
 		addon_info = {
 			'url': base_url,
@@ -242,13 +258,27 @@ def validate_stremio_addon(url, return_config_info=False):
 			'description': manifest.get('description', ''),
 			'types': types,
 			'has_movies': any(t in types for t in ('movie', 'anime', 'other')),
-			'has_series': any(t in types for t in ('series', 'anime', 'tv', 'other')),
+			'has_series': any(t in types for t in ('series', 'anime', 'tv', 'channel', 'other')),
 			'supports_catalog': supports_catalog,
 			'supports_subtitles': supports_subtitles,
 			'supports_meta': supports_meta,
 			'configurable': configurable,
+			'configuration_required': configuration_required,
+			'is_adult': is_adult,
+			'is_p2p': is_p2p,
 			'config_url': ''  # Will be set during configuration
 		}
+
+		# Store per-resource type filtering if available
+		if stream_types:
+			addon_info['stream_types'] = stream_types
+		if catalog_types:
+			addon_info['catalog_types'] = catalog_types
+
+		# Extract idPrefixes for stream filtering
+		id_prefixes = manifest.get('idPrefixes', [])
+		if id_prefixes:
+			addon_info['id_prefixes'] = id_prefixes
 
 		# If the URL already had configuration, preserve it
 		if existing_config:
@@ -439,6 +469,22 @@ def add_stremio_addon():
 			notification(f"Updated: {addon_info['name']}", 2000)
 		return
 
+	# If addon requires configuration and none was provided, warn user
+	if addon_info.get('configuration_required') and not existing_config and not addon_info.get('config_url'):
+		ok_dialog(heading='Configuration Required',
+				  text=f"'{addon_info['name']}' requires configuration before use.\n"
+					   f"Please visit the addon's website to configure it, then enter the configuration URL.")
+		enter_url = dialog.input('Enter configured addon URL (or cancel to add without config)', type=0)
+		if enter_url:
+			# Re-validate with the configured URL
+			result = validate_stremio_addon(enter_url, return_config_info=True)
+			if len(result) == 4:
+				new_addon_info, new_error, new_config, new_has_debrid = result
+				if new_addon_info and not new_error:
+					addon_info = new_addon_info
+					existing_config = new_config
+					has_debrid_config = new_has_debrid
+
 	# If URL already had debrid config, inform user
 	if has_debrid_config:
 		notification(f"Detected existing debrid configuration", 2000)
@@ -451,16 +497,28 @@ def add_stremio_addon():
 
 	# Show addon info and confirm
 	debrid_status = '[COLOR green]Configured[/COLOR]' if addon_info.get('config_url') else '[COLOR gray]Not configured[/COLOR]'
+	content_types = ', '.join(addon_info.get('types', []))
+	resources_list = []
+	if addon_info.get('supports_catalog'): resources_list.append('Catalog')
+	if addon_info.get('supports_meta'): resources_list.append('Meta')
+	if addon_info.get('supports_subtitles'): resources_list.append('Subtitles')
+	resources_str = ', '.join(resources_list) if resources_list else 'Streams only'
+	flags = []
+	if addon_info.get('is_p2p'): flags.append('P2P')
+	if addon_info.get('is_adult'): flags.append('Adult')
+	if addon_info.get('configuration_required'): flags.append('Config Required')
+	flags_str = ' | '.join(flags) if flags else ''
 	info_text = (
 		f"[B]Name:[/B] {addon_info['name']}\n"
 		f"[B]Version:[/B] {addon_info['version']}\n"
 		f"[B]ID:[/B] {addon_info['id']}\n"
-		f"[B]Supports:[/B] {'Movies' if addon_info['has_movies'] else ''}"
-		f"{', ' if addon_info['has_movies'] and addon_info['has_series'] else ''}"
-		f"{'Series' if addon_info['has_series'] else ''}\n"
+		f"[B]Types:[/B] {content_types}\n"
+		f"[B]Resources:[/B] {resources_str}\n"
 		f"[B]Debrid:[/B] {debrid_status}\n"
-		f"[B]Description:[/B] {addon_info.get('description', 'N/A')[:100]}"
 	)
+	if flags_str:
+		info_text += f"[B]Flags:[/B] {flags_str}\n"
+	info_text += f"[B]Description:[/B] {addon_info.get('description', 'N/A')[:100]}"
 
 	if not confirm_dialog(heading='Add Stremio Addon?', text=info_text):
 		return
@@ -648,16 +706,28 @@ def view_addon_details(addon):
 	"""View detailed information about an addon"""
 	debrid_status = 'Configured' if addon.get('config_url') else 'Not configured'
 	debrid_service = addon.get('debrid_service', 'None')
+	content_types = ', '.join(addon.get('types', [])) or 'N/A'
+	resources = []
+	if addon.get('supports_catalog'): resources.append('Catalog')
+	if addon.get('supports_meta'): resources.append('Meta')
+	if addon.get('supports_subtitles'): resources.append('Subtitles')
+	resources_str = ', '.join(resources) if resources else 'Streams only'
+	flags = []
+	if addon.get('is_p2p'): flags.append('P2P')
+	if addon.get('is_adult'): flags.append('Adult')
+	if addon.get('configuration_required'): flags.append('Config Required')
+	flags_str = ' | '.join(flags) if flags else 'None'
 
 	text = (
 		f"[B]Name:[/B] {addon.get('name', 'Unknown')}\n"
 		f"[B]ID:[/B] {addon.get('id', 'N/A')}\n"
 		f"[B]Version:[/B] {addon.get('version', 'N/A')}\n"
 		f"[B]URL:[/B] {addon.get('url', 'N/A')}\n"
-		f"[B]Movies:[/B] {'Yes' if addon.get('has_movies', True) else 'No'}\n"
-		f"[B]Series:[/B] {'Yes' if addon.get('has_series', True) else 'No'}\n"
+		f"[B]Content Types:[/B] {content_types}\n"
+		f"[B]Resources:[/B] {resources_str}\n"
 		f"[B]Catalogs:[/B] {'Yes' if addon.get('supports_catalog', False) else 'No'}\n"
 		f"[B]Subtitles:[/B] {'Yes' if addon.get('supports_subtitles', False) else 'No'}\n"
+		f"[B]Flags:[/B] {flags_str}\n"
 		f"[B]Debrid:[/B] {debrid_status}\n"
 		f"[B]Debrid Service:[/B] {debrid_service.capitalize() if debrid_service != 'None' else 'None'}\n"
 		f"[B]Description:[/B] {addon.get('description', 'N/A')}"
