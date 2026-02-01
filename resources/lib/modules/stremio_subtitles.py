@@ -80,7 +80,7 @@ def get_stremio_addons_with_subtitles():
 	return []
 
 
-def fetch_subtitles_from_addon(addon_url, media_type, media_id, video_hash=None, video_size=None):
+def fetch_subtitles_from_addon(addon_url, media_type, media_id, video_hash=None, video_size=None, filename=None):
 	"""
 	Fetch subtitles from a Stremio addon
 
@@ -90,6 +90,7 @@ def fetch_subtitles_from_addon(addon_url, media_type, media_id, video_hash=None,
 		media_id: IMDB ID (or imdb:season:episode for series)
 		video_hash: OpenSubtitles video hash (optional)
 		video_size: Video file size in bytes (optional)
+		filename: Video filename for subtitle matching (optional)
 
 	Returns:
 		List of subtitle objects
@@ -100,9 +101,19 @@ def fetch_subtitles_from_addon(addon_url, media_type, media_id, video_hash=None,
 		if base_url.endswith('/manifest.json'):
 			base_url = base_url[:-14]
 
-		# Build subtitle endpoint with optional extra args
-		if video_hash and video_size:
-			endpoint = f"{base_url}/subtitles/{media_type}/{media_id}/{video_hash}:{video_size}.json"
+		# Build subtitle endpoint with optional extra args per Stremio SDK spec
+		extra_parts = []
+		if video_hash:
+			extra_parts.append(f"videoHash={video_hash}")
+		if video_size:
+			extra_parts.append(f"videoSize={video_size}")
+		if filename:
+			from urllib.parse import quote
+			extra_parts.append(f"filename={quote(filename)}")
+
+		if extra_parts:
+			extra_string = '&'.join(extra_parts)
+			endpoint = f"{base_url}/subtitles/{media_type}/{media_id}/{extra_string}.json"
 		else:
 			endpoint = f"{base_url}/subtitles/{media_type}/{media_id}.json"
 
@@ -115,9 +126,11 @@ def fetch_subtitles_from_addon(addon_url, media_type, media_id, video_hash=None,
 	return subtitles
 
 
-def fetch_all_stremio_subtitles(imdb_id, media_type='movie', season=None, episode=None, video_hash=None, video_size=None):
+def fetch_all_stremio_subtitles(imdb_id, media_type='movie', season=None, episode=None,
+								video_hash=None, video_size=None, filename=None):
 	"""
-	Fetch subtitles from all configured Stremio addons that support subtitles
+	Fetch subtitles from all configured Stremio addons that support subtitles.
+	Uses parallel fetching for performance.
 
 	Args:
 		imdb_id: IMDB ID (e.g., 'tt1234567')
@@ -126,11 +139,15 @@ def fetch_all_stremio_subtitles(imdb_id, media_type='movie', season=None, episod
 		episode: Episode number (for episodes)
 		video_hash: OpenSubtitles video hash (optional)
 		video_size: Video file size in bytes (optional)
+		filename: Video filename for subtitle matching (optional)
 
 	Returns:
 		List of subtitle objects with addon source info
 	"""
+	from threading import Thread, Lock
+
 	all_subtitles = []
+	subs_lock = Lock()
 	addons = get_stremio_addons_with_subtitles()
 
 	# Also check for hardcoded OpenSubtitles addon
@@ -146,20 +163,28 @@ def fetch_all_stremio_subtitles(imdb_id, media_type='movie', season=None, episod
 		stremio_type = 'movie'
 		media_id = imdb_id
 
-	for addon in addons:
+	def _fetch_from_addon(addon):
 		try:
 			addon_url = addon.get('config_url', '') or addon.get('url', '')
 			addon_name = addon.get('name', 'Unknown')
 
 			subtitles = fetch_subtitles_from_addon(
-				addon_url, stremio_type, media_id, video_hash, video_size
+				addon_url, stremio_type, media_id, video_hash, video_size, filename
 			)
 
-			for sub in subtitles:
-				sub['addon'] = addon_name
-				all_subtitles.append(sub)
+			if subtitles:
+				for sub in subtitles:
+					sub['addon'] = addon_name
+				with subs_lock:
+					all_subtitles.extend(subtitles)
 		except Exception:
-			continue
+			pass
+
+	threads = [Thread(target=_fetch_from_addon, args=(addon,)) for addon in addons]
+	for t in threads:
+		t.start()
+	for t in threads:
+		t.join(timeout=10)
 
 	return all_subtitles
 

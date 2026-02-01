@@ -36,13 +36,34 @@ _SERIES_LIKE_TYPES = ('series', 'anime', 'tv', 'channel', 'other')
 
 
 class StremioCache:
-	"""Simple caching layer for Stremio catalog data"""
+	"""Simple caching layer for Stremio catalog data using Kodi window properties.
+	Tracks all cache keys in a registry property so they can be cleared."""
+
+	_REGISTRY_KEY = 'pov_stremio_cache_keys'
 
 	@staticmethod
 	def _make_cache_key(prefix, *args):
 		"""Create a cache key from prefix and args"""
 		key_parts = [str(a).replace('/', '_').replace(':', '_') for a in args]
 		return f"pov_stremio_{prefix}_{'_'.join(key_parts)}"
+
+	@staticmethod
+	def _register_key(key):
+		"""Track a cache key in the registry for later clearing"""
+		try:
+			registry = get_property(StremioCache._REGISTRY_KEY)
+			if registry:
+				keys = json.loads(registry)
+			else:
+				keys = []
+			if key not in keys:
+				keys.append(key)
+				set_property(StremioCache._REGISTRY_KEY, json.dumps(keys))
+		except Exception:
+			try:
+				set_property(StremioCache._REGISTRY_KEY, json.dumps([key]))
+			except Exception:
+				pass
 
 	@staticmethod
 	def get(key):
@@ -64,6 +85,7 @@ class StremioCache:
 			expires = int(time.time() + (hours * 3600))
 			cachedata = repr((expires, data))
 			set_property(key, cachedata)
+			StremioCache._register_key(key)
 		except Exception:
 			pass
 
@@ -74,10 +96,19 @@ class StremioCache:
 
 	@staticmethod
 	def clear_all():
-		"""Clear all Stremio catalog cache - called via cache clearing"""
-		# Note: This clears window properties which are session-based
-		# For persistent cache, we'd need database storage
-		pass
+		"""Clear all Stremio catalog cache by iterating tracked keys"""
+		try:
+			registry = get_property(StremioCache._REGISTRY_KEY)
+			if registry:
+				keys = json.loads(registry)
+				for key in keys:
+					try:
+						clear_property(key)
+					except Exception:
+						pass
+			clear_property(StremioCache._REGISTRY_KEY)
+		except Exception:
+			pass
 
 
 class StremioIndexer:
@@ -475,6 +506,12 @@ class StremioIndexer:
 
 			name = meta.get('name', 'Unknown')
 			year = meta.get('year', '')
+			# Stremio SDK uses releaseInfo for year/date range (e.g. "2020", "2020-2024", "2020-")
+			if not year and meta.get('releaseInfo'):
+				release_info = str(meta['releaseInfo'])
+				# Extract first 4-digit year from releaseInfo
+				year_match = release_info[:4] if release_info[:4].isdigit() else ''
+				year = year_match
 			imdb_id = meta.get('imdb_id', '')
 			tmdb_id = ''
 			stremio_id = meta.get('id', '')
@@ -537,15 +574,22 @@ class StremioIndexer:
 				rating = info_dict.get('rating')
 				if rating: videoinfo.setRating(rating)
 
-			# Set art
+			# Set art - handle Stremio poster shapes (square, poster, landscape)
 			poster = meta.get('poster', '')
 			background = meta.get('background', '') or meta.get('fanart', '')
 			logo = meta.get('logo', '')
+			poster_shape = meta.get('posterShape', 'poster')
 
 			art_dict = {}
 			if poster:
 				art_dict['poster'] = poster
-				art_dict['thumb'] = poster
+				# For landscape shape, use poster as fanart/thumb rather than poster
+				if poster_shape == 'landscape':
+					art_dict['thumb'] = poster
+					if not background:
+						art_dict['fanart'] = poster
+				else:
+					art_dict['thumb'] = poster
 			if background:
 				art_dict['fanart'] = background
 			if logo:
@@ -554,7 +598,9 @@ class StremioIndexer:
 			if art_dict:
 				listitem.setArt(art_dict)
 
-			# Determine action based on available IDs
+			# Determine action based on available IDs and content type
+			# Map Stremio types to POV types: movie stays movie, all others are tvshow
+			# 'tv' type in Stremio is live TV - treat as direct playback if possible
 			media_type = 'movie' if catalog_type == 'movie' else 'tvshow'
 			if tmdb_id:
 				if media_type == 'movie':
@@ -579,8 +625,9 @@ class StremioIndexer:
 
 			listitems.append((url, listitem, catalog_type in _SERIES_LIKE_TYPES))
 
-		# Add "Next Page" item if we got a full page
-		if len(metas) >= 20:  # Assuming 20 items per page
+		# Add "Next Page" if we got items (Stremio SDK: < 100 items signals end of catalog)
+		# Use len(metas) >= 20 as minimum threshold - addons return varying page sizes
+		if len(metas) >= 20:
 			next_skip = current_skip + len(metas)
 			listitem = make_listitem()
 			listitem.setLabel('[B]Next Page >>>[/B]')
@@ -744,6 +791,11 @@ class StremioIndexer:
 
 			name = meta.get('name', 'Unknown')
 			year = meta.get('year', '')
+			# Stremio SDK uses releaseInfo for year/date range
+			if not year and meta.get('releaseInfo'):
+				release_info = str(meta['releaseInfo'])
+				year_match = release_info[:4] if release_info[:4].isdigit() else ''
+				year = year_match
 			catalog_type = meta.get('_catalog_type', 'movie')
 			addon_name = meta.get('_addon_name', '')
 			imdb_id = meta.get('imdb_id', '')

@@ -5,13 +5,16 @@
 	Features:
 	- Direct URL playback with proxyHeaders support
 	- Debrid-integrated addon detection
-	- Multiple stream types (torrent, direct, YouTube)
+	- Multiple stream types (torrent, direct, YouTube, usenet)
 	- Subtitle integration
 	- bingeGroup for autoplay optimization
 	- HTTP client via shared http_client module
+	- Parallel addon scraping for performance
+	- Per-resource type filtering from manifest
 """
 
 import re
+from threading import Thread, Lock
 from fenom import source_utils
 from fenom.control import setting as getSetting
 from modules import http_client
@@ -303,6 +306,20 @@ class source:
 		]
 		return any(pattern in check_url.lower() for pattern in debrid_patterns)
 
+	def _get_addon_stream_types(self, addon_info, media_type):
+		"""Determine which content types to query for streams from this addon.
+		Respects per-resource type filtering from manifest resource objects."""
+		addon_types = addon_info.get('types', []) if isinstance(addon_info, dict) else []
+		# Check if addon stores per-resource type info (from manifest resource objects)
+		stream_types = addon_info.get('stream_types', []) if isinstance(addon_info, dict) else []
+		# Use stream-specific types if available, otherwise fall back to manifest-level types
+		effective_types = stream_types if stream_types else addon_types
+		fetch_types = [media_type]
+		if effective_types and media_type not in effective_types:
+			alt_types = [t for t in effective_types if t in ('anime', 'tv', 'channel', 'other')]
+			fetch_types = alt_types if alt_types else [media_type]
+		return fetch_types
+
 	def _build_source_item(self, stream_info, addon_name, title, aliases, hdlr, year,
 						   episode_title, total_seasons, season, undesirables, check_foreign_audio):
 		"""Build a source item from parsed stream info"""
@@ -472,8 +489,6 @@ class source:
 		if not self.addons:
 			return sources
 
-		sources_append = sources.append
-
 		try:
 			title = data['tvshowtitle'] if 'tvshowtitle' in data else data['title']
 			title = title.replace('&', 'and').replace('Special Victims Unit', 'SVU').replace('/', ' ')
@@ -512,13 +527,15 @@ class source:
 			other_addons = [a for a in self.addons if not self._is_debrid_configured_addon(a)]
 			sorted_addons = debrid_addons + other_addons
 
-		# Process each configured addon
-		for addon in sorted_addons:
+		# Process addons in parallel using threads for performance
+		sources_lock = Lock()
+
+		def _scrape_addon(addon):
 			try:
 				addon_url = addon.get('url', '') if isinstance(addon, dict) else addon
 				config_url = addon.get('config_url', '') if isinstance(addon, dict) else ''
 				if not addon_url:
-					continue
+					return
 
 				# Use config URL for fetching if available (has debrid settings)
 				fetch_url = config_url if config_url else addon_url
@@ -530,13 +547,8 @@ class source:
 				addon_info = addon if isinstance(addon, dict) else {'url': addon}
 				is_debrid_addon = self._is_debrid_configured_addon(addon)
 
-				# Determine which content types to query for this addon
-				addon_types = addon_info.get('types', []) if isinstance(addon_info, dict) else []
-				fetch_types = [media_type]
-				# If addon doesn't declare movie/series but has anime/tv/other, also try those
-				if addon_types and media_type not in addon_types:
-					alt_types = [t for t in addon_types if t in ('anime', 'tv', 'channel', 'other')]
-					fetch_types = alt_types if alt_types else [media_type]
+				# Determine which content types to query using per-resource filtering
+				fetch_types = self._get_addon_stream_types(addon_info, media_type)
 
 				streams = []
 				for ft in fetch_types:
@@ -545,6 +557,7 @@ class source:
 						streams.extend(result)
 						break  # Got results, no need to try other types
 
+				addon_sources = []
 				for stream in streams:
 					try:
 						stream_info = self._parse_stream_info(stream, addon_info)
@@ -562,15 +575,24 @@ class source:
 						)
 
 						if item:
-							sources_append(item)
+							addon_sources.append(item)
 
 					except Exception:
 						source_utils.scraper_error('STREMIO')
 						continue
 
+				if addon_sources:
+					with sources_lock:
+						sources.extend(addon_sources)
+
 			except Exception:
 				source_utils.scraper_error('STREMIO')
-				continue
+
+		threads = [Thread(target=_scrape_addon, args=(addon,)) for addon in sorted_addons]
+		for t in threads:
+			t.start()
+		for t in threads:
+			t.join(timeout=self.timeout + 2)
 
 		return sources
 

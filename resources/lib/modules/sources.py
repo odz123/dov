@@ -452,8 +452,8 @@ class SourceSelect:
 			if provider.startswith('stremio'):
 				stremio_sources.append(item)
 				continue
-			# Torrentio/AIOStreams debrid-direct sources also bypass - already resolved by addon
-			if item.get('direct') and provider.startswith(('torrentio', 'aiostreams')):
+			# Torrentio/AIOStreams/Torz debrid-direct sources also bypass - already resolved by addon
+			if item.get('direct') and provider.startswith(('torrentio', 'aiostreams', 'torz')):
 				stremio_sources.append(item)
 				continue
 
@@ -669,9 +669,9 @@ class Manager:
 				self.final_sources.extend({**i, 'cache_provider': status, 'debrid': name} for i in torrent_sources if i['hash'] not in hashes_set)
 			self.final_sources = [i for i in self.final_sources if not (i['source'] == 'usenet' and 'Unchecked' in i['cache_provider'])]
 			hoster_sources = [i for i in self.sources if not 'hash' in i]
-			# Stremio/Torrentio/AIOStreams non-torrent sources bypass debrid hoster check
+			# Stremio/Torrentio/AIOStreams/Torz non-torrent sources bypass debrid hoster check
 			# They're direct/debrid_direct/youtube streams that are already resolved or playable
-			direct_bypass_providers = ('stremio', 'torrentio', 'aiostreams')
+			direct_bypass_providers = ('stremio', 'torrentio', 'aiostreams', 'torz')
 			direct_sources = [i for i in hoster_sources if i.get('direct') and i.get('provider', '').startswith(direct_bypass_providers)]
 			self.final_sources.extend(direct_sources)
 			hoster_sources = [i for i in hoster_sources if not (i.get('direct') and i.get('provider', '').startswith(direct_bypass_providers))]
