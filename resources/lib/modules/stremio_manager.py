@@ -1164,7 +1164,8 @@ def configure_addon_from_config(addon_info):
 	if config_values:
 		from urllib.parse import quote
 		# Stremio addons typically encode config as /{key}={value}|{key2}={value2}/manifest.json
-		config_parts = [f"{k}={quote(str(v))}" for k, v in config_values.items()]
+		# Use safe='' to encode all special chars (including /) since values are in URL path segment
+		config_parts = [f"{k}={quote(str(v), safe='')}" for k, v in config_values.items()]
 		config_string = '|'.join(config_parts)
 		addon_info['config_url'] = f"{addon_info['url'].rstrip('/')}/{config_string}"
 		addon_info['user_config'] = config_values

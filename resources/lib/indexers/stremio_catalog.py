@@ -491,6 +491,9 @@ class StremioIndexer:
 					'filter_name': filter_name,
 					'filter_value': filter_value
 				})
+				# End current directory before navigating to avoid Kodi warnings
+				set_content(self.__handle__, 'files')
+				end_directory(self.__handle__)
 				execute_builtin(f'Container.Update({url})')
 			else:
 				set_content(self.__handle__, 'files')
