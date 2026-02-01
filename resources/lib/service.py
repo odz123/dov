@@ -224,6 +224,7 @@ class POVMonitor(kodi_utils.xbmc_monitor):
 
 	def onSettingsChanged(self):
 		clear_property('pov_settings')
+		kodi_utils.clear_settings_cache()
 		kodi_utils.sleep(50)
 		make_settings_dict()
 		set_property('pov_kodi_menu_cache', get_setting('kodi_menu_cache'))

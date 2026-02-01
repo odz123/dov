@@ -6,7 +6,8 @@ from xbmcaddon import Addon
 
 window, dialog, progressDialog, progressDialogBG = xbmcgui.Window(10000), xbmcgui.Dialog(), xbmcgui.DialogProgress(), xbmcgui.DialogProgressBG()
 player, xbmc_player, monitor, xbmc_monitor, execJSONRPC = xbmc.Player(), xbmc.Player, xbmc.Monitor(), xbmc.Monitor, xbmc.executeJSONRPC
-get_infolabel, get_addoninfo, get_visibility = xbmc.getInfoLabel, Addon().getAddonInfo, xbmc.getCondVisibility
+_addon_instance = Addon()
+get_infolabel, get_addoninfo, get_visibility = xbmc.getInfoLabel, _addon_instance.getAddonInfo, xbmc.getCondVisibility
 window_xml_info_action, window_xml_dialog = xbmcgui.ACTION_SHOW_INFO, xbmcgui.WindowXMLDialog
 window_xml_closing_actions = (xbmcgui.ACTION_PARENT_DIR, xbmcgui.ACTION_PREVIOUS_MENU, xbmcgui.ACTION_STOP, xbmcgui.ACTION_NAV_BACK)
 window_xml_selection_actions = (xbmcgui.ACTION_SELECT_ITEM, xbmcgui.ACTION_MOUSE_START)
@@ -60,6 +61,7 @@ def clear_property(prop):
 	return window.clearProperty(prop)
 
 def addon(addon_id='plugin.video.pov'):
+	if addon_id == 'plugin.video.pov': return _addon_instance
 	return Addon(id=addon_id)
 
 def addon_installed(addon_id):
@@ -134,8 +136,8 @@ def make_listitem():
 def local_string(string):
 	try: _string = int(string)
 	except Exception: return string
-	try: _string = str(Addon().getLocalizedString(_string))
-	except Exception: _string = Addon().getLocalizedString(_string)
+	try: _string = str(_addon_instance.getLocalizedString(_string))
+	except Exception: _string = _addon_instance.getLocalizedString(_string)
 	return _string or string
 
 def translate_path(path):
@@ -287,7 +289,7 @@ def set_view_mode(view_type, content='files'):
 		sleep(100)
 		while not container_content() == content:
 			hold += 1
-			if hold < 5000: sleep(1)
+			if hold < 50: sleep(100)
 			else: return
 		if view_id: execute_builtin('Container.SetViewMode(%s)' % view_id)
 	except Exception: return
@@ -356,6 +358,7 @@ def focus_index(index, sleep_time=100):
 
 def clean_settings_window_properties():
 	clear_property('pov_settings')
+	clear_settings_cache()
 	notification(32576, 1500)
 
 def fetch_kodi_imagecache(image):
@@ -370,19 +373,27 @@ def fetch_kodi_imagecache(image):
 	return result
 
 def set_setting(setting_id, value):
-	Addon().setSetting(setting_id, value)
+	_addon_instance.setSetting(setting_id, value)
+
+_settings_cache = {}
 
 def get_setting(setting_id, fallback=None):
-	try: settings_dict = json.loads(get_property('pov_settings'))
-	except Exception: settings_dict = make_settings_dict()
-	if settings_dict is None: settings_dict = get_setting_fallback(setting_id)
+	settings_dict = _settings_cache.get('dict')
+	if settings_dict is None:
+		try: settings_dict = json.loads(get_property('pov_settings'))
+		except Exception: settings_dict = make_settings_dict()
+		if settings_dict is None: settings_dict = get_setting_fallback(setting_id)
+		else: _settings_cache['dict'] = settings_dict
 	value = settings_dict.get(setting_id, '')
 	if fallback is None: return value
 	if value == '': return fallback
 	return value
 
+def clear_settings_cache():
+	_settings_cache.pop('dict', None)
+
 def get_setting_fallback(setting_id):
-	return {setting_id: Addon().getSetting(setting_id)}
+	return {setting_id: _addon_instance.getSetting(setting_id)}
 
 def make_settings_dict():
 	import xml.etree.ElementTree as ET
@@ -401,6 +412,7 @@ def make_settings_dict():
 			if item.get('id')
 		}
 		set_property('pov_settings', json.dumps(settings_dict))
+		_settings_cache['dict'] = settings_dict
 	except Exception: pass
 	return settings_dict
 

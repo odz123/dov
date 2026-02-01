@@ -330,7 +330,11 @@ class Indexer(Movies):
 				else: fanart = fanart_empty
 				listitem = kodi_utils.make_listitem()
 				listitem.setLabel(item['name'])
-				listitem.setInfo('Video', {'plot': item['overview']})
+				if KODI_VERSION < 20:
+					listitem.setInfo('Video', {'plot': item['overview']})
+				else:
+					videoinfo = listitem.getVideoInfoTag(offscreen=True)
+					videoinfo.setPlot(item.get('overview', ''))
 				listitem.setArt({'icon': poster, 'fanart': fanart})
 				yield (url_params, listitem, True)
 		image_resolution = settings.get_resolution()

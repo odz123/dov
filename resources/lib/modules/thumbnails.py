@@ -3,9 +3,10 @@ from pathlib import Path
 from datetime import datetime, timedelta
 import xbmc, xbmcaddon, xbmcgui, xbmcvfs
 
+_addon_info = xbmcaddon.Addon().getAddonInfo
+
 def notification(line1, time=3000, sound=False):
-	addon_info = xbmcaddon.Addon().getAddonInfo
-	xbmcgui.Dialog().notification(addon_info('name'), line1, addon_info('icon'), time, sound)
+	xbmcgui.Dialog().notification(_addon_info('name'), line1, _addon_info('icon'), time, sound)
 
 def thumb_cleaner():
 	current_date = datetime.utcnow().date()

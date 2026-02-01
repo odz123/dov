@@ -10,7 +10,8 @@ list_item = xbmcgui.ListItem
 dialog, select = xbmcgui.DialogProgress(), xbmcgui.Dialog().select
 input, notification = xbmcgui.Dialog().input, xbmcgui.Dialog().notification
 
-default_icon = Addon().getAddonInfo('icon')
+_addon_instance = Addon()
+default_icon = _addon_instance.getAddonInfo('icon')
 movie_year_check_url = 'https://v2.sg.media-imdb.com/suggestion/t/%s.json'
 total_str = 'TOTAL: [COLOR red][B]%s[/B][/COLOR]  |  '
 total_str += '4K: [COLOR red][B]%d[/B][/COLOR]  |  1080p: [COLOR red][B]%d[/B][/COLOR]  |  '

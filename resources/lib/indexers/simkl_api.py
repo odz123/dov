@@ -1,5 +1,6 @@
 import time
 import requests
+import xbmc
 from caches import simkl_cache
 from modules import kodi_utils
 from modules.cache import check_databases
@@ -7,6 +8,7 @@ from modules.utils import paginate_list, sort_for_article
 # logger = kodi_utils.logger
 
 from threading import Thread, Lock
+_monitor = xbmc.Monitor()
 
 get_setting = kodi_utils.get_setting
 base_url = 'https://api.simkl.com/%s'
@@ -57,7 +59,7 @@ def _wait_for_rate_limit():
 		wait_time = max(0, _rate_limit_reset - int(time.time()))
 	if wait_time > 0:
 		kodi_utils.logger('simkl', 'Rate limited, waiting %d seconds' % wait_time)
-		time.sleep(min(wait_time + 1, 60))
+		_monitor.waitForAbort(min(wait_time + 1, 60))
 	with _rate_limit_lock:
 		_rate_limit_remaining = 1
 
@@ -123,7 +125,7 @@ def call_simkl(path, params=None, data=None, with_auth=True, method=None, expect
 			if response.status_code == 429:
 				wait = min(_get_retry_wait(response), 60)
 				kodi_utils.logger('simkl', '429 rate limited on %s, waiting %d seconds (attempt %d/4)' % (path, wait, attempt + 1))
-				time.sleep(wait + 1)
+				_monitor.waitForAbort(wait + 1)
 				with _rate_limit_lock:
 					_rate_limit_remaining = 1
 				continue
@@ -144,13 +146,13 @@ def call_simkl(path, params=None, data=None, with_auth=True, method=None, expect
 			kodi_utils.logger('simkl error', 'connection error: %s (attempt %d/4)' % (str(e), attempt + 1))
 			_rebuild_session()
 			if attempt < 3:
-				time.sleep(2 ** attempt)
+				_monitor.waitForAbort(2 ** attempt)
 				continue
 			return None
 		except requests.exceptions.RequestException as e:
 			kodi_utils.logger('simkl error', '%s (attempt %d/4)' % (str(e), attempt + 1))
 			if attempt < 3:
-				time.sleep(2 ** attempt)
+				_monitor.waitForAbort(2 ** attempt)
 				continue
 			return None
 	kodi_utils.logger('simkl error', 'all retries exhausted for %s' % path)
