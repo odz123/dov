@@ -138,7 +138,8 @@ class source:
 			base_headers = self._headers()
 
 			# Use http_client for centralized session management, TLS fingerprinting, and retry logic
-			full_url = '%s?%s' % (url, '&'.join('%s=%s' % (k, v) for k, v in params.items()))
+			from urllib.parse import urlencode
+			full_url = '%s?%s' % (url, urlencode(params))
 			response = http_client.fetch_json(full_url, timeout=self.timeout, headers=base_headers)
 
 			if not response:

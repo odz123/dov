@@ -51,7 +51,8 @@ class source:
 				params = {'sid': imdb}
 			# log_utils.log('url = %s' % url)
 			if 'timeout' in data: self.timeout = int(data['timeout'])
-			full_url = '%s?%s' % (url, '&'.join('%s=%s' % (k, v) for k, v in params.items()))
+			from urllib.parse import urlencode
+			full_url = '%s?%s' % (url, urlencode(params))
 			response_json = http_client.fetch_json(full_url, timeout=self.timeout)
 			if not response_json:
 				return sources
