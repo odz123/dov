@@ -519,6 +519,11 @@ class source:
 		if stream_info['hash'] and not stream_info['is_debrid_resolved']:
 			item['hash'] = stream_info['hash']
 
+		# Usenet sources need a hash attribute for debrid resolution (debrid.py uses self.hash)
+		# Set empty string if no hash available to prevent AttributeError
+		if stream_info['stream_type'] == 'usenet' and 'hash' not in item:
+			item['hash'] = ''
+
 		# Add file index for multi-file torrents
 		if stream_info['file_idx'] is not None:
 			item['file_idx'] = stream_info['file_idx']
