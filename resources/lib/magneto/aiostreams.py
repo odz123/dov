@@ -15,9 +15,13 @@
 	3. Provide their own user data configuration from the AIOStreams configure page
 """
 
+import re
 import requests
 from fenom import source_utils
 from fenom.control import setting as getSetting
+
+# Debrid domain patterns for detecting pre-resolved URLs (e.g., when addon is configured with debrid)
+_RE_DEBRID_URL = re.compile(r'(real-?debrid|realdebrid|alldebrid|premiumize|torbox|debrid-link|easydebrid|offcloud)', re.I)
 
 # Pre-configured public instances
 # Note: Public instances may have rate limits or require configuration
@@ -173,6 +177,12 @@ class source:
 				is_debrid_direct = False
 				if direct_url and not hash:
 					is_debrid_direct = True
+				elif direct_url and hash:
+					# Both hash and URL present - common when addon is configured with debrid
+					# (cached torrents return both infoHash and debrid-resolved URL)
+					# Prefer the resolved URL over re-resolving the torrent
+					if _RE_DEBRID_URL.search(direct_url):
+						is_debrid_direct = True
 
 				# Extract behaviorHints
 				behavior_hints = file.get('behaviorHints', {}) or {}
@@ -191,11 +201,14 @@ class source:
 						if isinstance(src, str) and src.startswith('tracker:'):
 							trackers.append(src[8:])
 
-				# Get filename from various possible fields
-				file_title = file.get('folderName') or file.get('filename') or file.get('name', '')
-				file_title = file_title.replace('┈➤', '\n').split('\n')
-
-				name = source_utils.clean_name(file_title[0])
+				# Get filename - prioritize behaviorHints.filename per SDK spec
+				bh_filename = behavior_hints.get('filename', '')
+				if bh_filename:
+					name = source_utils.clean_name(bh_filename)
+				else:
+					file_title = file.get('folderName') or file.get('filename') or file.get('name', '')
+					file_title = file_title.replace('┈➤', '\n').split('\n')
+					name = source_utils.clean_name(file_title[0])
 
 				# Title validation - AIOStreams filters by IMDB ID so content is correct
 				# We use lenient validation since many results have simplified names
@@ -234,7 +247,9 @@ class source:
 				if undesirables and source_utils.remove_undesirables(name_info, undesirables): continue
 
 				# Build URL based on stream type
-				if hash:
+				if is_debrid_direct:
+					url = direct_url
+				elif hash:
 					from urllib.parse import quote_plus
 					url = 'magnet:?xt=urn:btih:%s&dn=%s' % (hash, name)
 					# Add tracker URLs for peer discovery
@@ -253,8 +268,11 @@ class source:
 				quality, info = source_utils.get_release_quality(name_info, url)
 				try:
 					size = file.get('size', 0)
+					# Fallback to behaviorHints.videoSize (file size in bytes per SDK spec)
+					if not size:
+						size = behavior_hints.get('videoSize', 0)
 					if size:
-						size_str = f"{float(size) / 1073741824:.2f} GB"
+						size_str = '%.2f GB' % (float(size) / 1073741824)
 						dsize, isize = source_utils._size(size_str)
 						info.insert(0, isize)
 					else:

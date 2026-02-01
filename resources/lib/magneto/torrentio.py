@@ -9,6 +9,9 @@ from fenom import source_utils
 from fenom.control import setting as getSetting
 from modules import http_client
 
+# Debrid domain patterns for detecting pre-resolved URLs (e.g., when addon is configured with debrid)
+_RE_DEBRID_URL = re.compile(r'(real-?debrid|realdebrid|alldebrid|premiumize|torbox|debrid-link|easydebrid|offcloud)', re.I)
+
 
 class source:
 	timeout = 8
@@ -97,6 +100,12 @@ class source:
 				is_debrid_direct = False
 				if direct_url and not hash:
 					is_debrid_direct = True
+				elif direct_url and hash:
+					# Both hash and URL present - common when addon is configured with debrid
+					# (cached torrents return both infoHash and debrid-resolved URL)
+					# Prefer the resolved URL over re-resolving the torrent
+					if _RE_DEBRID_URL.search(direct_url):
+						is_debrid_direct = True
 
 				# Extract behaviorHints
 				behavior_hints = file.get('behaviorHints', {}) or {}
@@ -162,7 +171,9 @@ class source:
 				if undesirables and source_utils.remove_undesirables(name_info, undesirables): continue
 
 				# Build URL based on stream type
-				if hash:
+				if is_debrid_direct:
+					url = direct_url
+				elif hash:
 					from urllib.parse import quote_plus
 					url = 'magnet:?xt=urn:btih:%s&dn=%s' % (hash, name)
 					# Add tracker URLs for peer discovery
@@ -186,7 +197,16 @@ class source:
 					size = re.search(r'((?:\d+\,\d+\.\d+|\d+\.\d+|\d+\,\d+|\d+)\s*(?:GB|GiB|Gb|MB|MiB|Mb))', file_info).group(0)
 					dsize, isize = source_utils._size(size)
 					info.insert(0, isize)
-				except Exception: dsize = 0
+				except Exception:
+					dsize = 0
+					# Fallback to behaviorHints.videoSize (file size in bytes per SDK spec)
+					video_size = behavior_hints.get('videoSize')
+					if video_size:
+						try:
+							size_str = '%.2f GB' % (int(video_size) / 1073741824)
+							dsize, isize = source_utils._size(size_str)
+							info.insert(0, isize)
+						except Exception: pass
 				info = ' | '.join(info)
 
 				# Build item based on stream type
