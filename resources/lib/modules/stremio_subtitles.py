@@ -391,7 +391,8 @@ def get_subtitle_for_source(source_item, imdb_id, media_type='movie', season=Non
 	return None
 
 
-def fetch_and_set_subtitle(imdb_id, media_type='movie', season=None, episode=None, auto_select=True):
+def fetch_and_set_subtitle(imdb_id, media_type='movie', season=None, episode=None, auto_select=True,
+						   video_hash=None, video_size=None, filename=None):
 	"""
 	Fetch subtitles and optionally set for playback
 
@@ -401,13 +402,17 @@ def fetch_and_set_subtitle(imdb_id, media_type='movie', season=None, episode=Non
 		season: Season number
 		episode: Episode number
 		auto_select: If True, auto-select best match; otherwise show dialog
+		video_hash: OpenSubtitles video hash for better matching (optional)
+		video_size: Video file size in bytes for better matching (optional)
+		filename: Video filename for subtitle matching (optional)
 
 	Returns:
 		Path to downloaded subtitle, or None
 	"""
 	# Fetch from all subtitle-supporting addons
 	subtitles = fetch_all_stremio_subtitles(
-		imdb_id, media_type, season, episode
+		imdb_id, media_type, season, episode,
+		video_hash=video_hash, video_size=video_size, filename=filename
 	)
 
 	if not subtitles:
@@ -482,6 +487,10 @@ def get_stremio_subtitle_for_player(meta):
 		season = meta.get('season')
 		episode = meta.get('episode')
 
+		# Get Stremio stream properties for better subtitle matching (per SDK spec)
+		video_hash = meta.get('stremio_video_hash')
+		video_size = meta.get('stremio_video_size')
+
 		# Determine auto-select based on settings
 		sub_action = get_setting('subtitles.subs_action', '2')
 		auto_select = sub_action == '0'  # Auto mode
@@ -494,7 +503,9 @@ def get_stremio_subtitle_for_player(meta):
 			media_type,
 			season,
 			episode,
-			auto_select
+			auto_select,
+			video_hash=video_hash,
+			video_size=video_size
 		)
 	except Exception:
 		return None

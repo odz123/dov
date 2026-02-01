@@ -149,6 +149,10 @@ class StremioIndexer:
 			self.browse_addon_catalog()
 		elif mode == 'install_addon':
 			self.install_addon_from_catalog()
+		elif mode == 'play_stream':
+			self.play_stream()
+		elif mode == 'play_meta_videos':
+			self.play_meta_videos()
 
 	def get_stremio_addons(self):
 		"""Get list of configured Stremio addons"""
@@ -700,6 +704,8 @@ class StremioIndexer:
 			# Map Stremio types to POV types: movie stays movie, all others are tvshow
 			# 'tv' type in Stremio is live TV - treat as direct playback if possible
 			media_type = 'movie' if catalog_type == 'movie' else 'tvshow'
+			# Check for defaultVideoId from meta behaviorHints (per SDK spec)
+			default_video_id = meta.get('behaviorHints', {}).get('defaultVideoId', '') if isinstance(meta.get('behaviorHints'), dict) else ''
 			if tmdb_id:
 				if media_type == 'movie':
 					url = build_url({'mode': 'play_media', 'media_type': 'movie', 'tmdb_id': tmdb_id})
@@ -713,13 +719,28 @@ class StremioIndexer:
 					'imdb_id': imdb_id
 				})
 			else:
-				url = build_url({
-					'mode': 'stremio_catalog',
-					'stremio_mode': 'view_meta',
-					'addon_url': addon_url,
-					'meta_type': catalog_type,
-					'meta_id': stremio_id
-				})
+				# Non-IMDb/TMDB content: handle based on content type
+				# This handles channel, tv, anime (kitsu:), and other custom ID content
+				stream_video_id = default_video_id or stremio_id
+				if catalog_type in _SERIES_LIKE_TYPES and not default_video_id:
+					# Series-like content: browse episodes/videos via meta endpoint
+					url = build_url({
+						'mode': 'stremio_catalog',
+						'stremio_mode': 'play_meta_videos',
+						'addon_url': addon_url,
+						'meta_type': catalog_type,
+						'meta_id': stremio_id
+					})
+				else:
+					# Movie or content with defaultVideoId: play directly
+					url = build_url({
+						'mode': 'stremio_catalog',
+						'stremio_mode': 'play_stream',
+						'addon_url': addon_url,
+						'stream_type': catalog_type,
+						'stream_id': stream_video_id,
+						'stream_name': name
+					})
 
 			listitems.append((url, listitem, catalog_type in _SERIES_LIKE_TYPES))
 
@@ -967,12 +988,14 @@ class StremioIndexer:
 					'imdb_id': imdb_id
 				})
 			else:
+				# Non-IMDb/TMDB content: play directly via Stremio stream endpoint
 				url = build_url({
 					'mode': 'stremio_catalog',
-					'stremio_mode': 'view_meta',
+					'stremio_mode': 'play_stream',
 					'addon_url': '',
-					'meta_type': catalog_type,
-					'meta_id': stremio_id
+					'stream_type': catalog_type,
+					'stream_id': stremio_id,
+					'stream_name': name
 				})
 
 			listitems.append((url, listitem, catalog_type in _SERIES_LIKE_TYPES))
@@ -1202,6 +1225,340 @@ class StremioIndexer:
 
 		ok_dialog(heading=name, text=text)
 
+
+	def _resolve_magnet_via_debrid(self, magnet_url, title=''):
+		"""Resolve a magnet link to a direct URL via the first available debrid service.
+		Used for non-IMDb catalog content where the normal POV source pipeline can't be used."""
+		try:
+			from modules.debrid import debrid_enabled, import_debrid
+			from modules.source_utils import supported_video_extensions
+
+			enabled = debrid_enabled()
+			if not enabled:
+				notification('No debrid service configured', 2000)
+				return None
+
+			# Extract info hash from magnet URL
+			import re
+			hash_match = re.search(r'btih:([a-fA-F0-9]+)', magnet_url)
+			if not hash_match:
+				notification('Invalid magnet link', 2000)
+				return None
+			info_hash = hash_match.group(1).lower()
+
+			# Try each enabled debrid service
+			extensions = supported_video_extensions()
+			for debrid_name in enabled:
+				try:
+					api = import_debrid(debrid_name)
+					if not api:
+						continue
+
+					# Try to add and resolve the magnet
+					if debrid_name in ('real-debrid', 'alldebrid'):
+						files = api.parse_magnet_pack(magnet_url, info_hash, True)
+					else:
+						files = api.parse_magnet_pack(magnet_url, info_hash)
+
+					if not files:
+						continue
+
+					# Select the largest video file
+					video_files = []
+					for f in files:
+						fn = f.get('filename', '').lower()
+						if fn.endswith(tuple(extensions)):
+							video_files.append(f)
+
+					if not video_files:
+						continue
+
+					video_files.sort(key=lambda k: k.get('size', 0), reverse=True)
+					file_key = video_files[0].get('link', '')
+					if not file_key:
+						continue
+
+					# Unrestrict the link to get a direct URL
+					if debrid_name == 'premiumize.me':
+						resolved = api.add_headers_to_url(file_key)
+					else:
+						resolved = api.unrestrict_link(file_key)
+
+					if resolved:
+						return resolved
+
+				except Exception:
+					continue
+
+			notification('Failed to resolve torrent via debrid', 2000)
+			return None
+		except Exception:
+			notification('Debrid resolution error', 2000)
+			return None
+
+	def play_stream(self):
+		"""Play content directly via Stremio stream endpoint.
+		For non-IMDb content (channels, live TV, custom ID addons) that can't go through
+		POV's normal TMDB-based playback pipeline. Fetches streams from all configured
+		addons and presents a selection dialog or auto-plays the best result."""
+		addon_url = self.params_get('addon_url', '')
+		stream_type = self.params_get('stream_type', 'movie')
+		stream_id = self.params_get('stream_id', '')
+		stream_name = self.params_get('stream_name', 'Unknown')
+
+		if not stream_id:
+			notification('Missing stream ID', 2000)
+			return
+
+		# Fetch streams from specified addon or all configured addons
+		streams = []
+		addons_to_query = []
+
+		if addon_url:
+			addons_to_query = [{'url': addon_url, 'config_url': addon_url}]
+		else:
+			addons_to_query = self.get_stremio_addons()
+
+		for addon in addons_to_query:
+			a_url = addon.get('config_url', '') or addon.get('url', '')
+			if not a_url:
+				continue
+			base_url = a_url.rstrip('/')
+			if base_url.endswith('/manifest.json'):
+				base_url = base_url[:-14]
+			endpoint = f"{base_url}/stream/{stream_type}/{stream_id}.json"
+			data = http_client.fetch_json(endpoint, timeout=10)
+			if data and 'streams' in data:
+				for s in data['streams']:
+					s['_addon_url'] = a_url
+					s['_addon_name'] = addon.get('name', 'Stremio')
+				streams.extend(data['streams'])
+
+		# If no streams from stream endpoint, try embedded streams from meta (per SDK spec)
+		# Some addons provide streams directly in the video object instead of the stream resource
+		if not streams:
+			for addon in addons_to_query:
+				a_url = addon.get('config_url', '') or addon.get('url', '')
+				if not a_url:
+					continue
+				base_url = a_url.rstrip('/')
+				if base_url.endswith('/manifest.json'):
+					base_url = base_url[:-14]
+				# Try to get meta and check for embedded streams in video objects
+				meta_endpoint = f"{base_url}/meta/{stream_type}/{stream_id}.json"
+				meta_data = http_client.fetch_json(meta_endpoint, timeout=10)
+				if meta_data and 'meta' in meta_data:
+					meta_obj = meta_data['meta']
+					# Check videos array for embedded streams
+					for video in meta_obj.get('videos', []):
+						video_streams = video.get('streams', [])
+						if video_streams and video.get('id', '') == stream_id:
+							for s in video_streams:
+								s['_addon_url'] = a_url
+								s['_addon_name'] = addon.get('name', 'Stremio')
+							streams.extend(video_streams)
+							break
+					# Also check for defaultVideoId at meta level
+					bh = meta_obj.get('behaviorHints', {}) or {}
+					if not streams and bh.get('defaultVideoId'):
+						alt_id = bh['defaultVideoId']
+						alt_endpoint = f"{base_url}/stream/{stream_type}/{alt_id}.json"
+						alt_data = http_client.fetch_json(alt_endpoint, timeout=10)
+						if alt_data and 'streams' in alt_data:
+							for s in alt_data['streams']:
+								s['_addon_url'] = a_url
+								s['_addon_name'] = addon.get('name', 'Stremio')
+							streams.extend(alt_data['streams'])
+				if streams:
+					break
+
+		if not streams:
+			notification('No streams found', 2000)
+			return
+
+		# Parse streams and build playable items
+		playable = []
+		for stream in streams:
+			s_url = stream.get('url', '')
+			s_yt = stream.get('ytId', '')
+			s_external = stream.get('externalUrl', '')
+			s_hash = stream.get('infoHash', '')
+			s_nzb = stream.get('nzbUrl', '')
+			s_name = stream.get('name', '') or stream.get('title', '') or ''
+			s_desc = stream.get('description', '') or stream.get('title', '') or ''
+			s_addon = stream.get('_addon_name', 'Stremio')
+
+			# Build playable URL - handle all SDK stream types
+			play_url = ''
+			stream_kind = 'direct'
+			if s_yt:
+				play_url = f"plugin://plugin.video.youtube/play/?video_id={s_yt}"
+				stream_kind = 'youtube'
+			elif s_url:
+				play_url = s_url
+				# Apply proxy headers if present
+				behavior_hints = stream.get('behaviorHints', {}) or {}
+				proxy_headers = behavior_hints.get('proxyHeaders', {})
+				if proxy_headers and proxy_headers.get('request'):
+					from urllib.parse import urlencode
+					play_url = '%s|%s' % (play_url, urlencode(proxy_headers['request']))
+			elif s_hash:
+				# Build magnet link for torrent streams (requires debrid service)
+				from urllib.parse import quote_plus
+				magnet = 'magnet:?xt=urn:btih:%s' % s_hash.lower()
+				dn = s_name or s_hash
+				magnet += '&dn=%s' % quote_plus(dn)
+				# Add tracker URLs from sources field
+				for src in stream.get('sources', []):
+					if isinstance(src, str) and src.startswith('tracker:'):
+						magnet += '&tr=%s' % quote_plus(src[8:])
+				play_url = magnet
+				stream_kind = 'torrent'
+			elif s_nzb:
+				play_url = s_nzb
+				stream_kind = 'usenet'
+			elif s_external:
+				play_url = s_external
+				stream_kind = 'external'
+
+			if not play_url:
+				continue
+
+			label_parts = []
+			if s_name:
+				label_parts.append(s_name.split('\n')[0])
+			if s_desc and s_desc != s_name:
+				label_parts.append(s_desc.split('\n')[0])
+			label = ' | '.join(label_parts) if label_parts else play_url
+			# Prefix with stream type indicator for torrents/usenet
+			if stream_kind == 'torrent':
+				label = f"[{s_addon}] [Torrent] {label}"
+			elif stream_kind == 'usenet':
+				label = f"[{s_addon}] [Usenet] {label}"
+			else:
+				label = f"[{s_addon}] {label}"
+
+			playable.append({
+				'url': play_url,
+				'label': label,
+				'is_external': stream_kind == 'external',
+				'stream_kind': stream_kind,
+				'name': stream_name
+			})
+
+		if not playable:
+			notification('No playable streams found', 2000)
+			return
+
+		# If only one stream, play it directly
+		if len(playable) == 1:
+			selected = playable[0]
+		else:
+			# Show selection dialog
+			labels = [p['label'] for p in playable]
+			choice = dialog.select(f'Streams for: {stream_name}', labels)
+			if choice < 0:
+				return
+			selected = playable[choice]
+
+		if selected['is_external']:
+			from modules.kodi_utils import ok_dialog
+			ok_dialog(heading='External URL', text=selected['url'])
+			return
+
+		# Handle torrent streams - need debrid resolution
+		if selected.get('stream_kind') == 'torrent':
+			resolved_url = self._resolve_magnet_via_debrid(selected['url'], stream_name)
+			if not resolved_url:
+				return
+			from modules.kodi_utils import execute_builtin
+			execute_builtin(f"PlayMedia({resolved_url})")
+			return
+
+		# Play direct/youtube/usenet streams
+		from modules.kodi_utils import execute_builtin
+		execute_builtin(f"PlayMedia({selected['url']})")
+
+	def play_meta_videos(self):
+		"""Browse episodes/videos from a Stremio meta object for series-like content
+		with non-IMDb IDs. Fetches meta to get the videos array and lists episodes."""
+		addon_url = self.params_get('addon_url', '')
+		meta_type = self.params_get('meta_type', 'series')
+		meta_id = self.params_get('meta_id', '')
+
+		if not addon_url or not meta_id:
+			notification('Missing parameters', 2000)
+			set_content(self.__handle__, 'files')
+			end_directory(self.__handle__)
+			return
+
+		meta = self.fetch_meta(addon_url, meta_type, meta_id)
+		if not meta:
+			notification('Failed to fetch metadata', 2000)
+			set_content(self.__handle__, 'files')
+			end_directory(self.__handle__)
+			return
+
+		videos = meta.get('videos', [])
+		# Filter to available episodes (per SDK spec: video.available flag)
+		videos = [v for v in videos if v.get('available', True)]
+		if not videos:
+			notification('No episodes found', 2000)
+			set_content(self.__handle__, 'files')
+			end_directory(self.__handle__)
+			return
+
+		# Sort by season then episode
+		videos.sort(key=lambda v: (v.get('season', 0), v.get('episode', 0)))
+
+		listitems = []
+		for video in videos:
+			listitem = make_listitem()
+			ep_title = video.get('title', video.get('name', ''))
+			season = video.get('season', 0)
+			episode = video.get('episode', 0)
+			video_id = video.get('id', '')
+
+			if season and episode:
+				label = f"S{season:02d}E{episode:02d} - {ep_title}"
+			elif ep_title:
+				label = ep_title
+			else:
+				label = video_id
+
+			listitem.setLabel(label)
+
+			plot = video.get('overview', video.get('description', ''))
+			thumb = video.get('thumbnail', '')
+
+			if KODI_VERSION < 20:
+				listitem.setInfo('video', {'title': label, 'plot': plot})
+			else:
+				videoinfo = listitem.getVideoInfoTag(offscreen=True)
+				videoinfo.setTitle(label)
+				videoinfo.setPlot(plot)
+				if season: videoinfo.setSeason(season)
+				if episode: videoinfo.setEpisode(episode)
+				videoinfo.setMediaType('episode')
+
+			if thumb:
+				listitem.setArt({'thumb': thumb})
+
+			# Route to play_stream which handles both stream endpoint and embedded streams fallback
+			url = build_url({
+				'mode': 'stremio_catalog',
+				'stremio_mode': 'play_stream',
+				'addon_url': addon_url,
+				'stream_type': meta_type,
+				'stream_id': video_id,
+				'stream_name': ep_title or label
+			})
+
+			listitems.append((url, listitem, False))
+
+		add_items(self.__handle__, listitems)
+		set_content(self.__handle__, 'episodes')
+		end_directory(self.__handle__)
 
 	def browse_addon_catalog(self):
 		"""Browse addon_catalog resource - discover and install addons from other addons.

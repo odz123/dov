@@ -248,7 +248,9 @@ class POVPlayer(kodi_utils.xbmc_player):
 			season = self.season if self.media_type == 'episode' else None
 			episode = self.episode if self.media_type == 'episode' else None
 			stremio_subs = self.meta.get('stremio_subtitles')
-			self._safe_thread(Subtitles().get, self.title, self.imdb_id, season, episode, poster, stremio_subs)
+			video_hash = self.meta.get('stremio_video_hash')
+			video_size = self.meta.get('stremio_video_size')
+			self._safe_thread(Subtitles().get, self.title, self.imdb_id, season, episode, poster, stremio_subs, video_hash, video_size)
 		except Exception: pass
 
 	def run_stingers(self):
@@ -348,7 +350,7 @@ class Subtitles(kodi_utils.xbmc_player):
 		self.subs_action = {'0': 'auto', '1': 'select', '2': 'off'}[get_setting('subtitles.subs_action', '2')]
 		self.language1 = language_choices[get_setting('subtitles.language')]
 
-	def get(self, query, imdb_id, season, episode, poster, stremio_subs=None):
+	def get(self, query, imdb_id, season, episode, poster, stremio_subs=None, video_hash=None, video_size=None):
 		def _stremio_subs():
 			"""Try to use Stremio embedded subtitles from the stream object"""
 			if not stremio_subs: return False
@@ -367,6 +369,42 @@ class Subtitles(kodi_utils.xbmc_player):
 					labels = [s.get('language_name', s.get('lang', 'Unknown')) for s in filtered]
 					self.pause()
 					choice = kodi_utils.dialog.select('Stremio Subtitles', labels)
+					self.pause()
+					if choice < 0: return False
+					selected = filtered[choice]
+				else:
+					selected = filtered[0]
+				sub_url = selected.get('url', '')
+				if sub_url:
+					filepath = download_subtitle(sub_url)
+					if filepath:
+						kodi_utils.notification(32852, icon=poster)
+						return filepath
+			except Exception: pass
+			return False
+		def _stremio_addon_subs():
+			"""Fetch subtitles from Stremio subtitle addons with video_hash/video_size for better matching"""
+			if not video_hash and not imdb_id: return False
+			try:
+				from modules.stremio_subtitles import fetch_all_stremio_subtitles, filter_subtitles_by_language, download_subtitle
+				media_type = 'episode' if season else 'movie'
+				subs = fetch_all_stremio_subtitles(
+					imdb_id, media_type, season, episode,
+					video_hash=video_hash, video_size=video_size
+				)
+				if not subs: return False
+				filtered = filter_subtitles_by_language(subs, self.language1)
+				if not filtered: return False
+				if self.subs_action == 'auto':
+					first = filtered[0]
+					lang_name = first.get('language_name', '').lower()
+					if lang_name != self.language1.lower():
+						return False
+					selected = first
+				elif self.subs_action == 'select' and len(filtered) > 1:
+					labels = [s.get('language_name', s.get('lang', 'Unknown')) for s in filtered]
+					self.pause()
+					choice = kodi_utils.dialog.select('Stremio Subtitles (Addons)', labels)
 					self.pause()
 					if choice < 0: return False
 					selected = filtered[choice]
@@ -444,6 +482,10 @@ class Subtitles(kodi_utils.xbmc_player):
 		# Try Stremio embedded subtitles first (from stream object)
 		subtitle = _stremio_subs()
 		if subtitle: return self.setSubtitles(subtitle)
+		# Try Stremio subtitle addons with video_hash/video_size for better matching
+		if video_hash:
+			subtitle = _stremio_addon_subs()
+			if subtitle: return self.setSubtitles(subtitle)
 		subtitle = _video_file_subs()
 		if subtitle: return
 		subtitle = _downloaded_subs()
