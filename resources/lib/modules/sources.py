@@ -452,6 +452,10 @@ class SourceSelect:
 			if provider.startswith('stremio'):
 				stremio_sources.append(item)
 				continue
+			# Torrentio/AIOStreams debrid-direct sources also bypass - already resolved by addon
+			if item.get('direct') and provider.startswith(('torrentio', 'aiostreams')):
+				stremio_sources.append(item)
+				continue
 
 			# Quality filter
 			if item['quality'] not in quality_filter_set:

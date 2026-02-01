@@ -425,8 +425,8 @@ class source:
 			'seeders': stream_info['seeders']
 		}
 
-		# Add hash for torrents
-		if stream_info['hash']:
+		# Add hash for torrents (skip for debrid-direct - prevents incorrect torrent routing)
+		if stream_info['hash'] and not stream_info['is_debrid_resolved']:
 			item['hash'] = stream_info['hash']
 
 		# Add file index for multi-file torrents
