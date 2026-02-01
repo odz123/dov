@@ -1,16 +1,19 @@
 # Stremio Addon Scraper for POV
 """
-	Enhanced Stremio Addon integration for POV
+	Full Stremio SDK addon integration for POV
 	Supports any Stremio addon that provides stream resources
 	Features:
 	- Direct URL playback with proxyHeaders support
 	- Debrid-integrated addon detection
-	- Multiple stream types (torrent, direct, YouTube, usenet)
+	- Multiple stream types (torrent, direct, YouTube, usenet, external)
 	- Subtitle integration
 	- bingeGroup for autoplay optimization
 	- HTTP client via shared http_client module
 	- Parallel addon scraping for performance
-	- Per-resource type filtering from manifest
+	- Per-resource type and idPrefixes filtering from manifest
+	- fileMustInclude regex matching for archive/torrent files
+	- countryWhitelist/countryBlacklist geo-filtering
+	- externalUrl support (opens in system browser)
 """
 
 import re
@@ -56,7 +59,7 @@ class source:
 		return addons if isinstance(addons, list) else []
 
 	def _parse_stream_info(self, stream, addon_info=None):
-		"""Parse stream object to extract metadata with enhanced support"""
+		"""Parse stream object to extract metadata with full SDK support"""
 		info = {
 			'hash': None,
 			'url': None,
@@ -67,6 +70,7 @@ class source:
 			'quality': 'SD',
 			'provider': '',
 			'file_idx': None,
+			'file_must_include': None,
 			'is_debrid_resolved': False,
 			'proxy_headers': None,
 			'subtitles': [],
@@ -78,7 +82,9 @@ class source:
 			'hdr': '',
 			'audio': '',
 			'trackers': [],
-			'not_web_ready': False
+			'not_web_ready': False,
+			'country_whitelist': [],
+			'country_blacklist': []
 		}
 
 		# Determine stream type and extract source
@@ -87,6 +93,9 @@ class source:
 			info['stream_type'] = 'torrent'
 			if 'fileIdx' in stream:
 				info['file_idx'] = stream['fileIdx']
+			# fileMustInclude: regex pattern to match video files in archives/torrents
+			if 'fileMustInclude' in stream:
+				info['file_must_include'] = stream['fileMustInclude']
 
 		if 'url' in stream:
 			info['url'] = stream['url']
@@ -142,6 +151,12 @@ class source:
 		# Extract binge group for autoplay optimization
 		if 'bingeGroup' in behavior_hints:
 			info['binge_group'] = behavior_hints['bingeGroup']
+
+		# Extract geo-filtering hints (ISO 3166-1 alpha-3 country codes)
+		if 'countryWhitelist' in behavior_hints:
+			info['country_whitelist'] = behavior_hints['countryWhitelist']
+		if 'countryBlacklist' in behavior_hints:
+			info['country_blacklist'] = behavior_hints['countryBlacklist']
 
 		# Extract release name - smart detection between 'name' and 'title' fields
 		# Different Stremio addons use these fields inconsistently:
@@ -306,6 +321,20 @@ class source:
 		]
 		return any(pattern in check_url.lower() for pattern in debrid_patterns)
 
+	def _check_id_prefix_match(self, addon_info, media_id):
+		"""Check if addon supports the given media ID based on idPrefixes filtering.
+		Per Stremio SDK: if idPrefixes is set, only handle IDs with those prefixes.
+		Returns True if the addon should handle this ID (or has no prefix filter)."""
+		if not isinstance(addon_info, dict):
+			return True
+		# Check per-resource stream idPrefixes first, then manifest-level
+		stream_id_prefixes = addon_info.get('stream_id_prefixes', [])
+		id_prefixes = stream_id_prefixes if stream_id_prefixes else addon_info.get('id_prefixes', [])
+		if not id_prefixes:
+			return True  # No prefix filter means accept all IDs
+		# Check if the media ID starts with any of the allowed prefixes
+		return any(media_id.startswith(prefix) for prefix in id_prefixes)
+
 	def _get_addon_stream_types(self, addon_info, media_type):
 		"""Determine which content types to query for streams from this addon.
 		Respects per-resource type filtering from manifest resource objects."""
@@ -327,10 +356,6 @@ class source:
 
 		# Skip if no valid source
 		if not stream_info['hash'] and not stream_info['url'] and not stream_info['youtube_id'] and not stream_info.get('external_url'):
-			return None
-
-		# Skip external URLs (Netflix, etc.) - can't play directly
-		if stream_info['stream_type'] == 'external':
 			return None
 
 		name = source_utils.clean_name(stream_info['name']) if stream_info['name'] else ''
@@ -416,6 +441,12 @@ class source:
 			source_type = 'youtube'
 			is_direct = True
 			is_debridonly = False
+		elif stream_info['stream_type'] == 'external':
+			# externalUrl - opens in system browser (for Netflix, etc.)
+			url = stream_info['external_url']
+			source_type = 'external'
+			is_direct = True
+			is_debridonly = False
 		elif stream_info['is_debrid_resolved']:
 			url = stream_info['url']
 			source_type = 'debrid_direct'
@@ -450,6 +481,10 @@ class source:
 		if stream_info['file_idx'] is not None:
 			item['file_idx'] = stream_info['file_idx']
 
+		# Add fileMustInclude regex for matching video files in archives/torrents
+		if stream_info.get('file_must_include'):
+			item['file_must_include'] = stream_info['file_must_include']
+
 		# Add proxy headers for authenticated streams
 		if stream_info['proxy_headers']:
 			item['proxy_headers'] = stream_info['proxy_headers']
@@ -469,6 +504,16 @@ class source:
 		# Add notWebReady flag for streams requiring special handling
 		if stream_info.get('not_web_ready'):
 			item['not_web_ready'] = True
+
+		# Add geo-filtering info (ISO 3166-1 alpha-3 country codes)
+		if stream_info.get('country_whitelist'):
+			item['country_whitelist'] = stream_info['country_whitelist']
+		if stream_info.get('country_blacklist'):
+			item['country_blacklist'] = stream_info['country_blacklist']
+
+		# Mark external URLs for browser opening
+		if stream_info['stream_type'] == 'external':
+			item['external_url'] = True
 
 		# Add pack info
 		if package:
@@ -545,6 +590,11 @@ class source:
 					addon_name = self._get_addon_name(addon_url)
 
 				addon_info = addon if isinstance(addon, dict) else {'url': addon}
+
+				# Check idPrefixes filtering - skip addon if ID doesn't match
+				if not self._check_id_prefix_match(addon_info, media_id):
+					return
+
 				is_debrid_addon = self._is_debrid_configured_addon(addon)
 
 				# Determine which content types to query using per-resource filtering

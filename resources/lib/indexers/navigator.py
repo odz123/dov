@@ -47,6 +47,7 @@ class Navigator:
 		self._add_item({'mode': 'stremio_catalog', 'stremio_mode': 'list_addons',      'name': 'Browse Addon Catalogs'}, 'lists.png', n_ins)
 		self._add_item({'mode': 'stremio_catalog', 'stremio_mode': 'search',           'name': 'Search Catalogs'      }, 'search.png', n_ins)
 		self._add_item({'mode': 'stremio_catalog', 'stremio_mode': 'all_catalogs',     'name': 'All Catalogs'         }, 'lists.png', n_ins)
+		self._add_item({'mode': 'stremio_catalog', 'stremio_mode': 'addon_catalog',    'name': 'Discover Addons'      }, 'lists.png', n_ins)
 		self._add_item({'mode': 'stremio_addon_manager',                               'name': 'Manage Addons'        }, 'tools.png', n_ins, False)
 		self._add_item({'mode': 'clear_cache', 'cache': 'stremio_catalog',             'name': 'Clear Catalog Cache'  }, 'tools.png', n_ins, False)
 		self._add_item({'mode': 'stremio_debug_loop',                                  'name': 'Debug Stremio Loop'   }, 'tools.png', n_ins, False)

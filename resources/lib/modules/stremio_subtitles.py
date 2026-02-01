@@ -1,12 +1,13 @@
 # Stremio Subtitles Integration for POV
 """
-	Fetches and integrates subtitles from Stremio addons
+	Full Stremio SDK subtitle support for POV
 	Features:
 	- Fetch subtitles from /subtitles endpoint
 	- Language filtering and selection
 	- Download and cache subtitles
 	- Integration with POV player
 	- HTTP client via shared http_client module
+	- idPrefixes and per-resource type filtering
 """
 
 import os
@@ -78,6 +79,24 @@ def get_stremio_addons_with_subtitles():
 	except Exception:
 		pass
 	return []
+
+
+def _check_subtitle_addon_compatibility(addon, media_type, media_id):
+	"""Check if addon supports subtitles for the given media type and ID.
+	Respects per-resource idPrefixes and types filtering per Stremio SDK."""
+	# Check per-resource subtitles idPrefixes, then manifest-level
+	sub_id_prefixes = addon.get('subtitles_id_prefixes', [])
+	id_prefixes = sub_id_prefixes if sub_id_prefixes else addon.get('id_prefixes', [])
+	if id_prefixes:
+		# Extract base ID (before any : for series IDs like tt1234567:2:5)
+		base_id = media_id.split(':')[0] if ':' in media_id else media_id
+		if not any(base_id.startswith(prefix) for prefix in id_prefixes):
+			return False
+	# Check per-resource subtitles types
+	sub_types = addon.get('subtitles_types', [])
+	if sub_types and media_type not in sub_types:
+		return False
+	return True
 
 
 def fetch_subtitles_from_addon(addon_url, media_type, media_id, video_hash=None, video_size=None, filename=None):
@@ -167,6 +186,10 @@ def fetch_all_stremio_subtitles(imdb_id, media_type='movie', season=None, episod
 		try:
 			addon_url = addon.get('config_url', '') or addon.get('url', '')
 			addon_name = addon.get('name', 'Unknown')
+
+			# Check idPrefixes and types compatibility per Stremio SDK
+			if not _check_subtitle_addon_compatibility(addon, stremio_type, media_id):
+				return
 
 			subtitles = fetch_subtitles_from_addon(
 				addon_url, stremio_type, media_id, video_hash, video_size, filename
