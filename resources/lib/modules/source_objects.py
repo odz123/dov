@@ -100,7 +100,7 @@ class ExternalSource:
 					if int(i['season_number']) == int(self.meta['season'])
 				)
 				self.season_divider = int(next(season_divider, 1))
-				self.show_divider = int(self.meta['total_aired_eps'])
+				self.show_divider = int(self.meta['total_aired_eps']) or 1
 				self.data = {
 					'timeout': self.timeout, 'imdb': info['imdb_id'], 'tvdb': info['tvdb_id'], 'aliases': aliases,
 					'title': normalize(info['ep_name']), 'tvshowtitle': self.title, 'year': self.year,

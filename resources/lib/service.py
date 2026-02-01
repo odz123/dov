@@ -195,7 +195,8 @@ class POVMonitor(kodi_utils.xbmc_monitor):
 		return self
 
 	def __exit__(self, exc_type, exc_value, traceback):
-		for i in self.threads: i.join()
+		for i in self.threads:
+			if i.is_alive(): i.join()
 
 	def startUpServices(self):
 		try: initializeDatabases()

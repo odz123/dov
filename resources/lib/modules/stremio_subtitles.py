@@ -406,7 +406,7 @@ def clear_subtitle_cache():
 				except Exception:
 					pass
 		notification('Subtitle cache cleared', 2000)
-	except Exception as e:
+	except Exception:
 		notification('Failed to clear subtitle cache', 2000)
 
 
