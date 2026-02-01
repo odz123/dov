@@ -30,6 +30,10 @@ KODI_VERSION = get_kodi_version()
 MANIFEST_CACHE_HOURS = 6  # Cache manifests for 6 hours
 CATALOG_CACHE_HOURS = 1   # Cache catalog contents for 1 hour
 
+# Stremio content types supported by the SDK
+_CATALOG_TYPES = ('movie', 'series', 'anime', 'tv', 'channel', 'other')
+_SERIES_LIKE_TYPES = ('series', 'anime', 'tv', 'channel', 'other')
+
 
 class StremioCache:
 	"""Simple caching layer for Stremio catalog data"""
@@ -193,10 +197,10 @@ class StremioIndexer:
 
 			# Check if addon has catalogs
 			catalogs = manifest.get('catalogs', [])
-			has_catalog = any(c.get('type') in ('movie', 'series') for c in catalogs)
+			has_catalog = any(c.get('type') in _CATALOG_TYPES for c in catalogs)
 
 			if has_catalog or addon.get('supports_catalog', False):
-				catalog_count = len([c for c in catalogs if c.get('type') in ('movie', 'series')])
+				catalog_count = len([c for c in catalogs if c.get('type') in _CATALOG_TYPES])
 				items.append({
 					'name': addon.get('name', manifest.get('name', 'Unknown')),
 					'url': addon_url,
@@ -268,8 +272,8 @@ class StremioIndexer:
 			catalog_id = catalog.get('id', '')
 			catalog_name = catalog.get('name', catalog_id)
 
-			# Filter to movie and series only
-			if catalog_type not in ('movie', 'series'):
+			# Filter to supported Stremio content types
+			if catalog_type not in _CATALOG_TYPES:
 				continue
 
 			# Check for extra filters (genres, etc.)
@@ -293,7 +297,7 @@ class StremioIndexer:
 			})
 
 		if not items:
-			notification('No movie/series catalogs found', 2000)
+			notification('No supported catalogs found', 2000)
 			set_content(self.__handle__, 'files')
 			end_directory(self.__handle__)
 			return
@@ -573,7 +577,7 @@ class StremioIndexer:
 					'meta_id': stremio_id
 				})
 
-			listitems.append((url, listitem, catalog_type == 'series'))
+			listitems.append((url, listitem, catalog_type in _SERIES_LIKE_TYPES))
 
 		# Add "Next Page" item if we got a full page
 		if len(metas) >= 20:  # Assuming 20 items per page
@@ -654,7 +658,7 @@ class StremioIndexer:
 				catalog_type = catalog.get('type', '')
 				catalog_id = catalog.get('id', '')
 
-				if catalog_type not in ('movie', 'series'):
+				if catalog_type not in _CATALOG_TYPES:
 					continue
 				if media_type and catalog_type != media_type:
 					continue
@@ -757,7 +761,7 @@ class StremioIndexer:
 			label_parts = [name]
 			if year:
 				label_parts.append(f"({year})")
-			type_indicator = '[MOVIE]' if catalog_type == 'movie' else '[TV]'
+			type_indicator = '[MOVIE]' if catalog_type == 'movie' else '[TV]' if catalog_type == 'series' else f'[{catalog_type.upper()}]'
 			label_parts.append(type_indicator)
 			if addon_name:
 				label_parts.append(f"[{addon_name}]")
@@ -821,7 +825,7 @@ class StremioIndexer:
 					'meta_id': stremio_id
 				})
 
-			listitems.append((url, listitem, catalog_type == 'series'))
+			listitems.append((url, listitem, catalog_type in _SERIES_LIKE_TYPES))
 
 		add_items(self.__handle__, listitems)
 		set_content(self.__handle__, 'movies')
@@ -857,10 +861,10 @@ class StremioIndexer:
 				catalog_id = catalog.get('id', '')
 				catalog_name = catalog.get('name', catalog_id)
 
-				if catalog_type not in ('movie', 'series'):
+				if catalog_type not in _CATALOG_TYPES:
 					continue
 
-				type_label = 'Movies' if catalog_type == 'movie' else 'TV Shows'
+				type_label = 'Movies' if catalog_type == 'movie' else 'TV Shows' if catalog_type == 'series' else catalog_type.capitalize()
 				items.append({
 					'name': f"[{addon_name}] {catalog_name} ({type_label})",
 					'catalog_type': catalog_type,

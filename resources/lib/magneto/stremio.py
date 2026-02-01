@@ -293,7 +293,7 @@ class source:
 		# Check both URL and config URL for debrid patterns
 		check_url = config_url or addon_url
 		debrid_patterns = [
-			'realdebrid=', 'rd=', 'debridKey=',
+			'realdebrid=', 'rd=', 'debridkey=',
 			'premiumize=', 'pm=',
 			'alldebrid=', 'ad=',
 			'torbox=', 'tb=',
@@ -550,8 +550,9 @@ class source:
 						stream_info = self._parse_stream_info(stream, addon_info)
 
 						# If this is a debrid-configured addon and we got a direct URL,
-						# mark it as debrid resolved
-						if is_debrid_addon and stream_info['url'] and not stream_info['hash']:
+						# mark it as debrid resolved (even with infoHash present,
+						# since debrid addons return resolved URLs alongside hashes)
+						if is_debrid_addon and stream_info['url'] and not stream_info['is_debrid_resolved']:
 							stream_info['is_debrid_resolved'] = True
 							stream_info['stream_type'] = 'debrid_direct'
 
