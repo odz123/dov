@@ -446,6 +446,8 @@ class SourceSelect:
 					self.meta['stremio_binge_group'] = src['binge_group']
 				if src.get('video_hash'):
 					self.meta['stremio_video_hash'] = src['video_hash']
+				if src.get('video_size'):
+					self.meta['stremio_video_size'] = src['video_size']
 				if src.get('provider', '').startswith('stremio'):
 					self.meta['stremio_source'] = True
 			return POVPlayer().run(url, self.meta, progress_media)

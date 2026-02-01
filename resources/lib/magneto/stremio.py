@@ -118,6 +118,28 @@ class source:
 			info['url'] = stream['nzbUrl']
 			info['stream_type'] = 'usenet'
 
+		# Handle NNTP servers for usenet streams (per SDK spec)
+		# Format: nntp(s)://{user}:{pass}@{domain}:{port}/{connections}
+		if 'servers' in stream and isinstance(stream['servers'], list):
+			info['nntp_servers'] = stream['servers']
+			if info['stream_type'] == 'usenet' or (not info['url'] and not info['hash']):
+				info['stream_type'] = 'usenet'
+
+		# Handle archive URLs (per SDK spec: arrays of Source Objects for archive-based streaming)
+		for archive_field in ('rarUrls', 'zipUrls', '7zipUrls', 'tgzUrls', 'tarUrls'):
+			if archive_field in stream and isinstance(stream[archive_field], list):
+				info['archive_urls'] = stream[archive_field]
+				info['archive_type'] = archive_field.replace('Urls', '')
+				if not info['url'] and not info['hash'] and stream[archive_field]:
+					# Use first archive source URL as primary URL
+					first_source = stream[archive_field][0]
+					if isinstance(first_source, dict) and 'url' in first_source:
+						info['url'] = first_source['url']
+					elif isinstance(first_source, str):
+						info['url'] = first_source
+					info['stream_type'] = 'archive'
+				break
+
 		if 'externalUrl' in stream:
 			info['external_url'] = stream['externalUrl']
 			info['stream_type'] = 'external'
@@ -247,6 +269,11 @@ class source:
 					info['size_str'] = f"{info['size']:.2f} GB"
 				except Exception:
 					pass
+
+		# Store raw videoSize in bytes for subtitle addon matching (per SDK spec)
+		raw_video_size = behavior_hints.get('videoSize') or stream.get('videoSize')
+		if raw_video_size:
+			info['video_size'] = str(raw_video_size)
 
 		# Extract quality
 		quality_match = RE_QUALITY.search(full_text) or RE_QUALITY.search(info['name'])
@@ -524,9 +551,11 @@ class source:
 		if stream_info.get('not_web_ready'):
 			item['not_web_ready'] = True
 
-		# Add videoHash for subtitle matching (per SDK spec)
+		# Add videoHash and videoSize for subtitle matching (per SDK spec)
 		if stream_info.get('video_hash'):
 			item['video_hash'] = stream_info['video_hash']
+		if stream_info.get('video_size'):
+			item['video_size'] = stream_info['video_size']
 
 		# Add geo-filtering info (ISO 3166-1 alpha-3 country codes)
 		if stream_info.get('country_whitelist'):
@@ -577,6 +606,12 @@ class source:
 				hdlr = year
 				media_type = 'movie'
 				media_id = imdb
+
+			# Use Stremio defaultVideoId from meta behaviorHints if available (per SDK spec)
+			# This overrides the default IMDb-based ID for stream requests
+			default_video_id = data.get('default_video_id')
+			if default_video_id:
+				media_id = default_video_id
 
 			if 'timeout' in data:
 				self.timeout = int(data['timeout'])

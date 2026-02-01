@@ -46,12 +46,17 @@ def get_source_meta(params):
 	aliases = _make_alias_dict(meta, title)
 	year = _get_search_year(meta)
 	ep_name = _get_ep_name(meta)
-	meta['search_info'] = {
+	search_info = {
 		'media_type': media_type, 'expiry_times': expiry_times, 'year': year, 'aliases': aliases,
 		'tmdb_id': tmdb_id, 'imdb_id': meta.get('imdb_id'), 'tvdb_id': meta.get('tvdb_id'),
 		'title': title, 'ep_name': ep_name, 'total_seasons': meta.get('total_seasons', ''),
 		'season': custom_season or season, 'episode': custom_episode or episode
 	}
+	# Pass Stremio defaultVideoId for stream requests (per SDK behaviorHints spec)
+	default_video_id = meta.get('default_video_id')
+	if default_video_id:
+		search_info['default_video_id'] = default_video_id
+	meta['search_info'] = search_info
 	return meta
 
 def _make_alias_dict(meta, title):
@@ -109,12 +114,18 @@ class ExternalSource:
 					'title': normalize(info['ep_name']), 'tvshowtitle': self.title, 'year': self.year,
 					'season': str(self.season), 'episode': str(self.episode), 'total_seasons': self.total_seasons
 				}
+				# Pass Stremio defaultVideoId to scraper (per SDK behaviorHints spec)
+				if info.get('default_video_id'):
+					self.data['default_video_id'] = info['default_video_id']
 				self.get_episode_source(*self.args)
 			else:
 				self.season_divider, self.show_divider, self.data = 1, 1, {
 					'timeout': self.timeout, 'imdb': info['imdb_id'], 'aliases': aliases,
 					'title': self.title, 'year': self.year
 				}
+				# Pass Stremio defaultVideoId to scraper (per SDK behaviorHints spec)
+				if info.get('default_video_id'):
+					self.data['default_video_id'] = info['default_video_id']
 				self.get_movie_source(*self.args)
 		except Exception: pass
 		return self.sources
