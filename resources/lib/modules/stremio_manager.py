@@ -220,8 +220,8 @@ def validate_stremio_addon(url, return_config_info=False):
 			elif res_name == 'meta':
 				supports_meta = True
 
-		if not supports_stream:
-			return None, "Addon does not provide stream resources"
+		if not supports_stream and not supports_catalog:
+			return None, "Addon does not provide stream or catalog resources"
 
 		# Check supported types
 		types = manifest.get('types', [])
