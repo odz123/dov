@@ -124,12 +124,17 @@ class source:
 				# Extract behaviorHints (full SDK support)
 				behavior_hints = file.get('behaviorHints', {}) or {}
 
-				# Extract proxy headers for authenticated streams
+				# Extract proxy headers for authenticated streams (per SDK spec)
+				# proxyHeaders.request: headers to send with the request
+				# proxyHeaders.response: headers expected in the response (requires notWebReady: true)
 				proxy_headers = None
+				proxy_headers_response = None
 				if 'proxyHeaders' in behavior_hints:
 					ph = behavior_hints['proxyHeaders']
 					if ph.get('request'):
 						proxy_headers = ph['request']
+					if ph.get('response'):
+						proxy_headers_response = ph['response']
 
 				# Extract tracker URLs from sources field (for torrent peer discovery)
 				trackers = []
@@ -277,6 +282,10 @@ class source:
 				# Add proxy headers for authenticated streams
 				if proxy_headers:
 					item['proxy_headers'] = proxy_headers
+
+				# Add response proxy headers (per SDK spec: used with notWebReady streams)
+				if proxy_headers_response:
+					item['proxy_headers_response'] = proxy_headers_response
 
 				# Add fileIdx for multi-file torrents (per SDK spec)
 				if file_idx is not None:

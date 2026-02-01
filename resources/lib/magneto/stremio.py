@@ -3,7 +3,7 @@
 	Full Stremio SDK addon integration for POV
 	Supports any Stremio addon that provides stream resources
 	Features:
-	- Direct URL playback with proxyHeaders support
+	- Direct URL playback with proxyHeaders support (request + response)
 	- Debrid-integrated addon detection
 	- Multiple stream types (torrent, direct, YouTube, usenet, external)
 	- Subtitle integration
@@ -14,6 +14,7 @@
 	- fileMustInclude regex matching for archive/torrent files
 	- countryWhitelist/countryBlacklist geo-filtering
 	- externalUrl support (opens in system browser)
+	- videoHash and videoSize for subtitle identification
 """
 
 import re
@@ -73,6 +74,7 @@ class source:
 			'file_must_include': None,
 			'is_debrid_resolved': False,
 			'proxy_headers': None,
+			'proxy_headers_response': None,
 			'subtitles': [],
 			'binge_group': None,
 			'stream_type': 'unknown',
@@ -138,11 +140,15 @@ class source:
 		# Extract behavior hints
 		behavior_hints = stream.get('behaviorHints', {}) or {}
 
-		# Extract proxy headers for authenticated streams
+		# Extract proxy headers for authenticated streams (per SDK spec)
+		# proxyHeaders.request: headers to send with the request
+		# proxyHeaders.response: headers expected in the response (requires notWebReady: true)
 		if 'proxyHeaders' in behavior_hints:
 			proxy_headers = behavior_hints['proxyHeaders']
 			if proxy_headers.get('request'):
 				info['proxy_headers'] = proxy_headers['request']
+			if proxy_headers.get('response'):
+				info['proxy_headers_response'] = proxy_headers['response']
 
 		# Extract notWebReady flag (stream requires special handling)
 		if behavior_hints.get('notWebReady'):
@@ -497,6 +503,10 @@ class source:
 		# Add proxy headers for authenticated streams
 		if stream_info['proxy_headers']:
 			item['proxy_headers'] = stream_info['proxy_headers']
+
+		# Add response proxy headers (per SDK spec: used with notWebReady streams)
+		if stream_info.get('proxy_headers_response'):
+			item['proxy_headers_response'] = stream_info['proxy_headers_response']
 
 		# Add binge group for autoplay optimization
 		if stream_info['binge_group']:

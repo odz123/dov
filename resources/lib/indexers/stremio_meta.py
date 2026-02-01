@@ -11,10 +11,11 @@
 	- Support for movies and TV series
 	- Full Stremio SDK meta format support:
 	  - Meta links array (actors, directors, writers, genres)
-	  - Trailers with YouTube playback
+	  - Trailers with YouTube playback (show-level and per-episode)
 	  - behaviorHints.defaultVideoId for stream fetching
 	  - Video available flag for episode filtering
 	  - Video embedded streams support
+	  - Video-level trailers (per SDK spec)
 """
 
 import time
@@ -891,6 +892,17 @@ class StremioMetaProvider:
 			video_streams = ep_get('streams', [])
 			if video_streams:
 				ep_data['stremio_embedded_streams'] = video_streams
+
+			# Per Stremio SDK: video.trailers - per-episode trailers (array of Stream objects)
+			video_trailers = ep_get('trailers', [])
+			if video_trailers:
+				ep_trailer_urls = []
+				for vt in video_trailers:
+					yt_id = vt.get('source', '') or vt.get('ytId', '')
+					if yt_id:
+						ep_trailer_urls.append(f"plugin://plugin.video.youtube/play/?video_id={yt_id}")
+				if ep_trailer_urls:
+					ep_data['trailers'] = ep_trailer_urls
 
 			episodes.append(ep_data)
 

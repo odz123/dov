@@ -289,6 +289,21 @@ def validate_stremio_addon(url, return_config_info=False):
 			'config_url': ''  # Will be set during configuration
 		}
 
+		# Store manifest background and logo for display (per SDK spec)
+		manifest_background = manifest.get('background', '')
+		manifest_logo = manifest.get('logo', '')
+		if manifest_background:
+			addon_info['background'] = manifest_background
+		if manifest_logo:
+			addon_info['logo'] = manifest_logo
+
+		# Store config array for configurable addons (per SDK spec)
+		# Config objects: {key, type, default, title, options, required}
+		# Types: "text", "number", "password", "checkbox", "select"
+		manifest_config = manifest.get('config', [])
+		if manifest_config and isinstance(manifest_config, list):
+			addon_info['config'] = manifest_config
+
 		# Store per-resource type filtering if available
 		if stream_types:
 			addon_info['stream_types'] = stream_types
@@ -499,21 +514,43 @@ def add_stremio_addon():
 			notification(f"Updated: {addon_info['name']}", 2000)
 		return
 
-	# If addon requires configuration and none was provided, warn user
+	# If addon requires configuration and none was provided
 	if addon_info.get('configuration_required') and not existing_config and not addon_info.get('config_url'):
-		ok_dialog(heading='Configuration Required',
-				  text=f"'{addon_info['name']}' requires configuration before use.\n"
-					   f"Please visit the addon's website to configure it, then enter the configuration URL.")
-		enter_url = dialog.input('Enter configured addon URL (or cancel to add without config)', type=0)
-		if enter_url:
-			# Re-validate with the configured URL
-			result = validate_stremio_addon(enter_url, return_config_info=True)
-			if len(result) == 4:
-				new_addon_info, new_error, new_config, new_has_debrid = result
-				if new_addon_info and not new_error:
-					addon_info = new_addon_info
-					existing_config = new_config
-					has_debrid_config = new_has_debrid
+		# Try config UI first if addon has a config array (per SDK spec)
+		if addon_info.get('config'):
+			if confirm_dialog(heading='Configuration Required',
+							  text=f"'{addon_info['name']}' requires configuration.\n\n"
+								   f"Configure now using the built-in settings dialog?"):
+				addon_info = configure_addon_from_config(addon_info)
+			else:
+				# Fall back to manual URL entry
+				enter_url = dialog.input('Enter configured addon URL (or cancel to add without config)', type=0)
+				if enter_url:
+					result = validate_stremio_addon(enter_url, return_config_info=True)
+					if len(result) == 4:
+						new_addon_info, new_error, new_config, new_has_debrid = result
+						if new_addon_info and not new_error:
+							addon_info = new_addon_info
+							existing_config = new_config
+							has_debrid_config = new_has_debrid
+		else:
+			ok_dialog(heading='Configuration Required',
+					  text=f"'{addon_info['name']}' requires configuration before use.\n"
+						   f"Please visit the addon's website to configure it, then enter the configuration URL.")
+			enter_url = dialog.input('Enter configured addon URL (or cancel to add without config)', type=0)
+			if enter_url:
+				result = validate_stremio_addon(enter_url, return_config_info=True)
+				if len(result) == 4:
+					new_addon_info, new_error, new_config, new_has_debrid = result
+					if new_addon_info and not new_error:
+						addon_info = new_addon_info
+						existing_config = new_config
+						has_debrid_config = new_has_debrid
+	# Offer config UI for configurable addons that aren't required but have config array
+	elif addon_info.get('configurable') and addon_info.get('config') and not existing_config and not addon_info.get('config_url'):
+		if confirm_dialog(heading='Configure Addon',
+						  text=f"'{addon_info['name']}' supports custom configuration.\n\nWould you like to configure it now?"):
+			addon_info = configure_addon_from_config(addon_info)
 
 	# If URL already had debrid config, inform user
 	if has_debrid_config:
@@ -1037,6 +1074,102 @@ def stremio_debug_loop():
 
 	# Show results dialog
 	ok_dialog(heading=f'Stremio Debug - {loop_count} Loops', text=summary_text)
+
+
+def configure_addon_from_config(addon_info):
+	"""
+	Configure an addon using its manifest config array (per Stremio SDK spec).
+	Presents a dialog-based UI for each config field.
+	Config objects: {key, type, default, title, options, required}
+	Types: "text", "number", "password", "checkbox", "select"
+
+	Args:
+		addon_info: Addon info dict with 'config' field
+
+	Returns:
+		Updated addon_info with config_url set from user inputs
+	"""
+	config_fields = addon_info.get('config', [])
+	if not config_fields:
+		return addon_info
+
+	config_values = {}
+
+	for field in config_fields:
+		if not isinstance(field, dict):
+			continue
+		key = field.get('key', '')
+		field_type = field.get('type', 'text')
+		default = field.get('default', '')
+		title = field.get('title', key)
+		options = field.get('options', [])
+		required = field.get('required', False)
+
+		if not key:
+			continue
+
+		value = None
+
+		if field_type == 'checkbox':
+			# Checkbox: show Yes/No dialog
+			default_checked = str(default).lower() in ('true', 'checked', '1', 'yes')
+			result = confirm_dialog(
+				heading=title,
+				text=f"Enable {title}?" if not default_checked else f"{title} is enabled by default. Keep enabled?"
+			)
+			value = 'true' if result else 'false'
+
+		elif field_type == 'select' and options:
+			# Select: show selection dialog
+			items = [{'line1': str(opt), 'line2': ''} for opt in options]
+			kwargs = {
+				'items': json.dumps(items),
+				'heading': title,
+				'multi_line': 'true'
+			}
+			selection = select_dialog(list(range(len(options))), **kwargs)
+			if selection is not None:
+				value = str(options[selection])
+			elif default:
+				value = str(default)
+			elif required:
+				notification(f"Required field '{title}' not set", 2000)
+				return addon_info  # Abort configuration
+
+		elif field_type == 'password':
+			# Password: use text input (Kodi doesn't have native password input in dialog.input)
+			value = dialog.input(title, defaultt=str(default) if default else '', type=0)
+			if not value and required:
+				notification(f"Required field '{title}' not set", 2000)
+				return addon_info
+
+		elif field_type == 'number':
+			# Number: use numeric input
+			value = dialog.input(title, defaultt=str(default) if default else '', type=1)
+			if not value and required:
+				notification(f"Required field '{title}' not set", 2000)
+				return addon_info
+
+		else:
+			# Default: text input
+			value = dialog.input(title, defaultt=str(default) if default else '', type=0)
+			if not value and required:
+				notification(f"Required field '{title}' not set", 2000)
+				return addon_info
+
+		if value is not None and value != '':
+			config_values[key] = value
+
+	# Build config URL from collected values
+	if config_values:
+		from urllib.parse import quote
+		# Stremio addons typically encode config as /{key}={value}|{key2}={value2}/manifest.json
+		config_parts = [f"{k}={quote(str(v))}" for k, v in config_values.items()]
+		config_string = '|'.join(config_parts)
+		addon_info['config_url'] = f"{addon_info['url'].rstrip('/')}/{config_string}"
+		addon_info['user_config'] = config_values
+
+	return addon_info
 
 
 def reconfigure_all_addons_debrid():
