@@ -1575,7 +1575,7 @@ class StremioIndexer:
 		Handles downloading and applying embedded Stremio subtitles."""
 		from modules.kodi_utils import execute_builtin
 
-		# Download and apply subtitle if available
+		# Pre-download subtitle before starting playback
 		subtitle_path = None
 		if subtitles:
 			try:
@@ -1590,18 +1590,21 @@ class StremioIndexer:
 
 		execute_builtin(f"PlayMedia({url})")
 
-		# Set subtitle after playback starts (requires small delay for player to initialize)
+		# Apply subtitle in background thread to avoid blocking the plugin response
 		if subtitle_path:
-			try:
-				import xbmc
-				# Wait briefly for player to start
-				for _i in range(20):
-					xbmc.sleep(500)
-					if xbmc.Player().isPlaying():
-						xbmc.Player().setSubtitles(subtitle_path)
-						break
-			except Exception:
-				pass
+			def _apply_subtitle(path):
+				try:
+					import xbmc
+					for _i in range(20):
+						xbmc.sleep(500)
+						if xbmc.Player().isPlaying():
+							xbmc.Player().setSubtitles(path)
+							break
+				except Exception:
+					pass
+			t = Thread(target=_apply_subtitle, args=(subtitle_path,))
+			t.daemon = True
+			t.start()
 
 	def play_meta_videos(self):
 		"""Browse episodes/videos from a Stremio meta object for series-like content
