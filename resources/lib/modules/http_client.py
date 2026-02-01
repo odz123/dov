@@ -2,6 +2,7 @@
 """
 Centralized HTTP client for POV.
 Provides session management, retry logic, and browser-like headers.
+Uses Chrome-like TLS fingerprint to avoid Cloudflare 403 blocks.
 """
 
 import requests
@@ -9,28 +10,97 @@ import xbmc
 from threading import Lock
 
 
-# Browser-like headers for HTTP requests
+# Chrome 131 TLS cipher suites for JA3 fingerprint matching
+CHROME_CIPHERS = ':'.join([
+	'TLS_AES_128_GCM_SHA256',
+	'TLS_AES_256_GCM_SHA384',
+	'TLS_CHACHA20_POLY1305_SHA256',
+	'ECDHE-ECDSA-AES128-GCM-SHA256',
+	'ECDHE-RSA-AES128-GCM-SHA256',
+	'ECDHE-ECDSA-AES256-GCM-SHA384',
+	'ECDHE-RSA-AES256-GCM-SHA384',
+	'ECDHE-ECDSA-CHACHA20-POLY1305',
+	'ECDHE-RSA-CHACHA20-POLY1305',
+	'ECDHE-RSA-AES128-SHA',
+	'ECDHE-RSA-AES256-SHA',
+	'AES128-GCM-SHA256',
+	'AES256-GCM-SHA384',
+	'AES128-SHA',
+	'AES256-SHA',
+])
+
+
+def _create_chrome_adapter():
+	"""Create an HTTPAdapter with Chrome-like TLS configuration."""
+	try:
+		import ssl
+		from requests.adapters import HTTPAdapter
+		from urllib3.util.ssl_ import create_urllib3_context
+
+		class ChromeTLSAdapter(HTTPAdapter):
+			def init_poolmanager(self, *args, **kwargs):
+				try:
+					ctx = create_urllib3_context(ciphers=CHROME_CIPHERS)
+					ctx.minimum_version = ssl.TLSVersion.TLSv1_2
+					ctx.set_alpn_protocols(['http/1.1'])
+					kwargs['ssl_context'] = ctx
+				except Exception:
+					pass
+				super().init_poolmanager(*args, **kwargs)
+
+			def proxy_manager_for(self, proxy, **proxy_kwargs):
+				try:
+					ctx = create_urllib3_context(ciphers=CHROME_CIPHERS)
+					ctx.minimum_version = ssl.TLSVersion.TLSv1_2
+					ctx.set_alpn_protocols(['http/1.1'])
+					proxy_kwargs['ssl_context'] = ctx
+				except Exception:
+					pass
+				return super().proxy_manager_for(proxy, **proxy_kwargs)
+
+		return ChromeTLSAdapter()
+	except Exception:
+		return None
+
+
+# Reusable session with Chrome TLS fingerprint
+_session = None
+_session_lock = Lock()
+
+
+def _get_session():
+	"""Get or create a requests session with Chrome-like TLS fingerprint."""
+	global _session
+	with _session_lock:
+		if _session is None:
+			_session = requests.Session()
+			adapter = _create_chrome_adapter()
+			if adapter:
+				_session.mount('https://', adapter)
+				_session.mount('http://', adapter)
+		return _session
+
+
+# Browser-like headers matching Chrome 131
 BROWSER_HEADERS = {
 	'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
 	'Accept': 'application/json, text/plain, */*',
 	'Accept-Language': 'en-US,en;q=0.9',
 	'Accept-Encoding': 'gzip, deflate',
 	'Connection': 'keep-alive',
+	'sec-ch-ua': '"Google Chrome";v="131", "Not_A Brand";v="24", "Chromium";v="131"',
+	'sec-ch-ua-mobile': '?0',
+	'sec-ch-ua-platform': '"Windows"',
+	'sec-fetch-dest': 'empty',
+	'sec-fetch-mode': 'cors',
+	'sec-fetch-site': 'none',
 }
 
 
 def get_headers_for_url(base_url, extra_headers=None):
-	"""Generate browser-like headers with Referer/Origin for a URL."""
-	try:
-		from urllib.parse import urlparse
-		parsed = urlparse(base_url)
-		origin = f"{parsed.scheme}://{parsed.netloc}"
-	except Exception:
-		origin = base_url
-
+	"""Generate browser-like headers for a URL.
+	Does not include Origin header since browsers don't send it for GET requests."""
 	headers = BROWSER_HEADERS.copy()
-	headers['Referer'] = f"{origin}/"
-	headers['Origin'] = origin
 
 	if extra_headers:
 		headers.update(extra_headers)
@@ -38,9 +108,44 @@ def get_headers_for_url(base_url, extra_headers=None):
 	return headers
 
 
+def _urllib_fallback(url, timeout=8):
+	"""Fallback fetch using urllib.request (different TLS fingerprint).
+	Used when requests library gets blocked by Cloudflare."""
+	import json
+	import gzip
+	from io import BytesIO
+	import urllib.request
+
+	headers = {
+		'User-Agent': BROWSER_HEADERS['User-Agent'],
+		'Accept': 'application/json, text/plain, */*',
+		'Accept-Language': 'en-US,en;q=0.9',
+		'Accept-Encoding': 'gzip, deflate',
+		'sec-ch-ua': BROWSER_HEADERS['sec-ch-ua'],
+		'sec-ch-ua-mobile': '?0',
+		'sec-ch-ua-platform': '"Windows"',
+	}
+
+	try:
+		req = urllib.request.Request(url)
+		for key, value in headers.items():
+			req.add_header(key, value)
+		response = urllib.request.urlopen(req, timeout=int(timeout))
+		result = response.read(5242880)
+		try:
+			encoding = response.headers.get('Content-Encoding', '')
+		except Exception:
+			encoding = ''
+		if encoding == 'gzip':
+			result = gzip.GzipFile(fileobj=BytesIO(result)).read()
+		return json.loads(result.decode('utf-8', errors='ignore'))
+	except Exception:
+		return None
+
+
 def fetch_json(url, timeout=8, headers=None, max_retries=2, error_callback=None):
 	"""
-	Fetch JSON from URL.
+	Fetch JSON from URL using session with Chrome TLS fingerprint.
 
 	Args:
 		url: URL to fetch
@@ -59,13 +164,14 @@ def fetch_json(url, timeout=8, headers=None, max_retries=2, error_callback=None)
 		base_headers.update(headers)
 		headers = base_headers
 
+	session = _get_session()
 	response = None
 	last_error = None
 
 	try:
 		for attempt in range(max_retries):
 			try:
-				response = requests.get(url, timeout=timeout, headers=headers)
+				response = session.get(url, timeout=timeout, headers=headers)
 				if response.status_code == 200:
 					try:
 						return response.json()
@@ -81,6 +187,12 @@ def fetch_json(url, timeout=8, headers=None, max_retries=2, error_callback=None)
 	except Exception as e:
 		last_error = e
 
+	# If blocked (403), try urllib fallback with different TLS fingerprint
+	if response is not None and response.status_code == 403:
+		fallback_result = _urllib_fallback(url, timeout=timeout)
+		if fallback_result is not None:
+			return fallback_result
+
 	# Log error if callback provided
 	if error_callback and (response is not None or last_error):
 		if response is not None:
@@ -95,7 +207,7 @@ def fetch_json(url, timeout=8, headers=None, max_retries=2, error_callback=None)
 
 def fetch_raw(url, timeout=8, headers=None, max_retries=2):
 	"""
-	Fetch URL returning raw response.
+	Fetch URL returning raw response using session with Chrome TLS fingerprint.
 
 	Args:
 		url: URL to fetch
@@ -114,13 +226,14 @@ def fetch_raw(url, timeout=8, headers=None, max_retries=2):
 		base_headers.update(headers)
 		headers = base_headers
 
+	session = _get_session()
 	response = None
 	last_error = None
 
 	try:
 		for attempt in range(max_retries):
 			try:
-				response = requests.get(url, timeout=timeout, headers=headers)
+				response = session.get(url, timeout=timeout, headers=headers)
 				if response.status_code == 200:
 					return response, None
 				break
@@ -133,6 +246,12 @@ def fetch_raw(url, timeout=8, headers=None, max_retries=2):
 	except Exception as e:
 		last_error = e
 
+	# If blocked (403), try urllib fallback with different TLS fingerprint
+	if response is not None and response.status_code == 403:
+		fallback_result = _urllib_fallback_raw(url, timeout=timeout)
+		if fallback_result is not None:
+			return fallback_result, None
+
 	# Build error message
 	error_msg = None
 	if response is not None:
@@ -144,6 +263,57 @@ def fetch_raw(url, timeout=8, headers=None, max_retries=2):
 		error_msg = 'Connection failed'
 
 	return response, error_msg
+
+
+def _urllib_fallback_raw(url, timeout=8):
+	"""Fallback raw fetch using urllib.request.
+	Returns a response-like object or None on failure."""
+	import gzip
+	import json
+	from io import BytesIO
+	import urllib.request
+
+	headers = {
+		'User-Agent': BROWSER_HEADERS['User-Agent'],
+		'Accept': 'application/json, text/plain, */*',
+		'Accept-Language': 'en-US,en;q=0.9',
+		'Accept-Encoding': 'gzip, deflate',
+		'sec-ch-ua': BROWSER_HEADERS['sec-ch-ua'],
+		'sec-ch-ua-mobile': '?0',
+		'sec-ch-ua-platform': '"Windows"',
+	}
+
+	try:
+		req = urllib.request.Request(url)
+		for key, value in headers.items():
+			req.add_header(key, value)
+		response = urllib.request.urlopen(req, timeout=int(timeout))
+		data = response.read(5242880)
+		try:
+			encoding = response.headers.get('Content-Encoding', '')
+		except Exception:
+			encoding = ''
+		if encoding == 'gzip':
+			data = gzip.GzipFile(fileobj=BytesIO(data)).read()
+		content_type = ''
+		try:
+			content_type = response.headers.get('Content-Type', '')
+		except Exception:
+			pass
+
+		# Return a simple response-like object compatible with requests.Response
+		class UrllibResponse:
+			def __init__(self, data, content_type):
+				self.status_code = 200
+				self.headers = {'content-type': content_type}
+				self.content = data
+				self.text = data.decode('utf-8', errors='ignore')
+			def json(self):
+				return json.loads(self.content.decode('utf-8', errors='ignore'))
+
+		return UrllibResponse(data, content_type)
+	except Exception:
+		return None
 
 
 def fetch_streams(base_url, media_type, media_id, timeout=8, error_callback=None):
@@ -228,6 +398,10 @@ def get_api_session():
 	with _api_session_lock:
 		if _api_session is None:
 			_api_session = requests.Session()
+			adapter = _create_chrome_adapter()
+			if adapter:
+				_api_session.mount('https://', adapter)
+				_api_session.mount('http://', adapter)
 			_api_session.headers.update({
 				'User-Agent': BROWSER_HEADERS['User-Agent'],
 				'Accept': 'application/json'
