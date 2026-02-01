@@ -50,6 +50,16 @@ MULTI_LANG = ('hindi.eng', 'ara.eng', 'ces.eng', 'chi.eng', 'cze.eng', 'dan.eng'
 			'uae.eng', 'ukr.eng', 'vie.eng', 'zho.eng', 'dual.audio', 'multi')
 SUBS = ('subita', 'subfrench', 'subspanish', 'subtitula', 'swesub', 'nl.subs')
 ADS = ('1xbet', 'betwin')
+
+# Pre-compiled regex patterns for hot-path functions
+_RE_NON_ALNUM_DASH = re.compile(r'[^A-Za-z0-9-]+')
+_RE_NON_ALNUM_DASH_TILDE = re.compile(r'[^a-z0-9-~]+')
+_RE_NON_ALNUM = re.compile(r'[^a-z0-9]+')
+_RE_BRACKET_PREFIX = re.compile(r'^\[.*?]', re.I)
+_RE_HTML_ENTITY = re.compile(r'&#(\d+);')
+_RE_HTML_ENTITY_FIX = re.compile(r'(&#[0-9]+)([^;^0-9]+)')
+_RE_CLEAN_TITLE = re.compile(r'\n|([\[({].+?[})\]])|([:;–\-"\',!_.?~$@])|\s')
+_RE_FIND_SEASON = [re.compile(p) for p in (r's(\d+)', r's\.(\d+)', r'(\d+)x', r'(\d+)\.x', r'season(\d+)', r'season\.(\d+)')]
 UNWANTED_TAGS = ('tamilrockers.com', 'www.tamilrockers.com', 'www.tamilrockers.ws', 'www.tamilrockers.pl', 'www-tamilrockers-cl', 'www.tamilrockers.cl', 'www.tamilrockers.li',
 				'www.tamilrockerrs.pl', 'www.tamilmv.bid', 'www.tamilmv.biz', 'www.1tamilmv.org', 'gktorrent-bz', 'gktorrent-com', 'www.torrenting.com', 'www.torrenting.org',
 				'www-torrenting-com', 'www-torrenting-org', 'katmoviehd.pw', 'katmoviehd-pw', 'www.torrent9.nz', 'www-torrent9-uno', 'torrent9-cz', 'torrent9.cz',
@@ -317,7 +327,7 @@ def seas_ep_filter(season, episode, release_title, split=False, return_match=Fal
 	str_season, str_episode = string(season), string(episode)
 	season_fill, episode_fill = str_season.zfill(2), str_episode.zfill(2)
 	str_ep_plus_1, str_ep_minus_1 = string(episode+1), string(episode-1)
-	release_title = re.sub(r'[^A-Za-z0-9-]+', '.', unquote(release_title).replace('\'', '')).lower()
+	release_title = _RE_NON_ALNUM_DASH.sub('.', unquote(release_title).replace('\'', '')).lower()
 	string1 = r'(s<<S>>[.-]?e[p]?[.-]?<<E>>[.-])'
 	string2 = r'(season[.-]?<<S>>[.-]?episode[.-]?<<E>>[.-])|([s]?<<S>>[x.]<<E>>[.-])'
 	string3 = r'(s<<S>>e<<E1>>[.-]?e?<<E2>>[.-])'
@@ -359,12 +369,11 @@ def extras_filter():
 			'featurette', 'behind.the.scenes', 'trailer')
 
 def find_season_in_release_title(release_title):
-	release_title = re.sub(r'[^A-Za-z0-9-]+', '.', unquote(release_title).replace('\'', '')).lower()
+	release_title = _RE_NON_ALNUM_DASH.sub('.', unquote(release_title).replace('\'', '')).lower()
 	match = None
-	regex_list = [r's(\d+)', r's\.(\d+)', r'(\d+)x', r'(\d+)\.x', r'season(\d+)', r'season\.(\d+)']
-	for item in regex_list:
+	for pattern in _RE_FIND_SEASON:
 		try:
-			match = re.search(item, release_title)
+			match = pattern.search(release_title)
 			if match:
 				match = int(string(match.group(1)).lstrip('0'))
 				break
@@ -389,7 +398,7 @@ def check_title(title, release_title, aliases, year, season, episode):
 				pattern = r'\%s' % i if i_startswith('[') or i_startswith('+') else r'%s' % i
 				release_title = re.sub(r'^%s' % pattern, '', release_title, 1, re.I)
 		release_title = release_title.lstrip('.-:/')
-		release_title = re.sub(r'^\[.*?]', '', release_title, 1, re.I)
+		release_title = _RE_BRACKET_PREFIX.sub('', release_title, count=1)
 		release_title = release_title.lstrip('.-[](){}:/')
 		if season:
 			if season == 'pack': hdlr = ''
@@ -418,7 +427,7 @@ def release_info_format(release_title):
 	try:
 		release_title = url_strip(release_title)
 		release_title = release_title.lower().replace("'", "").lstrip('.').rstrip('.')
-		fmt = '.%s.' % re.sub(r'[^a-z0-9-~]+', '.', release_title).replace('.-.', '.').replace('-.', '.').replace('.-', '.').replace('--', '.')
+		fmt = '.%s.' % _RE_NON_ALNUM_DASH_TILDE.sub('.', release_title).replace('.-.', '.').replace('-.', '.').replace('.-', '.').replace('--', '.')
 		return fmt
 	except Exception:
 		return release_title.lower()
@@ -427,11 +436,11 @@ def clean_title(title):
 	try:
 		if not title: return
 		title = title.lower()
-		title = re.sub(r'&#(\d+);', '', title)
-		title = re.sub(r'(&#[0-9]+)([^;^0-9]+)', '\\1;\\2', title)
-		title = re.sub(r'(&#[0-9]+)([^;^0-9]+)', '\\1;\\2', title)
+		title = _RE_HTML_ENTITY.sub('', title)
+		title = _RE_HTML_ENTITY_FIX.sub('\\1;\\2', title)
+		title = _RE_HTML_ENTITY_FIX.sub('\\1;\\2', title)
 		title = title.replace('&quot;', '\"').replace('&amp;', '&')
-		title = re.sub(r'\n|([\[({].+?[})\]])|([:;–\-"\',!_.?~$@])|\s', '', title)
+		title = _RE_CLEAN_TITLE.sub('', title)
 	except Exception: pass
 	return title
 
@@ -451,7 +460,7 @@ def url_strip(url):
 			parts = url.split('&dn=')
 			url = parts[1] if len(parts) > 1 else url
 		url = url.lower().replace("'", "").lstrip('.').rstrip('.')
-		fmt = re.sub(r'[^a-z0-9]+', ' ', url)
+		fmt = _RE_NON_ALNUM.sub(' ', url)
 		if 'http' in fmt: return None
 		if fmt == '': return None
 		return fmt
