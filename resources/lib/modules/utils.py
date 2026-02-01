@@ -12,6 +12,17 @@ from modules.kodi_utils import local_string as ls, get_setting, logger
 
 days_translate = {'Monday': 32971, 'Tuesday': 32972, 'Wednesday': 32973, 'Thursday': 32974, 'Friday': 32975, 'Saturday': 32976, 'Sunday': 32977}
 
+# Pre-compiled regex patterns for clean_title() - avoids recompilation on each call
+_RE_HTML_ENTITY = re.compile(r'&#(\d+);')
+_RE_HTML_ENTITY_FIX = re.compile(r'(&#[0-9]+)([^;^0-9]+)')
+_RE_CLEAN_TITLE = re.compile(r'\n|([\[({].+?[})\]])|([:;–\-"\',!_.?~$@])|\s')
+_RE_NON_ASCII = re.compile(r'[^\x00-\x7f]')
+_RE_HTML_ENTITY_REPLACE = re.compile(r"(&#[0-9]+)([^;^0-9]+)")
+_RE_ARTICLE = re.compile(r'^((\w+)\s+)')
+_RE_SORT_ARTICLE = re.compile(r'(^the |^a |^an )')
+_RE_SLUG_INVALID = re.compile(r'[^a-z0-9_]')
+_RE_SLUG_MULTI_DASH = re.compile(r'--+')
+
 class TaskPool:
 	@staticmethod
 	def process(_threads):
@@ -191,11 +202,11 @@ def clean_title(title):
 	try:
 		if not title: return
 		title = title.lower()
-		title = re.sub(r'&#(\d+);', '', title)
-		title = re.sub(r'(&#[0-9]+)([^;^0-9]+)', '\\1;\\2', title)
-		title = re.sub(r'(&#[0-9]+)([^;^0-9]+)', '\\1;\\2', title)
+		title = _RE_HTML_ENTITY.sub('', title)
+		title = _RE_HTML_ENTITY_FIX.sub('\\1;\\2', title)
+		title = _RE_HTML_ENTITY_FIX.sub('\\1;\\2', title)
 		title = title.replace('&quot;', '\"').replace('&amp;', '&')
-		title = re.sub(r'\n|([\[({].+?[})\]])|([:;–\-"\',!_.?~$@])|\s', '', title)
+		title = _RE_CLEAN_TITLE.sub('', title)
 	except Exception: pass
 	return title
 
@@ -209,7 +220,7 @@ def byteify(data, ignore_dicts=False):
 	return data
 
 def normalize(txt):
-	txt = re.sub(r'[^\x00-\x7f]',r'', txt)
+	txt = _RE_NON_ASCII.sub('', txt)
 	return txt
 
 def safe_string(obj):
@@ -241,7 +252,7 @@ def regex_get_all(text, start_with, end_with):
 	return r
 
 def replace_html_codes(txt):
-	txt = re.sub(r"(&#[0-9]+)([^;^0-9]+)", "\\1;\\2", txt)
+	txt = _RE_HTML_ENTITY_REPLACE.sub("\\1;\\2", txt)
 	txt = unescape(txt)
 	txt = txt.replace("&quot;", "\"")
 	txt = txt.replace("&amp;", "&")
@@ -276,8 +287,8 @@ def title_key(title, ignore_articles):
 	if not ignore_articles: return title
 	try:
 		if title is None: title = ''
-		articles = ['the', 'a', 'an']
-		match = re.match(r'^((\w+)\s+)', title.lower())
+		articles = ('the', 'a', 'an')
+		match = _RE_ARTICLE.match(title.lower())
 		if match and match.group(2) in articles: offset = len(match.group(1))
 		else: offset = 0
 		return title[offset:]
@@ -285,7 +296,7 @@ def title_key(title, ignore_articles):
 
 def sort_for_article(_list, _key, ignore_articles):
 	if not ignore_articles: _list.sort(key=lambda k: k[_key])
-	else: _list.sort(key=lambda k: re.sub(r'(^the |^a |^an )', '', k[_key].lower()))
+	else: _list.sort(key=lambda k: _RE_SORT_ARTICLE.sub('', k[_key].lower()))
 	return _list
 
 def sort_list(sort_key, sort_direction, list_data, ignore_articles):
@@ -334,7 +345,7 @@ def paginate_list(item_list, page, letter, limit=20):
 def make_title_slug(name):
 	name = name.strip()
 	name = name.lower()
-	name = re.sub('[^a-z0-9_]', '-', name)
-	name = re.sub('--+', '-', name)
+	name = _RE_SLUG_INVALID.sub('-', name)
+	name = _RE_SLUG_MULTI_DASH.sub('-', name)
 	return name
 

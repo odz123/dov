@@ -5,6 +5,7 @@ Provides session management, retry logic, and browser-like headers.
 """
 
 import requests
+import xbmc
 from threading import Lock
 
 
@@ -74,8 +75,7 @@ def fetch_json(url, timeout=8, headers=None, max_retries=2, error_callback=None)
 			except (requests.exceptions.Timeout, requests.exceptions.ConnectionError) as e:
 				last_error = e
 				if attempt < max_retries - 1:
-					import time
-					time.sleep(0.5)
+					xbmc.Monitor().waitForAbort(0.5)
 					continue
 				break
 	except Exception as e:
@@ -127,8 +127,7 @@ def fetch_raw(url, timeout=8, headers=None, max_retries=2):
 			except (requests.exceptions.Timeout, requests.exceptions.ConnectionError) as e:
 				last_error = e
 				if attempt < max_retries - 1:
-					import time
-					time.sleep(0.5)
+					xbmc.Monitor().waitForAbort(0.5)
 					continue
 				break
 	except Exception as e:

@@ -12,6 +12,7 @@ fanart = kodi_utils.get_addoninfo('fanart')
 default_icon = kodi_utils.media_path(Debrid.icon)
 default_art = {'icon': default_icon, 'poster': default_icon, 'thumb': default_icon, 'fanart': fanart, 'banner': default_icon}
 extensions = supported_video_extensions()
+KODI_VERSION = kodi_utils.get_kodi_version()
 
 class Indexer(Debrid):
 	def run(self, params):
@@ -75,7 +76,7 @@ class Indexer(Debrid):
 				listitem.setLabel(display)
 				listitem.addContextMenuItems(cm)
 				listitem.setArt(default_art)
-				listitem.setInfo('video', {})
+				listitem.setInfo('video', {}) if KODI_VERSION < 20 else listitem.getVideoInfoTag()
 				yield (url, listitem, False)
 			except Exception: pass
 
