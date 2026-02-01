@@ -38,6 +38,9 @@ def get_source_meta(params):
 	if custom_year: meta['custom_year'] = custom_year
 	if custom_season: meta['custom_season'] = custom_season
 	if custom_episode: meta['custom_episode'] = custom_episode
+	# Carry Stremio bingeGroup from previous episode for autoplay preference
+	stremio_binge_group = params_get('stremio_binge_group')
+	if stremio_binge_group: meta['stremio_binge_group'] = stremio_binge_group
 	expiry_times = get_cache_expiry(media_type, meta, season)
 	title = get_title(meta)
 	aliases = _make_alias_dict(meta, title)

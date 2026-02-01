@@ -555,16 +555,18 @@ class StremioIndexer:
 	def fetch_catalog(self, addon_url, catalog_type, catalog_id, skip=0, filter_name='', filter_value=''):
 		"""Fetch catalog contents from addon with caching"""
 		try:
+			from urllib.parse import quote
 			base_url = addon_url.rstrip('/')
 			if base_url.endswith('/manifest.json'):
 				base_url = base_url[:-14]
 
 			# Build catalog endpoint with optional filters
+			# Per Stremio SDK: extras are encoded as key=value in the URL path segment
 			extra_parts = []
 			if skip > 0:
 				extra_parts.append(f"skip={skip}")
 			if filter_name and filter_value:
-				extra_parts.append(f"{filter_name}={filter_value}")
+				extra_parts.append(f"{quote(filter_name, safe='')}={quote(filter_value, safe=',')}")
 
 			if extra_parts:
 				extra_string = '&'.join(extra_parts)

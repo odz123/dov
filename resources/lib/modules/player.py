@@ -247,7 +247,8 @@ class POVPlayer(kodi_utils.xbmc_player):
 			poster = self.meta.get('poster') or poster_empty
 			season = self.season if self.media_type == 'episode' else None
 			episode = self.episode if self.media_type == 'episode' else None
-			self._safe_thread(Subtitles().get, self.title, self.imdb_id, season, episode, poster)
+			stremio_subs = self.meta.get('stremio_subtitles')
+			self._safe_thread(Subtitles().get, self.title, self.imdb_id, season, episode, poster, stremio_subs)
 		except Exception: pass
 
 	def run_stingers(self):
@@ -347,7 +348,38 @@ class Subtitles(kodi_utils.xbmc_player):
 		self.subs_action = {'0': 'auto', '1': 'select', '2': 'off'}[get_setting('subtitles.subs_action', '2')]
 		self.language1 = language_choices[get_setting('subtitles.language')]
 
-	def get(self, query, imdb_id, season, episode, poster):
+	def get(self, query, imdb_id, season, episode, poster, stremio_subs=None):
+		def _stremio_subs():
+			"""Try to use Stremio embedded subtitles from the stream object"""
+			if not stremio_subs: return False
+			try:
+				from modules.stremio_subtitles import filter_subtitles_by_language, download_subtitle
+				filtered = filter_subtitles_by_language(stremio_subs, self.language1)
+				if not filtered: return False
+				if self.subs_action == 'auto':
+					# Only auto-select if the best match is actually the preferred language
+					first = filtered[0]
+					lang_name = first.get('language_name', '').lower()
+					if lang_name != self.language1.lower():
+						return False
+					selected = first
+				elif self.subs_action == 'select' and len(filtered) > 1:
+					labels = [s.get('language_name', s.get('lang', 'Unknown')) for s in filtered]
+					self.pause()
+					choice = kodi_utils.dialog.select('Stremio Subtitles', labels)
+					self.pause()
+					if choice < 0: return False
+					selected = filtered[choice]
+				else:
+					selected = filtered[0]
+				sub_url = selected.get('url', '')
+				if sub_url:
+					filepath = download_subtitle(sub_url)
+					if filepath:
+						kodi_utils.notification(32852, icon=poster)
+						return filepath
+			except Exception: pass
+			return False
 		def _video_file_subs():
 			try: available_sub_language = self.getSubtitles()
 			except Exception: available_sub_language = ''
@@ -409,6 +441,9 @@ class Subtitles(kodi_utils.xbmc_player):
 		subtitle_path = 'special://temp/'
 		sub_filename = 'POVSubs_%s_%s_%s' % (imdb_id, season, episode) if season else 'POVSubs_%s' % imdb_id
 		search_filename = sub_filename + '_%s.srt' % self.language1
+		# Try Stremio embedded subtitles first (from stream object)
+		subtitle = _stremio_subs()
+		if subtitle: return self.setSubtitles(subtitle)
 		subtitle = _video_file_subs()
 		if subtitle: return
 		subtitle = _downloaded_subs()
