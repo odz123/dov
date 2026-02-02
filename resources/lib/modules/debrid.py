@@ -373,7 +373,7 @@ def mfn_check_cache(imdb, season, episode, collector, lock):
 	try:
 		results = session.get(url, timeout=7.05)
 		files = results.json()['streams']
-		found_hashes = [HASH_PATTERN.findall(file['url'])[-1] for file in files if '⚡' in file['name'] and 'url' in file]
+		found_hashes = [m[-1] for file in files if '⚡' in file['name'] and 'url' in file for m in [HASH_PATTERN.findall(file['url'])] if m]
 		with lock:  # Thread-safe append
 			collector.extend(found_hashes)
 	except Exception as e: kodi_utils.logger('mfn error', str(e))
@@ -386,7 +386,7 @@ def trz_check_cache(imdb, season, episode, collector, lock):
 	try:
 		results = session.get(url, timeout=7.05)
 		files = results.json()['streams']
-		found_hashes = [HASH_PATTERN.findall(file['url'])[-1] for file in files if '⚡' in file['name'] and 'url' in file]
+		found_hashes = [m[-1] for file in files if '⚡' in file['name'] and 'url' in file for m in [HASH_PATTERN.findall(file['url'])] if m]
 		with lock:  # Thread-safe append
 			collector.extend(found_hashes)
 	except Exception as e: kodi_utils.logger('trz error', str(e))
@@ -399,7 +399,7 @@ def tio_check_cache(imdb, season, episode, collector, lock):
 	try:
 		results = session.get(url, timeout=7.05)
 		files = results.json()['streams']
-		found_hashes = [HASH_PATTERN.findall(file['url'])[-1] for file in files if '+' in file['name'] and 'url' in file]
+		found_hashes = [m[-1] for file in files if '+' in file['name'] and 'url' in file for m in [HASH_PATTERN.findall(file['url'])] if m]
 		with lock:  # Thread-safe append
 			collector.extend(found_hashes)
 	except Exception as e: kodi_utils.logger('tio error', str(e))

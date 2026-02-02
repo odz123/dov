@@ -1,7 +1,7 @@
 import re
 import time
 import requests
-from threading import Thread
+from threading import Thread, Lock
 from caches import mdbl_cache
 from caches.main_cache import cache_object, timedelta, MainCache
 from caches.meta_cache import cache_function
@@ -26,27 +26,30 @@ session.mount('https://api.mdblist.com', requests.adapters.HTTPAdapter(pool_maxs
 _rate_limit_remaining = 1000
 _rate_limit_limit = 1000
 _rate_limit_reset = 0
+_rate_limit_lock = Lock()
 
 def _update_rate_limits(response):
 	"""Parse and store rate limit headers from MDBList API response."""
 	global _rate_limit_remaining, _rate_limit_limit, _rate_limit_reset
 	try:
-		if 'X-RateLimit-Remaining' in response.headers:
-			_rate_limit_remaining = int(response.headers['X-RateLimit-Remaining'])
-		if 'X-RateLimit-Limit' in response.headers:
-			_rate_limit_limit = int(response.headers['X-RateLimit-Limit'])
-		if 'X-RateLimit-Reset' in response.headers:
-			_rate_limit_reset = int(response.headers['X-RateLimit-Reset'])
+		with _rate_limit_lock:
+			if 'X-RateLimit-Remaining' in response.headers:
+				_rate_limit_remaining = int(response.headers['X-RateLimit-Remaining'])
+			if 'X-RateLimit-Limit' in response.headers:
+				_rate_limit_limit = int(response.headers['X-RateLimit-Limit'])
+			if 'X-RateLimit-Reset' in response.headers:
+				_rate_limit_reset = int(response.headers['X-RateLimit-Reset'])
 	except (ValueError, KeyError):
 		pass
 
 def get_rate_limit_status():
 	"""Return current rate limit status for debugging/monitoring."""
-	return {
-		'remaining': _rate_limit_remaining,
-		'limit': _rate_limit_limit,
-		'reset': _rate_limit_reset
-	}
+	with _rate_limit_lock:
+		return {
+			'remaining': _rate_limit_remaining,
+			'limit': _rate_limit_limit,
+			'reset': _rate_limit_reset
+		}
 
 def call_mdblist(path, params=None, json=None, method=None):
 	params = params or {}
@@ -193,6 +196,7 @@ def mdbl_modify_collection(data, action='add'):
 	if 'movies' in data: data['movies'] = [{'ids': i} for i in data['movies']]
 	if 'shows' in data: data['shows'] = [{'ids': i} for i in data['shows']]
 	result = call_mdblist(url, json=data, method='post')
+	if not result: return False
 	success = key in result and any(result[key][i] for i in ('movies', 'shows'))
 	return success
 
@@ -201,6 +205,7 @@ def mdbl_modify_list(list_id, data, action='add'):
 	elif list_id == 'watchlist': url = 'watchlist/items/%s' % action
 	else: url = 'lists/%s/items/%s' % (list_id, action)
 	result = call_mdblist(url, json=data, method='post')
+	if not result: return False
 	key = 'added' if action == 'add' else 'removed'
 	success = key in result and any(result[key][i] for i in ('movies', 'shows'))
 	return success
@@ -218,6 +223,7 @@ def mdbl_watched_unwatched(action, media, media_id, tvdb_id=0, data=None, season
 		if media == 'episode': data = {'shows': [{'seasons': [{'episodes': [{'number': int(episode)}], 'number': int(season)}], 'ids': media_id}]}
 		else: data = {'shows': [{'ids': media_id, 'seasons': data}]}
 	result = call_mdblist(url, json=data, method='post')
+	if not result: return False
 	success = result[result_key][success_key] > 0
 	if not success:
 		if media != 'movies' and tvdb_id != 0:

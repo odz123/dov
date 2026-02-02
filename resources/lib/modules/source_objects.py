@@ -26,7 +26,8 @@ def get_source_meta(params):
 			meta = tvshow_meta_with_stremio('tmdb_id', tmdb_id, meta_user_info, current_date)
 			try:
 				episodes_data = season_episodes_meta_with_stremio(season, meta, meta_user_info)
-				ep_data = next((i for i in episodes_data if i['episode'] == int(episode)))
+				ep_data = next((i for i in episodes_data if i['episode'] == int(episode)), None)
+				if not ep_data: raise StopIteration
 				meta.update({
 					'mediatype': 'episode', 'season': ep_data['season'], 'episode': ep_data['episode'],
 					'premiered': ep_data['premiered'], 'ep_name': ep_data['title'], 'plot': ep_data['plot']
