@@ -119,7 +119,7 @@ class Indexer(Debrid):
 			kodi_utils.show_busy_dialog()
 			account_info = self.account_info()
 			expires = datetime_workaround(account_info['expiration'], '%Y-%m-%dT%H:%M:%S.%fZ')
-			days_remaining = (expires - datetime.today()).days
+			days_remaining = (expires - datetime.now()).days
 			body = []
 			append = body.append
 			append(ls(32758) % account_info['email'])

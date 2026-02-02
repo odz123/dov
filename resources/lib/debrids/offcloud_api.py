@@ -122,7 +122,7 @@ class OffcloudAPI:
 		if not request_id and completed and result: result = [i for i in result if i.get('status') == 'downloaded']
 		return result
 
-	def clear_cache(*args):
+	def clear_cache(self):
 		from modules.kodi_utils import clear_property, path_exists, database_connect, maincache_db
 		if not path_exists(maincache_db): return True
 		from caches.debrid_cache import DebridCache

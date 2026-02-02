@@ -1,5 +1,5 @@
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from threading import Thread
 from indexers import metadata
 from indexers.mdblist_api import mdbl_watched_unwatched, mdbl_progress
@@ -233,6 +233,8 @@ def get_in_progress_movies(dummy_arg, page_no, letter):
 		dbcur = set_PRAGMAS(dbcon)
 		dbcur.execute("""SELECT media_id, last_played, title FROM progress WHERE db_type = ?""", ('movie',))
 		data = dbcur.fetchall()
+	except Exception:
+		data = []
 	finally:
 		if dbcon:
 			_return_connection(db_file, dbcon)
@@ -277,6 +279,8 @@ def get_in_progress_episodes():
 		dbcur = set_PRAGMAS(dbcon)
 		dbcur.execute("""SELECT media_id, season, episode, resume_point, last_played, title FROM progress WHERE db_type = ?""", ('episode',))
 		data = dbcur.fetchall()
+	except Exception:
+		data = []
 	finally:
 		if dbcon:
 			_return_connection(db_file, dbcon)
@@ -559,8 +563,8 @@ def batch_mark_as_watched_unwatched(watched_indicators, insert_list, action):
 
 def get_last_played_value(database_type):
 	if database_type == WATCHED_DB: return datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-	elif database_type == MDBL_DB: return datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ')
-	else: return datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S.000Z')
+	elif database_type == MDBL_DB: return datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
+	else: return datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.000Z')
 
 def make_batch_insert(action, media_type, tmdb_id, season, episode, last_played, title):
 	if action == 'mark_as_watched': return (media_type, tmdb_id, season, episode, last_played, title)

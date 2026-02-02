@@ -93,7 +93,7 @@ def account_info(params):
 		body = []
 		append = body.append
 		expires = jsondate_to_datetime(account_info[2], '%Y-%m-%d')
-		days_remaining = (expires - datetime.today()).days
+		days_remaining = (expires - datetime.now()).days
 		append(ls(32758) % account_info[1])
 		append(ls(32755) % account_info[0])
 		append(ls(32757) % account_info[3])

@@ -118,7 +118,7 @@ class Indexer(Debrid):
 			email = account_info['email']
 			status = 'Premium' if account_info['isPremium'] else 'Not Active'
 			expires = datetime.fromtimestamp(account_info['premiumUntil'])
-			days_remaining = (expires - datetime.today()).days
+			days_remaining = (expires - datetime.now()).days
 			body = []
 			append = body.append
 			append(ls(32755) % username)
