@@ -128,14 +128,15 @@ class POVPlayer(kodi_utils.xbmc_player):
 			if self.media_type == 'movie':
 				if KODI_VERSION < 20:
 					listitem.setCast(self.meta_get('cast', []))
-					listitem.setUniqueIDs({'tmdb': str(self.tmdb_id)})
+					listitem.setUniqueIDs({'imdb': self.imdb_id, 'tmdb': str(self.tmdb_id)})
 					listitem.setInfo('video', {'mediatype': 'movie', 'trailer': trailer, 'title': self.title, 'size': '0', 'duration': duration,
 						'plot': plot, 'premiered': premiered, 'studio': studio, 'year': self.year, 'genre': genre, 'tagline': self.meta_get('tagline'),
-						'imdbnumber': str(self.tmdb_id), 'director': self.meta_get('director'), 'writer': self.meta_get('writer'), 'rating': rating, 'votes': votes})
+						'imdbnumber': self.imdb_id, 'director': self.meta_get('director'), 'writer': self.meta_get('writer'), 'rating': rating, 'votes': votes})
 				else:
 					videoinfo = infoTagger(listitem, self.meta)
 					videoinfo.setCast(make_cast_list(self.meta_get('cast', [])))
-					videoinfo.setUniqueIDs({'tmdb': str(self.tmdb_id)})
+					videoinfo.setUniqueIDs({'imdb': self.imdb_id, 'tmdb': str(self.tmdb_id)})
+					videoinfo.setIMDBNumber(self.imdb_id)
 					videoinfo.setMediaType('movie')
 			else:
 				if KODI_VERSION < 20:
