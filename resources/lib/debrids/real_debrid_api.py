@@ -28,7 +28,7 @@ class RealDebridAPI:
 			response.request.headers['Authorization'] = 'Bearer %s' % self.token
 			response = session.send(response.request, timeout=timeout)
 		if not response.ok: kodi_utils.logger(self.__class__.__name__, f"{response.reason}\n{response.url}")
-		if len(response.content):
+		if response.content:
 			try: return response.json()
 			except ValueError: return response
 		return response
@@ -163,7 +163,7 @@ class RealDebridAPI:
 		url = 'torrents/info/%s' % file_id
 		return cache_object(self._get, string, url, False, 2)
 
-	def clear_cache(*args):
+	def clear_cache(self):
 		from modules.kodi_utils import clear_property, path_exists, database_connect, maincache_db
 		if not path_exists(maincache_db): return True
 		from caches.debrid_cache import DebridCache

@@ -19,7 +19,7 @@ class Indexer(Debrid):
 			account_info = self.account_info()
 			if account_info['paid_until']:
 				expires = datetime.fromtimestamp(account_info['paid_until'])
-				days_remaining = (expires - datetime.today()).days
+				days_remaining = (expires - datetime.now()).days
 				expires = expires.strftime('%Y-%m-%d')
 			else: expires, days_remaining = 'Expired', 'None'
 			body = []

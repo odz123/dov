@@ -60,7 +60,7 @@ class TorBoxAPI:
 			FormatDateTime = '%Y-%m-%dT%H:%M:%SZ'
 			try: expires = datetime.datetime.strptime(account_info['premium_expires_at'], FormatDateTime)
 			except Exception: expires = datetime.datetime(*(time.strptime(account_info['premium_expires_at'], FormatDateTime)[0:6]))
-			days = (expires - datetime.datetime.today()).days
+			days = (expires - datetime.datetime.now()).days
 		except Exception: days = None
 		return days
 
@@ -218,7 +218,7 @@ class TorBoxAPI:
 		if not request_id and completed: result = [i for i in result if i['download_finished'] and i['files']]
 		return result
 
-	def clear_cache(*args):
+	def clear_cache(self):
 		from modules.kodi_utils import clear_property, path_exists, database_connect, maincache_db
 		if not path_exists(maincache_db): return True
 		from caches.debrid_cache import DebridCache

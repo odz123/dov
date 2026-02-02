@@ -137,7 +137,7 @@ class Indexer(Debrid):
 			customer_id = account_info['customer_id']
 			if account_info['premium_until']:
 				expires = datetime.fromtimestamp(account_info['premium_until'])
-				days_remaining = (expires - datetime.today()).days
+				days_remaining = (expires - datetime.now()).days
 			else: expires, days_remaining = 'Expired', 'None'
 			points_used = int(math.floor(float(account_info['space_used']) / 1073741824.0))
 			space_used = float(int(account_info['space_used']))/1073741824

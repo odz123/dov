@@ -49,7 +49,7 @@ class PremiumizeAPI:
 		try:
 			account_info = self.account_info()
 			expires = datetime.datetime.fromtimestamp(account_info['premium_until'])
-			days = (expires - datetime.datetime.today()).days
+			days = (expires - datetime.datetime.now()).days
 		except Exception: days = None
 		return days
 
@@ -168,7 +168,7 @@ class PremiumizeAPI:
 			url = 'folder/list'
 		return cache_object(self._get, string, url, False, 0.5)
 
-	def clear_cache(*args):
+	def clear_cache(self):
 		from modules.kodi_utils import clear_property, path_exists, database_connect, maincache_db
 		if not path_exists(maincache_db): return True
 		from caches.debrid_cache import DebridCache

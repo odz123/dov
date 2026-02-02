@@ -149,8 +149,8 @@ def get_imdb(params):
 	url = params['url']
 	next_page = None
 	if 'date' in params:
-		from datetime import datetime, timedelta
-		date_time = (datetime.utcnow() - timedelta(hours=5))
+		from datetime import datetime, timedelta, timezone
+		date_time = (datetime.now(timezone.utc) - timedelta(hours=5))
 		for i in re.findall(r'date\[(\d+)\]', url):
 			url = url.replace('date[%s]' % i, (date_time - timedelta(days = int(i))).strftime('%Y-%m-%d'))
 	if action in ('imdb_watchlist', 'imdb_user_list_contents', 'imdb_keywords_list_contents'):

@@ -40,7 +40,7 @@ class EasyDebridAPI:
 		try:
 			account_info = self.account_info()
 			expires = datetime.fromtimestamp(account_info['paid_until'])
-			days = (expires - datetime.today()).days
+			days = (expires - datetime.now()).days
 		except Exception: days = None
 		return days
 
@@ -92,7 +92,7 @@ class EasyDebridAPI:
 			return torrent_files
 		except Exception: pass
 
-	def clear_cache(*args):
+	def clear_cache(self):
 		from modules.kodi_utils import clear_property
 		try:
 			from caches.debrid_cache import DebridCache

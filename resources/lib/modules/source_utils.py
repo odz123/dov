@@ -329,13 +329,13 @@ def supported_video_extensions():
 def seas_ep_query_list(season, episode):
 	season = int(season)
 	episode = int(episode)
-	return ['s%de%02d' % (int(season), int(episode)),
-			's%02de%02d' % (int(season), int(episode)),
-			'%dx%02d' % (int(season), int(episode)),
-			'%02dx%02d' % (int(season), int(episode)),
-			'season%02depisode%02d' % (int(season), int(episode)),
-			'season%depisode%02d' % (int(season), int(episode)),
-			'season%depisode%d' % (int(season), int(episode))]
+	return ['s%de%02d' % (season, episode),
+			's%02de%02d' % (season, episode),
+			'%dx%02d' % (season, episode),
+			'%02dx%02d' % (season, episode),
+			'season%02depisode%02d' % (season, episode),
+			'season%depisode%02d' % (season, episode),
+			'season%depisode%d' % (season, episode)]
 
 def seas_ep_filter(season, episode, release_title, split=False, return_match=False):
 	str_season, str_episode = string(season), string(episode)
@@ -486,6 +486,7 @@ def get_file_info(name_info=None, url=None):
 	info_append = info.append
 	if name_info: fmt = name_info
 	elif url: fmt = url_strip(url)
+	else: fmt = None
 	if not fmt: return ''
 	quality = get_release_quality(fmt)
 	if any(i in fmt for i in VIDEO_3D):  info_append('[B]3D[/B]')

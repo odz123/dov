@@ -169,18 +169,18 @@ class Source:
 				if direct_debrid_link == 'usenet': function = 'unrestrict_usenet'
 				elif direct_debrid_link == 'webdl': function = 'unrestrict_webdl'
 				else: function = 'unrestrict_link'
-				function = getattr(torbox_api.TorBoxAPI(), function)
+				function = getattr(import_debrid('torbox'), function)
 				url = function(self.id)
 			elif self.scrape_provider == 'rd_cloud':
 				if direct_debrid_link: url = self.url_dl
-				else: url = real_debrid_api.RealDebridAPI().unrestrict_link(self.id)
+				else: url = import_debrid('real-debrid').unrestrict_link(self.id)
 			elif self.scrape_provider == 'pm_cloud':
-				details = premiumize_api.PremiumizeAPI().get_item_details(self.id)
+				details = import_debrid('premiumize.me').get_item_details(self.id)
 				url = details['link']
 				if url.startswith('/'): url = 'https' + url
 			elif self.scrape_provider == 'ad_cloud':
 				if direct_debrid_link: url = self.url_dl
-				else: url = alldebrid_api.AllDebridAPI().unrestrict_link(self.id)
+				else: url = import_debrid('alldebrid').unrestrict_link(self.id)
 			elif self.scrape_provider == 'easynews':
 				from debrids.easynews import resolve_easynews
 				url = resolve_easynews({'url_dl': self.url_dl, 'play': 'false'})
@@ -335,7 +335,7 @@ class DebridCheck:
 		)
 		else: threads = (
 			Thread(target=tio_check_cache, args=(self.imdb, self.season, self.episode, checked_hashes, lock)),
-			Thread(target=dmm_check_cache, args=(unchecked_hashes, self.imdb, checked_hashes))
+			Thread(target=dmm_check_cache, args=(unchecked_hashes, self.imdb, checked_hashes, lock))
 		)
 		for i in threads: i.start()
 		for i in threads: i.join()
@@ -404,7 +404,7 @@ def tio_check_cache(imdb, season, episode, collector, lock):
 			collector.extend(found_hashes)
 	except Exception as e: kodi_utils.logger('tio error', str(e))
 
-def dmm_check_cache(unchecked_hashes_chunk, imdb, collector): # DMM API Allows max 100 hashes per request.
+def dmm_check_cache(unchecked_hashes_chunk, imdb, collector, lock=None): # DMM API Allows max 100 hashes per request.
 	""" do not thread multiple calls, abusing the api will get it turned off
 		100 sample size should be enough """
 	from magneto.dmm import get_secret
@@ -416,6 +416,11 @@ def dmm_check_cache(unchecked_hashes_chunk, imdb, collector): # DMM API Allows m
 	try:
 		results = session.post(url, json=data, timeout=7.05)
 		files = results.json()['available']
-		collector.extend(file['hash'] for file in files if 'hash' in file)
+		found_hashes = [file['hash'] for file in files if 'hash' in file]
+		if lock:
+			with lock:
+				collector.extend(found_hashes)
+		else:
+			collector.extend(found_hashes)
 	except Exception as e: kodi_utils.logger('dmm error', str(e))
 

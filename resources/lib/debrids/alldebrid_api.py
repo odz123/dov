@@ -54,7 +54,7 @@ class AllDebridAPI:
 		try:
 			account_info = self.account_info()['user']
 			expires = datetime.datetime.fromtimestamp(account_info['premiumUntil'])
-			days = (expires - datetime.datetime.today()).days
+			days = (expires - datetime.datetime.now()).days
 		except Exception: days = None
 		return days
 

@@ -96,6 +96,7 @@ class ExternalSource:
 	def __init__(self, meta, args):
 		self.sources = []
 		self.meta, self.args = meta, args
+		self.resolutions = dict.fromkeys(resolutions.split(), 0)
 
 	def results(self, info):
 		try:
@@ -197,5 +198,4 @@ class ExternalSource:
 	scrape_provider = 'external'
 	timeout = 10
 	hostDict = {}
-	resolutions = dict.fromkeys(resolutions.split(), 0)
 

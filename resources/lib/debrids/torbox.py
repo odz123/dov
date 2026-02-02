@@ -97,7 +97,7 @@ class Indexer(Debrid):
 			plans = {0: 'Free', 1: 'Essential', 2: 'Pro', 3: 'Standard'}
 			account_info = self.account_info()
 			expires = datetime_workaround(account_info['premium_expires_at'], '%Y-%m-%dT%H:%M:%SZ')
-			days_remaining = (expires - datetime.today()).days
+			days_remaining = (expires - datetime.now()).days
 			body = []
 			append = body.append
 			append(ls(32758) % account_info['email'])

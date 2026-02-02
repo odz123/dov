@@ -1,7 +1,7 @@
 
 def years():
 	from datetime import datetime
-	return list(range(datetime.today().year, 1899, -1))
+	return list(range(datetime.now().year, 1899, -1))
 
 oscar_winners = (
 	1064213, 872585, 545611, 776503, 581734, 496243, 490132, 399055, 376867, 314365, 194662, 76203, 68734, 74643, 45269, 12162, 12405, 6977,
