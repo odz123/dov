@@ -111,6 +111,20 @@ class source:
 			return custom_data
 		return DEFAULT_USER_DATA
 
+	def _fetch_results(self, url, params, headers):
+		"""Fetch results from AIOStreams API for given params.
+		Returns list of result files or empty list."""
+		from urllib.parse import urlencode
+		full_url = '%s?%s' % (url, urlencode(params))
+		response = http_client.fetch_json(full_url, timeout=self.timeout, headers=headers)
+		if not response:
+			return []
+		if not response.get('success', True):
+			error = response.get('error', {})
+			source_utils.scraper_error('AIOSTREAMS: %s' % error.get('message', 'Unknown error'))
+			return []
+		return response.get('data', {}).get('results', [])
+
 	def sources(self, data, hostDict):
 		sources = []
 		if not data: return sources
@@ -123,6 +137,7 @@ class source:
 			total_seasons = data['total_seasons'] if 'tvshowtitle' in data else None
 			year = data['year']
 			imdb = data['imdb']
+			tvdb = data.get('tvdb') if 'tvshowtitle' in data else None
 			if 'tvshowtitle' in data:
 				season = data['season']
 				episode = data['episode']
@@ -136,22 +151,17 @@ class source:
 			if 'timeout' in data: self.timeout = int(data['timeout'])
 
 			base_headers = self._headers()
+			has_valid_tvdb = tvdb and str(tvdb) not in ('', '0', '0000000', 'None')
+			has_valid_imdb = imdb and str(imdb) not in ('', 'None', 'tt0000000')
 
-			# Use http_client for centralized session management, TLS fingerprinting, and retry logic
-			from urllib.parse import urlencode
-			full_url = '%s?%s' % (url, urlencode(params))
-			response = http_client.fetch_json(full_url, timeout=self.timeout, headers=base_headers)
+			# Fetch results with TVDB fallback for series
+			files = []
+			if has_valid_imdb:
+				files = self._fetch_results(url, params, base_headers)
+			if not files and has_valid_tvdb:
+				tvdb_params = {'type': 'series', 'id': '%s:%s:%s' % (tvdb, season, episode)}
+				files = self._fetch_results(url, tvdb_params, base_headers)
 
-			if not response:
-				source_utils.scraper_error('AIOSTREAMS: No response from %s' % self.base_link)
-				return sources
-
-			# Handle API response format: {"success": bool, "data": {"results": [...], "errors": [...]}}
-			if not response.get('success', True):
-				error = response.get('error', {})
-				source_utils.scraper_error('AIOSTREAMS: %s' % error.get('message', 'Unknown error'))
-				return sources
-			files = response.get('data', {}).get('results', [])
 			if not files:
 				return sources
 			undesirables = source_utils.get_undesirables()
