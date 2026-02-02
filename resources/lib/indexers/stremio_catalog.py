@@ -632,7 +632,8 @@ class StremioIndexer:
 
 			# Determine per-item type: use individual meta type when available, fall back to catalog type
 			# This handles mixed-type catalogs (e.g. Disney+ catalog with type "series" containing movie items)
-			item_type = meta.get('type', catalog_type)
+			# Use `or` to also handle explicit null/empty type values from the API
+			item_type = meta.get('type') or catalog_type
 			is_series_like = item_type in _SERIES_LIKE_TYPES
 			media_type = 'movie' if item_type == 'movie' else 'tvshow'
 
@@ -928,7 +929,7 @@ class StremioIndexer:
 				year = year_match
 			catalog_type = meta.get('_catalog_type', 'movie')
 			# Use individual item type when available, fall back to catalog type for mixed catalogs
-			item_type = meta.get('type', catalog_type)
+			item_type = meta.get('type') or catalog_type
 			is_series_like = item_type in _SERIES_LIKE_TYPES
 			addon_name = meta.get('_addon_name', '')
 			imdb_id = meta.get('imdb_id', '')
