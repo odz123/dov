@@ -142,16 +142,16 @@ class Extras(BaseDialog):
 					self.selected = self.plugin_runner % self.build_url({'mode': 'random_choice', 'tmdb_id': self.tmdb_id, 'poster': self.poster})
 					self.close()
 			elif chosen_var == trakt_id:
-				params = {'tmdb_id': self.tmdb_id, 'imdb_id': self.imdb_id, 'tvdb_id': self.meta['tvdb_id'],
-						'media_type': self.media_type, 'icon': self.poster}
+				params = {'tmdb_id': self.tmdb_id, 'media_type': self.media_type, 'icon': self.poster}
+				if self.media_type != 'movie': params.update({'imdb_id': self.imdb_id, 'tvdb_id': self.meta['tvdb_id']})
 				return dialogs.trakt_manager_choice(params)
 			elif chosen_var == mdbl_id:
-				params = {'tmdb_id': self.tmdb_id, 'imdb_id': self.imdb_id, 'tvdb_id': self.meta['tvdb_id'],
-						'media_type': self.media_type, 'icon': self.poster}
+				params = {'tmdb_id': self.tmdb_id, 'media_type': self.media_type, 'icon': self.poster}
+				if self.media_type != 'movie': params.update({'imdb_id': self.imdb_id, 'tvdb_id': self.meta['tvdb_id']})
 				return dialogs.mdbl_manager_choice(params)
 			elif chosen_var == tmdbl_id:
-				params = {'tmdb_id': self.tmdb_id, 'imdb_id': self.imdb_id, 'tvdb_id': self.meta['tvdb_id'],
-						'media_type': self.media_type, 'icon': self.poster}
+				params = {'tmdb_id': self.tmdb_id, 'media_type': self.media_type, 'icon': self.poster}
+				if self.media_type != 'movie': params.update({'imdb_id': self.imdb_id, 'tvdb_id': self.meta['tvdb_id']})
 				return dialogs.tmdb_manager_choice(params)
 		else:
 			try: chosen_var = self.get_listitem(self.control_id).getProperty(self.item_action_dict[self.control_id])

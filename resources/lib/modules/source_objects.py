@@ -120,7 +120,7 @@ class ExternalSource:
 				self.get_episode_source(*self.args)
 			else:
 				self.season_divider, self.show_divider, self.data = 1, 1, {
-					'timeout': self.timeout, 'imdb': info['imdb_id'], 'aliases': aliases,
+					'timeout': self.timeout, 'imdb': info['imdb_id'], 'tmdb': info['tmdb_id'], 'aliases': aliases,
 					'title': self.title, 'year': self.year
 				}
 				# Pass Stremio defaultVideoId to scraper (per SDK behaviorHints spec)

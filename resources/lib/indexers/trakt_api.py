@@ -448,7 +448,7 @@ def delete_trakt_list(params):
 	kodi_utils.container_refresh()
 
 def trakt_add_to_list(params):
-	tmdb_id, tvdb_id, imdb_id, media_type = params['tmdb_id'], params['tvdb_id'], params['imdb_id'], params['media_type']
+	tmdb_id, tvdb_id, imdb_id, media_type = params['tmdb_id'], params.get('tvdb_id', 'None'), params.get('imdb_id', 'None'), params['media_type']
 	if media_type == 'movie':
 		key, media_key, media_id = ('movies', 'tmdb', int(tmdb_id))
 	else:
@@ -464,7 +464,7 @@ def trakt_add_to_list(params):
 	else: add_to_list(selected['user'], selected['slug'], data)
 
 def trakt_remove_from_list(params):
-	tmdb_id, tvdb_id, imdb_id, media_type = params['tmdb_id'], params['tvdb_id'], params['imdb_id'], params['media_type']
+	tmdb_id, tvdb_id, imdb_id, media_type = params['tmdb_id'], params.get('tvdb_id', 'None'), params.get('imdb_id', 'None'), params['media_type']
 	if media_type == 'movie':
 		key, media_key, media_id = ('movies', 'tmdb', int(tmdb_id))
 	else:

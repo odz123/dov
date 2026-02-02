@@ -322,7 +322,7 @@ def build_movie_meta(data, user_info, fanarttv_data=None):
 	except Exception: ei_revenue = '$0'
 	extra_info = {'status': status, 'collection_name': ei_collection_name, 'collection_id': ei_collection_id, 'budget': ei_budget, 'revenue': ei_revenue, 'homepage': homepage}
 	meta_dict = {
-		'tmdb_id': tmdb_id, 'imdb_id': imdb_id, 'tvdb_id': 'None', 'imdbnumber': imdb_id, 'tmdblogo': tmdblogo,
+		'tmdb_id': tmdb_id, 'imdb_id': imdb_id, 'tvdb_id': 'None', 'imdbnumber': str(tmdb_id), 'tmdblogo': tmdblogo,
 		'poster': poster, 'fanart': fanart, 'year': year, 'title': title, 'rootname': rootname,
 		'original_title': original_title, 'english_title': english_title, 'alternative_titles': alternative_titles,
 		'tagline': tagline, 'plot': plot, 'mpaa': mpaa, 'studio': studio, 'director': director, 'writer': writer,

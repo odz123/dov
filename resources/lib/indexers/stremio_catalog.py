@@ -649,7 +649,7 @@ class StremioIndexer:
 				'year': int(year) if year and str(year).isdigit() else 0,
 				'plot': meta.get('description', ''),
 				'genre': ', '.join(meta.get('genres', [])) if meta.get('genres') else '',
-				'imdbnumber': imdb_id
+				'imdbnumber': (tmdb_id or imdb_id) if item_type == 'movie' else imdb_id
 			}
 
 			# Add runtime if available
@@ -682,7 +682,7 @@ class StremioIndexer:
 				videoinfo.setPlot(meta.get('description', ''))
 				genres = meta.get('genres', [])
 				if genres: videoinfo.setGenres(genres)
-				videoinfo.setIMDBNumber(imdb_id)
+				videoinfo.setIMDBNumber((tmdb_id or imdb_id) if item_type == 'movie' else imdb_id)
 				duration = info_dict.get('duration', 0)
 				if duration: videoinfo.setDuration(duration)
 				rating = info_dict.get('rating')
@@ -961,7 +961,7 @@ class StremioIndexer:
 					'year': int(year) if year and str(year).isdigit() else 0,
 					'plot': meta.get('description', ''),
 					'genre': ', '.join(meta.get('genres', [])) if meta.get('genres') else '',
-					'imdbnumber': imdb_id
+					'imdbnumber': (tmdb_id or imdb_id) if item_type == 'movie' else imdb_id
 				}
 				listitem.setInfo('video', info_dict)
 			else:
@@ -973,7 +973,7 @@ class StremioIndexer:
 				videoinfo.setPlot(meta.get('description', ''))
 				genres = meta.get('genres', [])
 				if genres: videoinfo.setGenres(genres)
-				videoinfo.setIMDBNumber(imdb_id)
+				videoinfo.setIMDBNumber((tmdb_id or imdb_id) if item_type == 'movie' else imdb_id)
 
 			# Set art
 			poster = meta.get('poster', '')

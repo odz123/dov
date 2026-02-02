@@ -107,7 +107,7 @@ def mdblist_collection(media_type, page_no, letter):
 		original_list = original_list['movies'] + original_list['shows']
 		for i in original_list:
 			key = 'movie' if 'movie' in i else 'show'
-			i.update({'imdb_id': i.get(key, {}).get('ids', {}).get('imdb')})
+			i.update({'id': i.get(key, {}).get('ids', {}).get('tmdb'), 'imdb_id': i.get(key, {}).get('ids', {}).get('imdb')})
 		return original_list
 	original_list = original_list[media_type]
 	key = 'movie' if media_type == 'movies' else 'show'
@@ -131,6 +131,9 @@ def mdblist_watchlist(media_type, page_no, letter):
 	original_list = mdbl_cache.cache_mdbl_object(mdbl_collection_watchlist_items, string, url)
 	if media_type == 'all':
 		original_list = original_list['movies'] + original_list['shows']
+		for i in original_list:
+			key = 'movie' if 'movie' in i else 'show'
+			i.update({'id': i.get(key, {}).get('ids', {}).get('tmdb'), 'imdb_id': i.get(key, {}).get('ids', {}).get('imdb')})
 		return original_list
 	original_list = original_list[media_type]
 	key = 'movie' if media_type == 'movies' else 'show'
