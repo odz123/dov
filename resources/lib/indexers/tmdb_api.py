@@ -365,6 +365,30 @@ def season_episodes_details(tmdb_id, season_no, language, tmdb_api=None):
 		return get_tmdb(url, False)
 	except Exception: return None
 
+def movie_imdb_id(tmdb_id, tmdb_api=None):
+	"""Lightweight lookup to get just the IMDb ID from a TMDB movie ID.
+	Uses /movie/{id} without append_to_response for minimal response."""
+	try:
+		string = 'movie_imdb_id_%s' % tmdb_id
+		url = '%s/movie/%s?api_key=%s' % (base_url, tmdb_id, get_tmdb_api(tmdb_api))
+		result = cache_function(get_tmdb, string, url, EXPIRES_1_MONTH)
+		if result: return result.get('imdb_id')
+	except Exception: pass
+	return None
+
+def tvshow_imdb_id(tmdb_id, tmdb_api=None):
+	"""Lightweight lookup to get just the IMDb ID from a TMDB TV show ID.
+	Uses /tv/{id} with only external_ids appended for minimal response."""
+	try:
+		string = 'tvshow_imdb_id_%s' % tmdb_id
+		url = '%s/tv/%s?api_key=%s&append_to_response=external_ids' % (base_url, tmdb_id, get_tmdb_api(tmdb_api))
+		result = cache_function(get_tmdb, string, url, EXPIRES_1_MONTH)
+		if result:
+			external = result.get('external_ids', {})
+			if external: return external.get('imdb_id')
+	except Exception: pass
+	return None
+
 def movie_external_id(external_source, external_id, tmdb_api=None):
 	try:
 		string = 'movie_external_id_%s_%s' % (external_source, external_id)

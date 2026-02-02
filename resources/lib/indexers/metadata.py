@@ -472,6 +472,33 @@ def stremio_meta_mode():
 	"""Get Stremio metadata mode: 0=Fallback, 1=Supplement, 2=Primary"""
 	return int(get_setting('stremio.meta.mode', '0'))
 
+def _resolve_imdb_id(media_type, id_type, media_id, user_info):
+	"""Resolve IMDb ID without full TMDB metadata fetch.
+	Checks input params, metacache, then lightweight TMDB lookup."""
+	if id_type == 'imdb_id':
+		return media_id
+	if id_type == 'trakt_dict':
+		try: return media_id.get('imdb')
+		except Exception: return None
+	# Check metacache for existing entry with imdb_id
+	metacache = get_metacache()
+	meta = metacache.get(media_type, id_type, str(media_id))
+	if meta:
+		imdb_id = meta.get('imdb_id')
+		if imdb_id and imdb_id != 'tt0000000':
+			return imdb_id
+	# Lightweight TMDB lookup for just the imdb_id
+	try:
+		tmdb_api = user_info.get('tmdb_api')
+		if media_type == 'movie':
+			from indexers.tmdb_api import movie_imdb_id
+			return movie_imdb_id(media_id, tmdb_api)
+		else:
+			from indexers.tmdb_api import tvshow_imdb_id
+			return tvshow_imdb_id(media_id, tmdb_api)
+	except Exception: pass
+	return None
+
 def get_stremio_movie_meta(imdb_id):
 	"""Fetch movie metadata from Stremio addons"""
 	try:
@@ -566,19 +593,30 @@ def movie_meta_with_stremio(id_type, media_id, user_info, current_date):
 		return movie_meta(id_type, media_id, user_info, current_date)
 
 	mode = stremio_meta_mode()
-	imdb_id = None
 
-	# Extract IMDb ID if available from input
+	# Mode 2: Primary - Try Stremio first, skip full TMDB unless needed
+	if mode == 2:
+		imdb_id = _resolve_imdb_id('movie', id_type, media_id, user_info)
+		if imdb_id:
+			stremio_data = get_stremio_movie_meta(imdb_id)
+			if stremio_data and not stremio_data.get('blank_entry'):
+				# Preserve tmdb_id from input if Stremio doesn't have it
+				if not stremio_data.get('tmdb_id') and id_type == 'tmdb_id':
+					stremio_data['tmdb_id'] = str(media_id)
+				return stremio_data
+		# Stremio failed or no imdb_id - fall back to TMDB
+		return movie_meta(id_type, media_id, user_info, current_date)
+
+	# Modes 0 and 1 need TMDB metadata
+	imdb_id = None
 	if id_type == 'imdb_id':
 		imdb_id = media_id
 	elif id_type == 'trakt_dict':
 		try: imdb_id = media_id.get('imdb')
 		except Exception: pass
 
-	# Always get TMDB metadata first - needed for tmdb_id and as fallback
 	tmdb_meta = movie_meta(id_type, media_id, user_info, current_date)
 
-	# Extract IMDb ID from TMDB result if not available from input
 	if not imdb_id and tmdb_meta:
 		imdb_id = tmdb_meta.get('imdb_id')
 
@@ -599,13 +637,6 @@ def movie_meta_with_stremio(id_type, media_id, user_info, current_date):
 		if stremio_data:
 			return merge_stremio_meta(tmdb_meta, stremio_data)
 
-	# Mode 2: Primary - Prefer Stremio data but preserve TMDB IDs
-	elif mode == 2:
-		stremio_data = get_stremio_movie_meta(imdb_id)
-		if stremio_data and not stremio_data.get('blank_entry'):
-			_apply_tmdb_ids(stremio_data, tmdb_meta)
-			return stremio_data
-
 	return tmdb_meta
 
 def tvshow_meta_with_stremio(id_type, media_id, user_info, current_date):
@@ -617,19 +648,30 @@ def tvshow_meta_with_stremio(id_type, media_id, user_info, current_date):
 		return tvshow_meta(id_type, media_id, user_info, current_date)
 
 	mode = stremio_meta_mode()
-	imdb_id = None
 
-	# Extract IMDb ID if available from input
+	# Mode 2: Primary - Try Stremio first, skip full TMDB unless needed
+	if mode == 2:
+		imdb_id = _resolve_imdb_id('tvshow', id_type, media_id, user_info)
+		if imdb_id:
+			stremio_data = get_stremio_tvshow_meta(imdb_id)
+			if stremio_data and not stremio_data.get('blank_entry'):
+				# Preserve tmdb_id from input if Stremio doesn't have it
+				if not stremio_data.get('tmdb_id') and id_type == 'tmdb_id':
+					stremio_data['tmdb_id'] = str(media_id)
+				return stremio_data
+		# Stremio failed or no imdb_id - fall back to TMDB
+		return tvshow_meta(id_type, media_id, user_info, current_date)
+
+	# Modes 0 and 1 need TMDB metadata
+	imdb_id = None
 	if id_type == 'imdb_id':
 		imdb_id = media_id
 	elif id_type == 'trakt_dict':
 		try: imdb_id = media_id.get('imdb')
 		except Exception: pass
 
-	# Always get TMDB metadata first - needed for tmdb_id and as fallback
 	tmdb_meta = tvshow_meta(id_type, media_id, user_info, current_date)
 
-	# Extract IMDb ID from TMDB result if not available from input
 	if not imdb_id and tmdb_meta:
 		imdb_id = tmdb_meta.get('imdb_id')
 
@@ -649,13 +691,6 @@ def tvshow_meta_with_stremio(id_type, media_id, user_info, current_date):
 		stremio_data = get_stremio_tvshow_meta(imdb_id)
 		if stremio_data:
 			return merge_stremio_meta(tmdb_meta, stremio_data)
-
-	# Mode 2: Primary - Prefer Stremio data but preserve TMDB IDs
-	elif mode == 2:
-		stremio_data = get_stremio_tvshow_meta(imdb_id)
-		if stremio_data and not stremio_data.get('blank_entry'):
-			_apply_tmdb_ids(stremio_data, tmdb_meta)
-			return stremio_data
 
 	return tmdb_meta
 
