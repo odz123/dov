@@ -613,7 +613,7 @@ def _find_library_item(media_type, title, year, properties=None):
 				in (clean_file_name(i['title']).lower() if not ' (' in i['title'] else clean_file_name(i['title']).lower().split(' (')[0])
 			]
 		return matches[0] if matches else None
-	except (IndexError, KeyError, TypeError, Exception):
+	except Exception:
 		return None
 
 def _find_library_episode(tvshow_item, season, episode):
@@ -624,7 +624,7 @@ def _find_library_episode(tvshow_item, season, episode):
 		r = execJSONRPC(json.dumps({"jsonrpc": "2.0", "method": "VideoLibrary.GetEpisodes", "params": params, "id": 1}))
 		episodes = json.loads(r).get('result', {}).get('episodes', [])
 		return episodes[0] if episodes else None
-	except (KeyError, TypeError, Exception):
+	except Exception:
 		return None
 
 def get_library_video(media_type, title, year, season=None, episode=None):
