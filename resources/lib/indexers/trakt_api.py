@@ -61,7 +61,9 @@ def get_rate_limit_status():
 def call_trakt(path, params=None, data=None, with_auth=True, method=None, pagination=False, page=1):
 	headers = {'trakt-api-key': V2_API_KEY, 'trakt-api-version': '2', 'Content-Type': 'application/json'}
 	if with_auth is True and (token := settings.trakt_token()): headers['Authorization'] = 'Bearer %s' % token
-	if pagination: params['page'] = page
+	if pagination:
+		if params is None: params = {}
+		params['page'] = page
 	request_type = 'post' if data is not None or method in ('post', 'put', 'delete') else 'get'
 	try:
 		response = session.request(
@@ -220,6 +222,7 @@ def trakt_watched_unwatched(action, media, media_id, tvdb_id=0, season=None, epi
 		elif media =='shows': data = {'shows': [{'ids': {key: media_id}}]}
 		else: data = {'shows': [{'ids': {key: media_id}, 'seasons': [{'number': int(season)}]}]}#season
 	result = call_trakt(url, data=data)
+	if not result: return False
 	success = result[result_key][success_key] > 0
 	if not success:
 		if media != 'movies' and tvdb_id != 0: return trakt_watched_unwatched(action, media, tvdb_id, 0, season, episode, 'tvdb')
@@ -312,14 +315,14 @@ def trakt_fetch_collection_watchlist(list_type, media_type):
 
 def add_to_list(user, slug, data):
 	result = call_trakt('users/%s/lists/%s/items' % (user, slug), data=data)
-	if result['added']['movies'] + result['added']['shows'] == 0: return kodi_utils.notification(32574)
+	if not result or result['added']['movies'] + result['added']['shows'] == 0: return kodi_utils.notification(32574)
 	kodi_utils.notification(32576)
 	trakt_sync_activities()
 	return result
 
 def remove_from_list(user, slug, data):
 	result = call_trakt('users/%s/lists/%s/items/remove' % (user, slug), data=data)
-	if result['deleted']['movies'] + result['deleted']['shows'] == 0: return kodi_utils.notification(32574)
+	if not result or result['deleted']['movies'] + result['deleted']['shows'] == 0: return kodi_utils.notification(32574)
 	kodi_utils.notification(32576)
 	trakt_sync_activities()
 	kodi_utils.container_refresh()
@@ -327,14 +330,14 @@ def remove_from_list(user, slug, data):
 
 def add_to_watchlist(data):
 	result = call_trakt('sync/watchlist', data=data)
-	if result['added']['movies'] + result['added']['shows'] == 0: return kodi_utils.notification(32574)
+	if not result or result['added']['movies'] + result['added']['shows'] == 0: return kodi_utils.notification(32574)
 	kodi_utils.notification(32576)
 	trakt_sync_activities()
 	return result
 
 def remove_from_watchlist(data):
 	result = call_trakt('sync/watchlist/remove', data=data)
-	if result['deleted']['movies'] + result['deleted']['shows'] == 0: return kodi_utils.notification(32574)
+	if not result or result['deleted']['movies'] + result['deleted']['shows'] == 0: return kodi_utils.notification(32574)
 	kodi_utils.notification(32576)
 	trakt_sync_activities()
 	kodi_utils.container_refresh()
@@ -342,14 +345,14 @@ def remove_from_watchlist(data):
 
 def add_to_collection(data):
 	result = call_trakt('sync/collection', data=data)
-	if result['added']['movies'] + result['added']['episodes'] == 0: return kodi_utils.notification(32574)
+	if not result or result['added']['movies'] + result['added']['episodes'] == 0: return kodi_utils.notification(32574)
 	kodi_utils.notification(32576)
 	trakt_sync_activities()
 	return result
 
 def remove_from_collection(data):
 	result = call_trakt('sync/collection/remove', data=data)
-	if result['deleted']['movies'] + result['deleted']['episodes'] == 0: return kodi_utils.notification(32574)
+	if not result or result['deleted']['movies'] + result['deleted']['episodes'] == 0: return kodi_utils.notification(32574)
 	kodi_utils.notification(32576)
 	trakt_sync_activities()
 	kodi_utils.container_refresh()
@@ -454,7 +457,9 @@ def trakt_add_to_list(params):
 	else:
 		key = 'shows'
 		media_ids = [(imdb_id, 'imdb'), (tvdb_id, 'tvdb'), (tmdb_id, 'tmdb')]
-		media_id, media_key = next(item for item in media_ids if item[0] != 'None')
+		result = next((item for item in media_ids if item[0] != 'None'), None)
+		if result is None: return notification(32574)
+		media_id, media_key = result
 		if media_id in (tmdb_id, tvdb_id): media_id = int(media_id)
 	selected = get_trakt_list_selection(highlight=params.get('highlight'))
 	if selected is None: return
@@ -470,7 +475,9 @@ def trakt_remove_from_list(params):
 	else:
 		key = 'shows'
 		media_ids = [(imdb_id, 'imdb'), (tvdb_id, 'tvdb'), (tmdb_id, 'tmdb')]
-		media_id, media_key = next(item for item in media_ids if item[0] != 'None')
+		result = next((item for item in media_ids if item[0] != 'None'), None)
+		if result is None: return notification(32574)
+		media_id, media_key = result
 		if media_id in (tmdb_id, tvdb_id): media_id = int(media_id)
 	selected = get_trakt_list_selection(highlight=params.get('highlight'))
 	if selected is None: return
