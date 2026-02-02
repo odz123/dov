@@ -262,8 +262,8 @@ def gen_file_hash(file):
 	try:
 		md5_hash = hashlib.md5()
 		with open(file, 'rb') as afile:
-			buf = afile.read()
-			md5_hash.update(buf)
+			for chunk in iter(lambda: afile.read(8192), b''):
+				md5_hash.update(chunk)
 			return md5_hash.hexdigest()
 	except Exception: pass
 
@@ -336,7 +336,7 @@ def paginate_list(item_list, page, letter, limit=20):
 		base_list = [element for element in list(chain.from_iterable([val for val in zip_longest(start_list[letter_index:], start_list[:letter_index][::-1])])) if element != None]
 		for i in base_list:
 			start_index = _get_start_index(i)
-			if start_index: break
+			if start_index is not None: break
 		item_list = item_list[start_index:]
 	pages = list(chunks(item_list, limit))
 	total_pages = len(pages)

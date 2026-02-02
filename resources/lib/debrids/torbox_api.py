@@ -17,10 +17,17 @@ session.mount('https://api.torbox.app', HTTPAdapter(max_retries=_retry))
 
 class TorBoxAPI:
 	icon = 'torbox.png'
+	_cached_ip = None
 
 	def __init__(self):
 		self.token = get_setting('tb.token')
 		session.headers.update(self.headers())
+
+	def _get_user_ip(self):
+		if TorBoxAPI._cached_ip is None:
+			try: TorBoxAPI._cached_ip = requests.get(ip_url, timeout=2.0).text
+			except Exception: TorBoxAPI._cached_ip = ''
+		return TorBoxAPI._cached_ip
 
 	def _request(self, method, path, params=None, json=None, data=None):
 		url = '%s/%s' % (base_url, path) if not path.startswith('http') else path
@@ -28,8 +35,10 @@ class TorBoxAPI:
 		except (requests.exceptions.ConnectionError, requests.exceptions.Timeout):
 			return kodi_utils.notification('%s timeout' % self.__class__.__name__)
 		if not response.ok: kodi_utils.logger(self.__class__.__name__, f"{response.reason}\n{response.url}")
-		response = response.json() if 'json' in response.headers.get('Content-Type', '') else response
-		if 'data' in response and 'success' in response and not 'control' in path: response = response['data']
+		if 'json' in response.headers.get('Content-Type', ''):
+			try: response = response.json()
+			except ValueError: pass
+		if isinstance(response, dict) and 'data' in response and 'success' in response and not 'control' in path: response = response['data']
 		return response
 
 	def _get(self, url, params=None):
@@ -86,8 +95,7 @@ class TorBoxAPI:
 		return True if isinstance(result, dict) and result.get('success') else False
 
 	def unrestrict_link(self, file_id):
-		try: user_ip = requests.get(ip_url, timeout=2.0).text
-		except Exception: user_ip = ''
+		user_ip = self._get_user_ip()
 		params = {'user_ip': user_ip} if user_ip else {}
 		torrent_id, file_id = file_id.split(',')
 		params.update({'token': self.token, 'torrent_id': torrent_id, 'file_id': file_id})
@@ -95,8 +103,7 @@ class TorBoxAPI:
 		return self._get(url, params=params)
 
 	def unrestrict_usenet(self, file_id):
-		try: user_ip = requests.get(ip_url, timeout=2.0).text
-		except Exception: user_ip = ''
+		user_ip = self._get_user_ip()
 		params = {'user_ip': user_ip} if user_ip else {}
 		usenet_id, file_id = file_id.split(',')
 		params.update({'token': self.token, 'usenet_id': usenet_id, 'file_id': file_id})
@@ -104,8 +111,7 @@ class TorBoxAPI:
 		return self._get(url, params=params)
 
 	def unrestrict_webdl(self, file_id):
-		try: user_ip = requests.get(ip_url, timeout=2.0).text
-		except Exception: user_ip = ''
+		user_ip = self._get_user_ip()
 		params = {'user_ip': user_ip} if user_ip else {}
 		webdl_id, file_id = file_id.split(',')
 		params.update({'token': self.token, 'web_id': webdl_id, 'file_id': file_id})

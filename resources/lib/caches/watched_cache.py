@@ -589,65 +589,58 @@ def clear_local_bookmarks():
 		if dbcon:
 			_return_connection(db_file, dbcon)
 
-def get_library_video(media_type, title, year, season=None, episode=None):
+def _find_library_item(media_type, title, year, properties=None):
+	"""Find a movie or tvshow in Kodi library by title and year range."""
 	try:
 		years = range(int(year)-1, int(year)+2)
 		filters = [{"field": "year", "operator": "is", "value": str(i)} for i in years]
-		properties = ["imdbnumber", "title", "originaltitle", "file"] if media_type == 'movie' else ["title", "year"]
+		if properties is None:
+			properties = ["imdbnumber", "title", "originaltitle", "file"] if media_type == 'movie' else ["title", "year"]
 		params = {"filter": {"or": filters}, "properties": properties}
 		if media_type == 'movie':
-			r = execJSONRPC(json.dumps({"jsonrpc": "2.0", "method": "VideoLibrary.GetMovies", "params": params, "id": 1}))
-			r = json.loads(r)['result']['movies']
-			try:
-				r = [i for i in r if clean_file_name(title).lower() in clean_file_name(i['title']).lower()][0]
-				return r
-			except (IndexError, KeyError, TypeError):
-				return None
-		elif media_type  == 'tvshow':
-			r = execJSONRPC(json.dumps({"jsonrpc": "2.0", "method": "VideoLibrary.GetTVShows", "params": params, "id": 1}))
-			r = json.loads(r)['result']['tvshows']
-			try:
-				r = [
-					i for i in r
-					if clean_file_name(title).lower()
-					in (clean_file_name(i['title']).lower() if not ' (' in i['title'] else clean_file_name(i['title']).lower().split(' (')[0])
-				][0]
-				return r
-			except (IndexError, KeyError, TypeError):
-				return None
-	except Exception: pass
+			method, result_key = 'VideoLibrary.GetMovies', 'movies'
+		else:
+			method, result_key = 'VideoLibrary.GetTVShows', 'tvshows'
+		r = execJSONRPC(json.dumps({"jsonrpc": "2.0", "method": method, "params": params, "id": 1}))
+		items = json.loads(r)['result'][result_key]
+		clean_title = clean_file_name(title).lower()
+		if media_type == 'movie':
+			matches = [i for i in items if clean_title in clean_file_name(i['title']).lower()]
+		else:
+			matches = [
+				i for i in items
+				if clean_title
+				in (clean_file_name(i['title']).lower() if not ' (' in i['title'] else clean_file_name(i['title']).lower().split(' (')[0])
+			]
+		return matches[0] if matches else None
+	except (IndexError, KeyError, TypeError, Exception):
+		return None
+
+def _find_library_episode(tvshow_item, season, episode):
+	"""Find a specific episode in Kodi library given a tvshow item."""
+	try:
+		filters = [{"field": "season", "operator": "is", "value": str(season)}, {"field": "episode", "operator": "is", "value": str(episode)}]
+		params = {"filter": {"and": filters}, "properties": ["file"], "tvshowid": tvshow_item['tvshowid']}
+		r = execJSONRPC(json.dumps({"jsonrpc": "2.0", "method": "VideoLibrary.GetEpisodes", "params": params, "id": 1}))
+		episodes = json.loads(r).get('result', {}).get('episodes', [])
+		return episodes[0] if episodes else None
+	except (KeyError, TypeError, Exception):
+		return None
+
+def get_library_video(media_type, title, year, season=None, episode=None):
+	return _find_library_item(media_type, title, year)
 
 def set_bookmark_kodi_library(media_type, tmdb_id, curr_time, total_time, season='', episode=''):
-	meta_user_info = settings.metadata_user_info()
 	try:
+		meta_user_info = settings.metadata_user_info()
 		if media_type == 'movie': info = metadata.movie_meta('tmdb_id', tmdb_id, meta_user_info, get_datetime())
 		else: info = metadata.tvshow_meta('tmdb_id', tmdb_id, meta_user_info, get_datetime())
 		title, year = info['title'], info['year']
-		years = range(int(year)-1, int(year)+2)
-		filters = [{"field": "year", "operator": "is", "value": str(i)} for i in years]
-		params = {"filter": {"or": filters}, "properties": ["title"]}
-		method = 'VideoLibrary.GetMovies' if media_type == 'movie' else 'VideoLibrary.GetTVShows'
-		r = execJSONRPC(json.dumps({"jsonrpc": "2.0", "method": method, "params": params, "id": 1}))
-		r = json.loads(r)['result']['movies'] if media_type == 'movie' else json.loads(r)['result']['tvshows']
-		if media_type == 'movie':
-				matches = [i for i in r if clean_file_name(title).lower() in clean_file_name(i['title']).lower()]
-				if not matches: return None
-				r = matches[0]
-		else:
-			matches = [
-				i for i in r
-				if clean_file_name(title).lower()
-				in (clean_file_name(i['title']).lower() if not ' (' in i['title'] else clean_file_name(i['title']).lower().split(' (')[0])
-			]
-			if not matches: return
-			r = matches[0]
+		r = _find_library_item(media_type if media_type != 'episode' else 'tvshow', title, year, properties=["title"])
+		if not r: return
 		if media_type == 'episode':
-			filters = [{"field": "season", "operator": "is", "value": str(season)}, {"field": "episode", "operator": "is", "value": str(episode)}]
-			params = {"filter": {"and": filters}, "properties": ["file"], "tvshowid": r['tvshowid']}
-			r = execJSONRPC(json.dumps({"jsonrpc": "2.0", "method": "VideoLibrary.GetEpisodes", "params": params, "id": 1}))
-			episodes = json.loads(r).get('result', {}).get('episodes', [])
-			if not episodes: return
-			r = episodes[0]
+			r = _find_library_episode(r, season, episode)
+			if not r: return
 		if media_type == 'movie': method, id_name, library_id = 'VideoLibrary.SetMovieDetails', 'movieid', r['movieid']
 		else: method, id_name, library_id = 'VideoLibrary.SetEpisodeDetails', 'episodeid', r['episodeid']
 		query = {"jsonrpc": "2.0", "id": "setResumePoint", "method": method, "params": {id_name: library_id, "resume": {"position": curr_time, "total": total_time}}}
@@ -656,37 +649,17 @@ def set_bookmark_kodi_library(media_type, tmdb_id, curr_time, total_time, season
 
 def get_bookmark_kodi_library(media_type, tmdb_id, season='', episode=''):
 	resume = '0'
-	meta_user_info = settings.metadata_user_info()
 	try:
+		meta_user_info = settings.metadata_user_info()
 		if media_type == 'movie': info = metadata.movie_meta('tmdb_id', tmdb_id, meta_user_info, get_datetime())
 		else: info = metadata.tvshow_meta('tmdb_id', tmdb_id, meta_user_info, get_datetime())
 		title, year = info['title'], info['year']
-		years = range(int(year)-1, int(year)+2)
-		filters = [{"field": "year", "operator": "is", "value": str(i)} for i in years]
 		properties = ["title", "resume"] if media_type == 'movie' else ["title"]
-		params = {"filter": {"or": filters}, "properties": properties}
-		method = 'VideoLibrary.GetMovies' if media_type == 'movie' else 'VideoLibrary.GetTVShows'
-		r = execJSONRPC(json.dumps({"jsonrpc": "2.0", "method": method, "params": params, "id": 1}))
-		r = json.loads(r)['result']['movies'] if media_type == 'movie' else json.loads(r)['result']['tvshows']
-		if media_type == 'movie':
-				matches = [i for i in r if clean_file_name(title).lower() in clean_file_name(i['title']).lower()]
-				if not matches: return None
-				r = matches[0]
-		else:
-			matches = [
-				i for i in r
-				if clean_file_name(title).lower()
-				in (clean_file_name(i['title']).lower() if not ' (' in i['title'] else clean_file_name(i['title']).lower().split(' (')[0])
-			]
-			if not matches: return resume
-			r = matches[0]
+		r = _find_library_item(media_type if media_type != 'episode' else 'tvshow', title, year, properties=properties)
+		if not r: return resume
 		if media_type == 'episode':
-			filters = [{"field": "season", "operator": "is", "value": str(season)}, {"field": "episode", "operator": "is", "value": str(episode)}]
-			params = {"filter": {"and": filters}, "properties": ["file"], "tvshowid": r['tvshowid']}
-			r = execJSONRPC(json.dumps({"jsonrpc": "2.0", "method": "VideoLibrary.GetEpisodes", "params": params, "id": 1}))
-			episodes = json.loads(r).get('result', {}).get('episodes', [])
-			if not episodes: return resume
-			r = episodes[0]
+			r = _find_library_episode(r, season, episode)
+			if not r: return resume
 		if media_type == 'movie': method, id_name, library_id, results_key = 'VideoLibrary.GetMovieDetails', 'movieid', r['movieid'], 'moviedetails'
 		else: method, id_name, library_id, results_key = 'VideoLibrary.GetEpisodeDetails', 'episodeid', r['episodeid'], 'episodedetails'
 		query = {"jsonrpc": "2.0", "id": "getResumePoint", "method": method, "params": {id_name: library_id, "properties": ["title", "resume"]}}
@@ -698,31 +671,11 @@ def get_bookmark_kodi_library(media_type, tmdb_id, season='', episode=''):
 def mark_as_watched_unwatched_kodi_library(media_type, action, title, year, season=None, episode=None):
 	try:
 		playcount = 1 if action == 'mark_as_watched' else 0
-		years = range(int(year)-1, int(year)+2)
-		filters = [{"field": "year", "operator": "is", "value": str(i)} for i in years]
-		params = {"filter": {"or": filters}, "properties": ["title"]}
-		method = 'VideoLibrary.GetMovies' if media_type == 'movie' else 'VideoLibrary.GetTVShows'
-		r = execJSONRPC(json.dumps({"jsonrpc": "2.0", "method": method, "params": params, "id": 1}))
-		r = json.loads(r)['result']['movies'] if media_type == 'movie' else json.loads(r)['result']['tvshows']
-		if media_type == 'movie':
-				matches = [i for i in r if clean_file_name(title).lower() in clean_file_name(i['title']).lower()]
-				if not matches: return None
-				r = matches[0]
-		else:
-			matches = [
-				i for i in r
-				if clean_file_name(title).lower()
-				in (clean_file_name(i['title']).lower() if not ' (' in i['title'] else clean_file_name(i['title']).lower().split(' (')[0])
-			]
-			if not matches: return
-			r = matches[0]
+		r = _find_library_item(media_type if media_type != 'episode' else 'tvshow', title, year, properties=["title"])
+		if not r: return
 		if media_type == 'episode':
-			filters = [{"field": "season", "operator": "is", "value": str(season)}, {"field": "episode", "operator": "is", "value": str(episode)}]
-			params = {"filter": {"and": filters}, "properties": ["file"], "tvshowid": r['tvshowid']}
-			r = execJSONRPC(json.dumps({"jsonrpc": "2.0", "method": "VideoLibrary.GetEpisodes", "params": params, "id": 1}))
-			episodes = json.loads(r).get('result', {}).get('episodes', [])
-			if not episodes: return
-			r = episodes[0]
+			r = _find_library_episode(r, season, episode)
+			if not r: return
 		if media_type == 'movie': method, id_name, library_id = 'VideoLibrary.SetMovieDetails', 'movieid', r['movieid']
 		else: method, id_name, library_id = 'VideoLibrary.SetEpisodeDetails', 'episodeid', r['episodeid']
 		query = {"jsonrpc": "2.0", "method": method, "params": {id_name: library_id, "playcount": playcount}, "id": 1}
