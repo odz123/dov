@@ -39,6 +39,9 @@ class ConnectionPool:
 		if conn is not None:
 			try:
 				conn.execute('SELECT 1')
+				# Ensure isolation_level matches what caller expects
+				if conn.isolation_level != isolation_level:
+					conn.isolation_level = isolation_level
 				return conn
 			except Exception:
 				try: conn.close()

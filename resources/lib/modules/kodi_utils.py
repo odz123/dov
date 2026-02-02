@@ -363,6 +363,7 @@ def clean_settings_window_properties():
 
 def fetch_kodi_imagecache(image):
 	result = None
+	dbcon = None
 	try:
 		dbcon = database_connect('special://profile/Database/Textures13.db')
 		dbcur = dbcon.cursor()
@@ -370,6 +371,10 @@ def fetch_kodi_imagecache(image):
 		row = dbcur.fetchone()
 		if row: result = row[0]
 	except Exception: pass
+	finally:
+		if dbcon:
+			try: dbcon.close()
+			except Exception: pass
 	return result
 
 def set_setting(setting_id, value):
@@ -481,7 +486,7 @@ def upload_logfile():
 		if 'key' in response: ok_dialog(text=url + response['key'], top_space=True)
 		else: ok_dialog(text='Error. Log Upload Failed', top_space=True)
 	except Exception: notification(32574, 1500)
-	hide_busy_dialog()
+	finally: hide_busy_dialog()
 
 def timeIt(func):
 	# Thanks to 123Venom

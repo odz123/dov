@@ -337,11 +337,16 @@ def seas_ep_query_list(season, episode):
 			'season%depisode%02d' % (season, episode),
 			'season%depisode%d' % (season, episode)]
 
-def seas_ep_filter(season, episode, release_title, split=False, return_match=False):
+_seas_ep_pattern_cache = {}
+
+def _get_seas_ep_pattern(season, episode):
+	"""Get or compile and cache the regex pattern for a given season/episode pair."""
+	key = (int(season), int(episode))
+	if key in _seas_ep_pattern_cache:
+		return _seas_ep_pattern_cache[key]
 	str_season, str_episode = string(season), string(episode)
 	season_fill, episode_fill = str_season.zfill(2), str_episode.zfill(2)
 	str_ep_plus_1, str_ep_minus_1 = string(episode+1), string(episode-1)
-	release_title = _RE_NON_ALNUM_DASH.sub('.', unquote(release_title).replace('\'', '')).lower()
 	string1 = r'(s<<S>>[.-]?e[p]?[.-]?<<E>>[.-])'
 	string2 = r'(season[.-]?<<S>>[.-]?episode[.-]?<<E>>[.-])|([s]?<<S>>[x.]<<E>>[.-])'
 	string3 = r'(s<<S>>e<<E1>>[.-]?e?<<E2>>[.-])'
@@ -349,27 +354,35 @@ def seas_ep_filter(season, episode, release_title, split=False, return_match=Fal
 	string5 = r'(episode[.-]?<<E>>[.-])'
 	string6 = r'([.-]e[p]?[.-]?<<E>>[.-])'
 	string7 = r'(^(?=.*\.e?0*<<E>>\.)(?:(?!((?:s|season)[.-]?\d+[.-x]?(?:ep?|episode)[.-]?\d+)|\d+x\d+).)*$)'
-	string_list = []
-	string_list_append = string_list.append
-	string_list_append(string1.replace('<<S>>', season_fill).replace('<<E>>', episode_fill))
-	string_list_append(string1.replace('<<S>>', str_season).replace('<<E>>', episode_fill))
-	string_list_append(string1.replace('<<S>>', season_fill).replace('<<E>>', str_episode))
-	string_list_append(string1.replace('<<S>>', str_season).replace('<<E>>', str_episode))
-	string_list_append(string2.replace('<<S>>', season_fill).replace('<<E>>', episode_fill))
-	string_list_append(string2.replace('<<S>>', str_season).replace('<<E>>', episode_fill))
-	string_list_append(string2.replace('<<S>>', season_fill).replace('<<E>>', str_episode))
-	string_list_append(string2.replace('<<S>>', str_season).replace('<<E>>', str_episode))
-	string_list_append(string3.replace('<<S>>', season_fill).replace('<<E1>>', str_ep_minus_1.zfill(2)).replace('<<E2>>', episode_fill))
-	string_list_append(string3.replace('<<S>>', season_fill).replace('<<E1>>', episode_fill).replace('<<E2>>', str_ep_plus_1.zfill(2)))
-	string_list_append(string4.replace('<<S>>', season_fill).replace('<<E>>', episode_fill))
-	string_list_append(string4.replace('<<S>>', str_season).replace('<<E>>', episode_fill))
-	string_list_append(string5.replace('<<E>>', episode_fill))
-	string_list_append(string5.replace('<<E>>', str_episode))
-	string_list_append(string6.replace('<<E>>', episode_fill))
-	string_list_append(string7.replace('<<E>>', episode_fill))
-	final_string = '|'.join(string_list)
-	reg_pattern = re.compile(final_string)
-	match = re.search(reg_pattern, release_title)
+	string_list = [
+		string1.replace('<<S>>', season_fill).replace('<<E>>', episode_fill),
+		string1.replace('<<S>>', str_season).replace('<<E>>', episode_fill),
+		string1.replace('<<S>>', season_fill).replace('<<E>>', str_episode),
+		string1.replace('<<S>>', str_season).replace('<<E>>', str_episode),
+		string2.replace('<<S>>', season_fill).replace('<<E>>', episode_fill),
+		string2.replace('<<S>>', str_season).replace('<<E>>', episode_fill),
+		string2.replace('<<S>>', season_fill).replace('<<E>>', str_episode),
+		string2.replace('<<S>>', str_season).replace('<<E>>', str_episode),
+		string3.replace('<<S>>', season_fill).replace('<<E1>>', str_ep_minus_1.zfill(2)).replace('<<E2>>', episode_fill),
+		string3.replace('<<S>>', season_fill).replace('<<E1>>', episode_fill).replace('<<E2>>', str_ep_plus_1.zfill(2)),
+		string4.replace('<<S>>', season_fill).replace('<<E>>', episode_fill),
+		string4.replace('<<S>>', str_season).replace('<<E>>', episode_fill),
+		string5.replace('<<E>>', episode_fill),
+		string5.replace('<<E>>', str_episode),
+		string6.replace('<<E>>', episode_fill),
+		string7.replace('<<E>>', episode_fill),
+	]
+	pattern = re.compile('|'.join(string_list))
+	# Limit cache size to prevent unbounded growth
+	if len(_seas_ep_pattern_cache) > 500:
+		_seas_ep_pattern_cache.clear()
+	_seas_ep_pattern_cache[key] = pattern
+	return pattern
+
+def seas_ep_filter(season, episode, release_title, split=False, return_match=False):
+	release_title = _RE_NON_ALNUM_DASH.sub('.', unquote(release_title).replace('\'', '')).lower()
+	reg_pattern = _get_seas_ep_pattern(season, episode)
+	match = reg_pattern.search(release_title)
 	if split:
 		if not match: return release_title
 		parts = release_title.split(match.group(), 1)

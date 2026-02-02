@@ -163,7 +163,7 @@ def checkUndesirablesDatabase():
 
 class POVMonitor(kodi_utils.xbmc_monitor):
 	def __enter__(self):
-		self.threads = (Thread(target=traktMonitor), Thread(target=premAccntNotification))
+		self.threads = (Thread(target=traktMonitor, daemon=True), Thread(target=premAccntNotification, daemon=True))
 		return self
 
 	def __exit__(self, exc_type, exc_value, traceback):
@@ -201,6 +201,10 @@ class POVMonitor(kodi_utils.xbmc_monitor):
 		make_settings_dict()
 		set_property('pov_kodi_menu_cache', get_setting('kodi_menu_cache'))
 		set_property('pov_rli_fix', get_setting('rli_fix'))
+		try:
+			from modules.source_utils import clear_external_sources_cache
+			clear_external_sources_cache()
+		except Exception: pass
 
 	def onNotification(self, sender, method, data):
 		if method == 'System.OnSleep': set_property('pov_pause_services', 'true')
