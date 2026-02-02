@@ -670,7 +670,7 @@ def get_bookmark_kodi_library(media_type, tmdb_id, season='', episode=''):
 		r = json.loads(execJSONRPC(json.dumps(query)))
 		resume = r["result"][results_key]["resume"]["position"]
 		return resume
-	except Exception: pass
+	except Exception: return resume
 
 def mark_as_watched_unwatched_kodi_library(media_type, action, title, year, season=None, episode=None):
 	try:

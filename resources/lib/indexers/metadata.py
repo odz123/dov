@@ -85,7 +85,8 @@ def movie_meta(id_type, media_id, user_info, current_date):
 		if not fanarttv_data and extra_fanart_enabled: fanarttv_data = fanarttv_get('movies', language, data['id'], fanart_client_key)
 		meta = build_movie_meta(data, user_info, fanarttv_data)
 		metacache_set('movie', id_type, meta, movie_expiry(current_date, meta))
-	except Exception: pass
+	except Exception:
+		if not meta or 'tmdb_id' not in meta: meta = {}
 	return meta
 
 def tvshow_meta(id_type, media_id, user_info, current_date):
@@ -141,7 +142,8 @@ def tvshow_meta(id_type, media_id, user_info, current_date):
 		if not fanarttv_data and extra_fanart_enabled: fanarttv_data = fanarttv_get('tv', language, data['external_ids']['tvdb_id'], fanart_client_key)
 		meta = build_tvshow_meta(data, user_info, fanarttv_data)
 		metacache_set('tvshow', id_type, meta, tvshow_expiry(current_date, meta))
-	except Exception: pass
+	except Exception:
+		if not meta or 'tmdb_id' not in meta: meta = {}
 	return meta
 
 def season_episodes_meta(season, meta, user_info):

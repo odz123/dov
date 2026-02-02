@@ -28,19 +28,21 @@ class ConnectionPool:
 	@classmethod
 	def get_connection(cls, db_file, isolation_level=None):
 		"""Get a connection from the pool or create a new one."""
+		conn = None
 		with cls._pool_lock:
 			if db_file not in cls._pools:
 				cls._pools[db_file] = []
 			pool = cls._pools[db_file]
 			if pool:
 				conn = pool.pop()
-				try:
-					# Test if connection is still valid
-					conn.execute('SELECT 1')
-					return conn
-				except Exception:
-					# Connection invalid, create new one
-					pass
+		# Test connection validity outside the lock to avoid blocking other threads
+		if conn is not None:
+			try:
+				conn.execute('SELECT 1')
+				return conn
+			except Exception:
+				try: conn.close()
+				except Exception: pass
 		# Create new connection outside lock
 		return database_connect(db_file, isolation_level=isolation_level)
 

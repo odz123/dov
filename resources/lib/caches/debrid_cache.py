@@ -18,8 +18,10 @@ class DebridCache(BaseCache):
 			self.dbcur.execute(GET_MANY % (', '.join('?' for _ in hash_list)), hash_list)
 			cache_data = self.dbcur.fetchall()
 			if cache_data and len(cache_data[0]) > 3:
-				if cache_data[0][3] > current_time: result = cache_data
-				else: self.remove_many(cache_data)
+				valid = [i for i in cache_data if i[3] > current_time]
+				expired = [i for i in cache_data if i[3] <= current_time]
+				if expired: self.remove_many(expired)
+				if valid: result = valid
 		except Exception: pass
 		return result
 
