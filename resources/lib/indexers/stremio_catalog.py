@@ -630,6 +630,13 @@ class StremioIndexer:
 				elif stremio_id.startswith('tmdb:'):
 					tmdb_id = stremio_id.split(':', 1)[1]
 
+			# Determine per-item type: use individual meta type when available, fall back to catalog type
+			# This handles mixed-type catalogs (e.g. Disney+ catalog with type "series" containing movie items)
+			# Use `or` to also handle explicit null/empty type values from the API
+			item_type = meta.get('type') or catalog_type
+			is_series_like = item_type in _SERIES_LIKE_TYPES
+			media_type = 'movie' if item_type == 'movie' else 'tvshow'
+
 			# Set label
 			if year:
 				listitem.setLabel(f"{name} ({year})")
@@ -669,7 +676,7 @@ class StremioIndexer:
 			else:
 				videoinfo = listitem.getVideoInfoTag(offscreen=True)
 				videoinfo.setTitle(name)
-				videoinfo.setMediaType('movie' if catalog_type == 'movie' else 'tvshow')
+				videoinfo.setMediaType(media_type)
 				year_int = int(year) if year and str(year).isdigit() else 0
 				if year_int: videoinfo.setYear(year_int)
 				videoinfo.setPlot(meta.get('description', ''))
@@ -706,11 +713,10 @@ class StremioIndexer:
 				listitem.setArt(art_dict)
 
 			# Determine action based on available IDs and content type
-			# Map Stremio types to POV types: movie stays movie, all others are tvshow
-			# 'tv' type in Stremio is live TV - treat as direct playback if possible
-			media_type = 'movie' if catalog_type == 'movie' else 'tvshow'
 			# Check for defaultVideoId from meta behaviorHints (per SDK spec)
-			default_video_id = meta.get('behaviorHints', {}).get('defaultVideoId', '') if isinstance(meta.get('behaviorHints'), dict) else ''
+			# Note: JSON null becomes Python None, so use `or ''` to normalize
+			behavior_hints = meta.get('behaviorHints')
+			default_video_id = (behavior_hints.get('defaultVideoId') or '') if isinstance(behavior_hints, dict) else ''
 			if tmdb_id:
 				if media_type == 'movie':
 					url = build_url({'mode': 'play_media', 'media_type': 'movie', 'tmdb_id': tmdb_id})
@@ -727,13 +733,13 @@ class StremioIndexer:
 				# Non-IMDb/TMDB content: handle based on content type
 				# This handles channel, tv, anime (kitsu:), and other custom ID content
 				stream_video_id = default_video_id or stremio_id
-				if catalog_type in _SERIES_LIKE_TYPES and not default_video_id:
+				if is_series_like and not default_video_id:
 					# Series-like content: browse episodes/videos via meta endpoint
 					url = build_url({
 						'mode': 'stremio_catalog',
 						'stremio_mode': 'play_meta_videos',
 						'addon_url': addon_url,
-						'meta_type': catalog_type,
+						'meta_type': item_type,
 						'meta_id': stremio_id
 					})
 				else:
@@ -742,12 +748,12 @@ class StremioIndexer:
 						'mode': 'stremio_catalog',
 						'stremio_mode': 'play_stream',
 						'addon_url': addon_url,
-						'stream_type': catalog_type,
+						'stream_type': item_type,
 						'stream_id': stream_video_id,
 						'stream_name': name
 					})
 
-			listitems.append((url, listitem, catalog_type in _SERIES_LIKE_TYPES))
+			listitems.append((url, listitem, is_series_like))
 
 		# Add "Next Page" if we got items (Stremio SDK: < 100 items signals end of catalog)
 		# Use len(metas) >= 20 as minimum threshold - addons return varying page sizes
@@ -922,6 +928,9 @@ class StremioIndexer:
 				year_match = release_info[:4] if release_info[:4].isdigit() else ''
 				year = year_match
 			catalog_type = meta.get('_catalog_type', 'movie')
+			# Use individual item type when available, fall back to catalog type for mixed catalogs
+			item_type = meta.get('type') or catalog_type
+			is_series_like = item_type in _SERIES_LIKE_TYPES
 			addon_name = meta.get('_addon_name', '')
 			imdb_id = meta.get('imdb_id', '')
 			tmdb_id = ''
@@ -938,7 +947,7 @@ class StremioIndexer:
 			label_parts = [name]
 			if year:
 				label_parts.append(f"({year})")
-			type_indicator = '[MOVIE]' if catalog_type == 'movie' else '[TV]' if catalog_type == 'series' else f'[{catalog_type.upper()}]'
+			type_indicator = '[MOVIE]' if item_type == 'movie' else '[TV]' if item_type == 'series' else f'[{item_type.upper()}]'
 			label_parts.append(type_indicator)
 			if addon_name:
 				label_parts.append(f"[{addon_name}]")
@@ -958,7 +967,7 @@ class StremioIndexer:
 			else:
 				videoinfo = listitem.getVideoInfoTag(offscreen=True)
 				videoinfo.setTitle(name)
-				videoinfo.setMediaType('movie' if catalog_type == 'movie' else 'tvshow')
+				videoinfo.setMediaType('movie' if item_type == 'movie' else 'tvshow')
 				year_int = int(year) if year and str(year).isdigit() else 0
 				if year_int: videoinfo.setYear(year_int)
 				videoinfo.setPlot(meta.get('description', ''))
@@ -979,8 +988,8 @@ class StremioIndexer:
 					art_dict['fanart'] = background
 				listitem.setArt(art_dict)
 
-			# Determine action
-			media_type = 'movie' if catalog_type == 'movie' else 'tvshow'
+			# Determine action based on per-item type
+			media_type = 'movie' if item_type == 'movie' else 'tvshow'
 			if tmdb_id:
 				if media_type == 'movie':
 					url = build_url({'mode': 'play_media', 'media_type': 'movie', 'tmdb_id': tmdb_id})
@@ -997,15 +1006,16 @@ class StremioIndexer:
 				# Non-IMDb/TMDB content: play directly via Stremio stream endpoint
 				# Use the source addon_url so play_stream can query the right addon
 				source_addon_url = meta.get('_addon_url', '')
-				default_video_id = meta.get('behaviorHints', {}).get('defaultVideoId', '') if isinstance(meta.get('behaviorHints'), dict) else ''
+				behavior_hints = meta.get('behaviorHints')
+				default_video_id = (behavior_hints.get('defaultVideoId') or '') if isinstance(behavior_hints, dict) else ''
 				stream_video_id = default_video_id or stremio_id
-				if catalog_type in _SERIES_LIKE_TYPES and not default_video_id and source_addon_url:
+				if is_series_like and not default_video_id and source_addon_url:
 					# Series-like content: browse episodes/videos via meta endpoint
 					url = build_url({
 						'mode': 'stremio_catalog',
 						'stremio_mode': 'play_meta_videos',
 						'addon_url': source_addon_url,
-						'meta_type': catalog_type,
+						'meta_type': item_type,
 						'meta_id': stremio_id
 					})
 				else:
@@ -1013,12 +1023,12 @@ class StremioIndexer:
 						'mode': 'stremio_catalog',
 						'stremio_mode': 'play_stream',
 						'addon_url': source_addon_url,
-						'stream_type': catalog_type,
+						'stream_type': item_type,
 						'stream_id': stream_video_id,
 						'stream_name': name
 					})
 
-			listitems.append((url, listitem, catalog_type in _SERIES_LIKE_TYPES))
+			listitems.append((url, listitem, is_series_like))
 
 		add_items(self.__handle__, listitems)
 		set_content(self.__handle__, 'movies')
@@ -1114,6 +1124,8 @@ class StremioIndexer:
 			tmdb_id = str(meta.get('tmdb_id', ''))
 		if not tmdb_id:
 			notification('Could not resolve TMDB ID', 2000)
+			set_content(self.__handle__, 'files')
+			end_directory(self.__handle__)
 			return
 		if media_type == 'movie':
 			from modules.sources import SourceSelect
