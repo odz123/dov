@@ -31,7 +31,10 @@ class OffcloudAPI:
 		except (requests.exceptions.ConnectionError, requests.exceptions.Timeout):
 			return kodi_utils.notification('%s timeout' % self.__class__.__name__)
 		if not response.ok: kodi_utils.logger(self.__class__.__name__, f"{response.reason}\n{response.url}")
-		return response.json() if 'json' in response.headers.get('Content-Type', '') else response
+		if 'json' in response.headers.get('Content-Type', ''):
+			try: return response.json()
+			except ValueError: pass
+		return response
 
 	def _get(self, url, params=None):
 		return self._request('get', url, params=params)

@@ -37,8 +37,10 @@ class AllDebridAPI:
 		except (requests.exceptions.ConnectionError, requests.exceptions.Timeout):
 			return kodi_utils.notification('%s timeout' % self.__class__.__name__)
 		if not response.ok: kodi_utils.logger(self.__class__.__name__, f"{response.reason}\n{response.url}")
-		response = response.json() if 'json' in response.headers.get('Content-Type', '') else response
-		if 'data' in response and response.get('status') == 'success': response = response['data']
+		if 'json' in response.headers.get('Content-Type', ''):
+			try: response = response.json()
+			except ValueError: pass
+		if isinstance(response, dict) and 'data' in response and response.get('status') == 'success': response = response['data']
 		return response
 
 	def _get(self, path, params=None):

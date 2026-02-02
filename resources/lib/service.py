@@ -96,6 +96,23 @@ def traktMonitor():
 		clear_tmdbl_cache()
 		clear_simkl_list_data()
 		kodi_utils.set_property('pov_traktmonitor_first_run', 'true')
+	def _run_sync(sync_func, service_name, account_name, next_update_string):
+		try: status = sync_func()
+		except Exception as e:
+			logger('POV', 'TraktMonitor %s error: %s' % (sync_func.__name__, str(e)))
+			status = 'failed'
+		if status == 'success':
+			logger('POV', trakt_service_string % ('POV %s - Success' % service_name, '%s Update Performed' % account_name))
+			if settings.trakt_sync_refresh_widgets():
+				kodi_utils.widget_refresh()
+				logger('POV', trakt_service_string % ('POV %s - Widgets Refresh' % service_name, 'Setting Activated. Widget Refresh Performed'))
+			else: logger('POV', trakt_service_string % ('POV %s - Widgets Refresh' % service_name, 'Setting Disabled. Skipping Widget Refresh'))
+		elif status == 'no account':
+			logger('POV', trakt_service_string % ('POV %s - Aborted. No %s Account Active' % (service_name, account_name), next_update_string))
+		elif status == 'failed':
+			logger('POV', trakt_service_string % ('POV %s - Failed. Error from %s' % (service_name, account_name), next_update_string))
+		else:
+			logger('POV', trakt_service_string % ('POV %s - Success. No Changes Needed' % service_name, next_update_string))
 	while not monitor.abortRequested():
 		while is_playing() or get_visibility('Container().isUpdating') or get_property('pov_pause_services') == 'true':
 			monitor.waitForAbort(10)
@@ -103,54 +120,9 @@ def traktMonitor():
 			monitor.waitForAbort(5)
 		value, interval = settings.trakt_sync_interval()
 		next_update_string = update_string % value
-		try: status = trakt_sync_activities()
-		except Exception as e:
-			logger('POV', 'TraktMonitor trakt_sync_activities error: %s' % str(e))
-			status = 'failed'
-		if status == 'success':
-			logger('POV', trakt_service_string % ('POV TraktMonitor - Success', 'Trakt Update Performed'))
-			if settings.trakt_sync_refresh_widgets():
-				kodi_utils.widget_refresh()
-				logger('POV', trakt_service_string % ('POV TraktMonitor - Widgets Refresh', 'Setting Activated. Widget Refresh Performed'))
-			else: logger('POV', trakt_service_string % ('POV TraktMonitor - Widgets Refresh', 'Setting Disabled. Skipping Widget Refresh'))
-		elif status == 'no account':
-			logger('POV', trakt_service_string % ('POV TraktMonitor - Aborted. No Trakt Account Active', next_update_string))
-		elif status == 'failed':
-			logger('POV', trakt_service_string % ('POV TraktMonitor - Failed. Error from Trakt', next_update_string))
-		else:# 'not needed'
-			logger('POV', trakt_service_string % ('POV TraktMonitor - Success. No Changes Needed', next_update_string))
-		try: status = mdbl_sync_activities()
-		except Exception as e:
-			logger('POV', 'TraktMonitor mdbl_sync_activities error: %s' % str(e))
-			status = 'failed'
-		if status == 'success':
-			logger('POV', trakt_service_string % ('POV MDBListMonitor - Success', 'MDBList Update Performed'))
-			if settings.trakt_sync_refresh_widgets():
-				kodi_utils.widget_refresh()
-				logger('POV', trakt_service_string % ('POV MDBListMonitor - Widgets Refresh', 'Setting Activated. Widget Refresh Performed'))
-			else: logger('POV', trakt_service_string % ('POV MDBListMonitor - Widgets Refresh', 'Setting Disabled. Skipping Widget Refresh'))
-		elif status == 'no account':
-			logger('POV', trakt_service_string % ('POV MDBListMonitor - Aborted. No MDBList Account Active', next_update_string))
-		elif status == 'failed':
-			logger('POV', trakt_service_string % ('POV MDBListMonitor - Failed. Error from MDBList', next_update_string))
-		else:# 'not needed'
-			logger('POV', trakt_service_string % ('POV MDBListMonitor - Success. No Changes Needed', next_update_string))
-		try: status = simkl_sync_activities()
-		except Exception as e:
-			logger('POV', 'TraktMonitor simkl_sync_activities error: %s' % str(e))
-			status = 'failed'
-		if status == 'success':
-			logger('POV', trakt_service_string % ('POV SimklMonitor - Success', 'Simkl Update Performed'))
-			if settings.trakt_sync_refresh_widgets():
-				kodi_utils.widget_refresh()
-				logger('POV', trakt_service_string % ('POV SimklMonitor - Widgets Refresh', 'Setting Activated. Widget Refresh Performed'))
-			else: logger('POV', trakt_service_string % ('POV SimklMonitor - Widgets Refresh', 'Setting Disabled. Skipping Widget Refresh'))
-		elif status == 'no account':
-			logger('POV', trakt_service_string % ('POV SimklMonitor - Aborted. No Simkl Account Active', next_update_string))
-		elif status == 'failed':
-			logger('POV', trakt_service_string % ('POV SimklMonitor - Failed. Error from Simkl', next_update_string))
-		else:# 'not needed'
-			logger('POV', trakt_service_string % ('POV SimklMonitor - Success. No Changes Needed', next_update_string))
+		_run_sync(trakt_sync_activities, 'TraktMonitor', 'Trakt', next_update_string)
+		_run_sync(mdbl_sync_activities, 'MDBListMonitor', 'MDBList', next_update_string)
+		_run_sync(simkl_sync_activities, 'SimklMonitor', 'Simkl', next_update_string)
 		try:
 			if get_setting('tmdb.token') and get_setting('tmdblist.watchlist_sync') == 'true':
 				status = tmdb_clean_watchlist(silent=True)
