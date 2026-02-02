@@ -128,7 +128,7 @@ class Movies:
 				videoinfo.setDirectors(meta_get('director').split(', '))
 				videoinfo.setDuration(int(meta_get('duration')))
 				videoinfo.setGenres(meta_get('genre').split(', '))
-				videoinfo.setIMDBNumber(imdb_id)
+				videoinfo.setIMDBNumber(string(tmdb_id))
 				videoinfo.setMediaType('movie')
 				videoinfo.setMpaa(meta_get('mpaa'))
 				videoinfo.setPlaycount(playcount)
