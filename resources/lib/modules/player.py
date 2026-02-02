@@ -57,8 +57,8 @@ class POVPlayer(kodi_utils.xbmc_player):
 			listitem = self._make_listitem()
 			listitem.setProperty('StartPercent', str(bookmark))
 			try:
-				trakt_ids = {'tmdb': self.tmdb_id, 'imdb': self.imdb_id, 'slug': make_title_slug(self.title)}
-				if self.media_type == 'episode': trakt_ids['tvdb'] = self.tvdb_id
+				trakt_ids = {'tmdb': self.tmdb_id, 'slug': make_title_slug(self.title)}
+				if self.media_type == 'episode': trakt_ids.update({'imdb': self.imdb_id, 'tvdb': self.tvdb_id})
 				kodi_utils.clear_property('script.trakt.ids')
 				kodi_utils.set_property('script.trakt.ids', json.dumps(trakt_ids))
 			except Exception: pass
@@ -128,14 +128,14 @@ class POVPlayer(kodi_utils.xbmc_player):
 			if self.media_type == 'movie':
 				if KODI_VERSION < 20:
 					listitem.setCast(self.meta_get('cast', []))
-					listitem.setUniqueIDs({'imdb': self.imdb_id, 'tmdb': str(self.tmdb_id)})
+					listitem.setUniqueIDs({'tmdb': str(self.tmdb_id)})
 					listitem.setInfo('video', {'mediatype': 'movie', 'trailer': trailer, 'title': self.title, 'size': '0', 'duration': duration,
 						'plot': plot, 'premiered': premiered, 'studio': studio, 'year': self.year, 'genre': genre, 'tagline': self.meta_get('tagline'),
 						'imdbnumber': str(self.tmdb_id), 'director': self.meta_get('director'), 'writer': self.meta_get('writer'), 'rating': rating, 'votes': votes})
 				else:
 					videoinfo = infoTagger(listitem, self.meta)
 					videoinfo.setCast(make_cast_list(self.meta_get('cast', [])))
-					videoinfo.setUniqueIDs({'imdb': self.imdb_id, 'tmdb': str(self.tmdb_id)})
+					videoinfo.setUniqueIDs({'tmdb': str(self.tmdb_id)})
 					videoinfo.setMediaType('movie')
 			else:
 				if KODI_VERSION < 20:

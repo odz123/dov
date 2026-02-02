@@ -120,7 +120,7 @@ def trakt_manager_choice(params):
 		else: trakt_api.add_to_watchlist(data)
 	elif choice == 'Add': trakt_api.trakt_add_to_list(params)
 	elif choice == 'Remove': trakt_api.trakt_remove_from_list(params)
-	else: trakt_api.hide_unhide_trakt_items(params['tmdb_id'], 'shows', params['imdb_id'], 'dropped')
+	else: trakt_api.hide_unhide_trakt_items(params['tmdb_id'], params.get('media_type', 'movie'), params.get('imdb_id') or params['tmdb_id'], 'dropped')
 
 def mdbl_manager_choice(params):
 	if not get_setting('mdblist.token', ''): return notification(32760, 3500)
@@ -150,11 +150,13 @@ def mdbl_manager_choice(params):
 		else:
 			notification(32574)
 		return
-	list_items = (True for item in mdbl_list_items(choice[0], None) if item['imdb_id'] == params['imdb_id'])
+	list_items = (True for item in mdbl_list_items(choice[0], None) if str(item.get('id', '')) == str(params.get('tmdb_id', '')) or item.get('imdb_id') == params.get('imdb_id'))
 	action, message = ('remove', 'Remove from') if next(list_items, False) else ('add', 'Add to')
 	if action == 'remove' and not confirm_dialog(text='%s %s list?' % (message, choice[1]), top_space=True): return
 	key = 'shows' if params['media_type'] == 'tvshow' else 'movies'
-	val = [{'tmdb': int(params.get('tmdb_id')), 'imdb': params.get('imdb_id')}]
+	val_dict = {'tmdb': int(params.get('tmdb_id'))}
+	if params.get('imdb_id'): val_dict['imdb'] = params['imdb_id']
+	val = [val_dict]
 	if mdbl_modify_list(choice[0], {key: val}, action):
 		clear_cache('mdblist', silent=True) if choice[0] in ('collection', 'watchlist') else clear_mdbl_cache()
 		notification(32576)
