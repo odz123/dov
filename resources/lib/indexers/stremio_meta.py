@@ -553,7 +553,7 @@ class StremioMetaProvider:
 				'tmdb_id': meta_get('tmdb_id', ''),
 				'imdb_id': imdb_id,
 				'tvdb_id': 'None',
-				'imdbnumber': str(meta_get('tmdb_id', '')) or imdb_id,
+				'imdbnumber': imdb_id or str(meta_get('tmdb_id', '')),
 				'title': title,
 				'original_title': meta_get('original_name', title),
 				'english_title': title,
