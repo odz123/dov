@@ -254,7 +254,8 @@ class TorBox:
 
 		params = {'app': user_agent}
 		response = requests.get(self.base_url('user/auth/device/start'), params=params, timeout=timeout)
-		result = response.json()['data']
+		try: result = response.json()['data']
+		except (ValueError, KeyError): return notification(32574)
 		data = {'device_code': result['device_code']}
 		expires_in, expires_at = 600, 600 + time.monotonic()
 		try: qr_icon = qr_str % '&bgcolor=04bf8a&data=%s' % quote(result['verification_url'])
@@ -409,7 +410,9 @@ class Trakt:
 
 		data = {'client_id': self.client_id, 'client_secret': self.secret, 'code': ''}
 		response = requests.post(self.base_url('oauth/device/code'), json=data, timeout=timeout)
-		result = response.json()
+		try: result = response.json()
+		except ValueError: return notification(32574)
+		if 'device_code' not in result: return notification(32574)
 		data['code'] = result['device_code']
 		expires_in, expires_at = result['expires_in'], result['expires_in'] + time.monotonic()
 		try: qr_icon = qr_str % '&color=f00&data=%s' % quote('%s/%s' % (result['verification_url'], result['user_code']))
@@ -433,7 +436,8 @@ class Trakt:
 		headers = {'trakt-api-key': self.client_id, 'trakt-api-version': '2', 'Content-Type': 'application/json'}
 		headers.update({'Authorization': 'Bearer %s' % self.token})
 		response = requests.get(self.base_url('users/me'), headers=headers, timeout=timeout)
-		username = response.json()['username']
+		try: username = response.json()['username']
+		except (ValueError, KeyError): return notification(32574)
 		expires = int(data['created_at']) + int(data['expires_in'])
 		refresh, token = data['refresh_token'], data['access_token']
 		set_setting('trakt_user', str(username))

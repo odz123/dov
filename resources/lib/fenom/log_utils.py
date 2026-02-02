@@ -73,19 +73,20 @@ def error(message=None, exception=True):
 #			addon = 'script.module.fenomscrapers'
 			addon = 'plugin.video.pov'
 			filename = (traceback.tb_frame.f_code.co_filename)
-			filename = filename.split(addon)[1]
+			parts = filename.split(addon)
+			filename = parts[1] if len(parts) > 1 else filename
 			name = traceback.tb_frame.f_code.co_name
 			linenumber = traceback.tb_lineno
 			errortype = type.__name__
-			errormessage = value or value.message
+			errormessage = value
 			if str(errormessage) == '': return
 			if message: message += ' -> '
 			else: message = ''
 			message += str(errortype) + ' -> ' + str(errormessage)
 			caller = [filename, name, linenumber]
+			del(type, value, traceback) # So we don't leave our local labels/objects dangling
 		else:
 			caller = None
-		del(type, value, traceback) # So we don't leave our local labels/objects dangling
 		log(msg=message, caller=caller, level=LOGERROR)
 	except Exception as e:
 		import xbmc
