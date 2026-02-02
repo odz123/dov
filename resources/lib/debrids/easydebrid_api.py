@@ -71,7 +71,7 @@ class EasyDebridAPI:
 		data = {'url': magnet}
 		url = 'link/request'
 		result = self._post(url, json=data)
-		return result.get('success', '')
+		return result.get('success', '') if isinstance(result, dict) else ''
 
 	def parse_magnet_pack(self, magnet_url, info_hash):
 		from modules.source_utils import supported_video_extensions

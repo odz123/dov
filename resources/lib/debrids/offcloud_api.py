@@ -63,7 +63,7 @@ class OffcloudAPI:
 		params = {'key': self.token}
 		url = 'https://offcloud.com/cloud/remove/%s' % request_id
 		result = self._get(url, params=params)
-		return True if result is not None and result['success'] else False
+		return True if isinstance(result, dict) and result.get('success') else False
 
 	def unrestrict_link(self, link):
 		return link
@@ -86,7 +86,7 @@ class OffcloudAPI:
 
 	def create_transfer(self, magnet):
 		result = self.add_magnet(magnet)
-		return result.get('requestId', '')
+		return result.get('requestId', '') if isinstance(result, dict) else ''
 
 	def parse_magnet_pack(self, magnet_url, info_hash):
 		from modules.source_utils import supported_video_extensions
@@ -116,7 +116,7 @@ class OffcloudAPI:
 		url = 'cloud/explore/%s' % request_id if request_id else 'cloud/history'
 		if check_cache: result = cache_object(self._get, string, url, False, 0.5)
 		else: result = self._get(url)
-		if not request_id and completed: result = [i for i in result if i['status'] == 'downloaded']
+		if not request_id and completed and result: result = [i for i in result if i.get('status') == 'downloaded']
 		return result
 
 	def clear_cache(*args):
