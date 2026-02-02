@@ -25,8 +25,8 @@ class RealDebridAPI:
 		except (requests.exceptions.ConnectionError, requests.exceptions.Timeout):
 			return kodi_utils.notification('%s timeout' % self.__class__.__name__)
 		if response.status_code in (401,) and self.refresh_token() is True:
-			response.request.headers['Authorization'] = 'Bearer %s' % self.token
-			response = session.send(response.request, timeout=timeout)
+			session.headers['Authorization'] = 'Bearer %s' % self.token
+			response = session.request(method, url, data=data, timeout=timeout)
 		if not response.ok: kodi_utils.logger(self.__class__.__name__, f"{response.reason}\n{response.url}")
 		if response.content:
 			try: return response.json()

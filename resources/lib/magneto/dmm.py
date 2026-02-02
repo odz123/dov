@@ -22,9 +22,9 @@ class source:
 		self.min_seeders = 0
 
 	def sources(self, data, hostDict):
-		self.sources = []
-		if not data: return self.sources
-		self.sources_append = self.sources.append
+		self._results = []
+		if not data: return self._results
+		self.sources_append = self._results.append
 		try:
 			self.title = data['tvshowtitle'] if 'tvshowtitle' in data else data['title']
 			self.title = self.title.replace('&', 'and').replace('Special Victims Unit', 'SVU').replace('/', ' ')
@@ -49,10 +49,10 @@ class source:
 				append(i := source_utils.Thread(self.get_sources, url))
 				i.start()
 			for i in threads: i.join()
-			return self.sources
+			return self._results
 		except Exception:
 			source_utils.scraper_error('DMM')
-			return self.sources
+			return self._results
 
 	def get_sources(self, url):
 		try:

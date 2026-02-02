@@ -245,10 +245,13 @@ class MetaCache(BaseCache):
 
 def cache_function(function, prop_string, url, expiration=96, json=False):
 	metacache = MetaCache()
-	data = metacache.get_function(prop_string)
-	if data: return data
-	if json: result = function(url).json()
-	else: result = function(url)
-	metacache.set_function(prop_string, result, expiration=timedelta(hours=expiration))
-	return result
+	try:
+		data = metacache.get_function(prop_string)
+		if data: return data
+		if json: result = function(url).json()
+		else: result = function(url)
+		metacache.set_function(prop_string, result, expiration=timedelta(hours=expiration))
+		return result
+	finally:
+		metacache.close()
 

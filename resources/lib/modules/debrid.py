@@ -342,12 +342,16 @@ class DebridCheck:
 		return list(set(checked_hashes))
 
 	def cache_write(self, hashes):
-		DebridCache().set_many(hashes, self.debrid)
+		cache = DebridCache()
+		try: cache.set_many(hashes, self.debrid)
+		finally: cache.close()
 
 	@classmethod
 	def set_cached_hashes(cls, hash_list):
 		cls.hash_list = hash_list
-		cls.cached_hashes = DebridCache().get_many(hash_list) or []
+		cache = DebridCache()
+		try: cls.cached_hashes = cache.get_many(hash_list) or []
+		finally: cache.close()
 
 	hash_list, cached_hashes = [], []
 

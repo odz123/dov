@@ -114,7 +114,7 @@ class POVPlayer(kodi_utils.xbmc_player):
 			try: self.run_trakt_scrobble_stop()
 			except Exception: pass
 			ws.clear_local_bookmarks()
-		except Exception: pass
+		except Exception as e: kodi_utils.logger('POVPlayer.run', str(e))
 
 	def _make_listitem(self):
 		listitem = kodi_utils.make_listitem()
