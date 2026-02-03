@@ -8,7 +8,6 @@ from modules import dialogs
 from modules.utils import calculate_age
 from modules.kodi_utils import media_path, notification, show_text, local_string as ls
 from modules.settings import extras_enable_scrollbars, extras_exclude_non_acting, get_resolution
-# from modules.kodi_utils import logger
 
 fanart = BaseDialog.fanart
 backup_thumbnail = media_path('box_office.png')

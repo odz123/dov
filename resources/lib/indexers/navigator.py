@@ -2,7 +2,6 @@ import sys
 from ast import literal_eval
 from caches.navigator_cache import navigator_cache as nc
 from modules import kodi_utils as ku, settings as ks
-# logger = ku.logger
 
 media_path, ls, build_url, notification, list_dirs = ku.media_path, ku.local_string, ku.build_url, ku.notification, ku.list_dirs
 make_listitem, add_item, add_dir, end_directory, add_items = ku.make_listitem, ku.add_item, ku.add_dir, ku.end_directory, ku.add_items

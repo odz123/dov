@@ -3,7 +3,6 @@ import json
 from ast import literal_eval
 from indexers.tmdb_api import base_url, tmdb_api_key, tmdb_keyword_id, tmdb_people_info, tmdb_company_id, tmdb_movies_title_year, tmdb_tv_title_year
 from modules import kodi_utils, meta_lists
-# logger = kodi_utils.logger
 
 maincache_db = kodi_utils.maincache_db
 ls, build_url, make_listitem = kodi_utils.local_string, kodi_utils.build_url, kodi_utils.make_listitem

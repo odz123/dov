@@ -70,7 +70,10 @@ def __get_dom_elements(item, name, attrs):
 							this_list = [r[0] for r in re_list if value == r[1]]
 
 				if last_list is None: last_list = this_list
-				else: last_list = [item for item in this_list if item in last_list]
+				else:
+					# Convert to set for O(1) membership testing instead of O(n)
+					last_list_set = set(last_list)
+					last_list = [item for item in this_list if item in last_list_set]
 			this_list = last_list
 		return this_list
 	except Exception:
