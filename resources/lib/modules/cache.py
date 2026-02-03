@@ -280,12 +280,14 @@ def clear_all_cache():
 		('external_scrapers', '%s %s' % (ls(32118), ls(32524)))
 	)
 	kodi_utils.progressDialog.create('POV', '')
-	for count, (cache_type, cache_label) in enumerate(caches, 1):
-		try:
-			if kodi_utils.progressDialog.iscanceled(): break
-			kodi_utils.progressDialog.update(int(count / len(caches) * 100), line % (ls(32816), cache_label))
-			clear_cache(cache_type, silent=True)
-			kodi_utils.sleep(200)
-		except Exception: kodi_utils.notification(32574, 1500)
-	kodi_utils.progressDialog.close()
+	try:
+		for count, (cache_type, cache_label) in enumerate(caches, 1):
+			try:
+				if kodi_utils.progressDialog.iscanceled(): break
+				kodi_utils.progressDialog.update(int(count / len(caches) * 100), line % (ls(32816), cache_label))
+				clear_cache(cache_type, silent=True)
+				kodi_utils.sleep(200)
+			except Exception: kodi_utils.notification(32574, 1500)
+	finally:
+		kodi_utils.progressDialog.close()
 

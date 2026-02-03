@@ -56,10 +56,14 @@ def spool_easynews(params):
 	file_path = kodi_utils.translate_path(kodi_utils.get_addoninfo('profile') + 'spool' + '/%s' % name)
 	if not kodi_utils.path_exists(path): kodi_utils.make_directory(path)
 	kodi_utils.progressDialogBG.create('EasyNews Spooling File', 'POV Working...')
-	response = EasyNews().unrestrict_link(url_dl, spool=True)
-	if response is None:
-		kodi_utils.progressDialogBG.close()
+	try:
+		response = EasyNews().unrestrict_link(url_dl, spool=True)
+		if response is None:
+			return kodi_utils.notification(32574)
+	except Exception:
 		return kodi_utils.notification(32574)
+	finally:
+		kodi_utils.progressDialogBG.close()
 	shutdown = Event()
 	fileobj = kodi_utils.open_file(file_path, 'w')
 	try:
@@ -68,7 +72,6 @@ def spool_easynews(params):
 		for i in range(20):
 			if fileobj.size() > 1048576 * 20: break
 			kodi_utils.sleep(500)
-		kodi_utils.progressDialogBG.close()
 		POVPlayer().run(file_path, json.loads(params.get('meta', '{}')))
 	finally:
 		shutdown.set()

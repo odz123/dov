@@ -434,8 +434,9 @@ class SourceSelect:
 			else:
 				progressDialogBG.create('POV', 'POV loading...')
 				progress_media = None
-			url = next(_process(), None)
-			if not self.full_screen: progressDialogBG.close()
+			try: url = next(_process(), None)
+			finally:
+				if not self.full_screen: progressDialogBG.close()
 			if not url: self._kill_progress_dialog()
 			# Store Stremio source properties in meta for player consumption
 			src = resolved_source_item[0]
@@ -629,11 +630,13 @@ class Manager:
 				if not instance.progress_dialog and not instance.full_screen:
 					progressDialogBG.create('POV', 'POV loading...')
 				else: instance._make_progress_dialog()
-			result = function(instance, *args, **kwargs)
-			if not instance.background:
-				if not instance.progress_dialog and not instance.full_screen:
-					progressDialogBG.close()
-				else: instance._kill_progress_dialog()
+			try:
+				result = function(instance, *args, **kwargs)
+			finally:
+				if not instance.background:
+					if not instance.progress_dialog and not instance.full_screen:
+						progressDialogBG.close()
+					else: instance._kill_progress_dialog()
 			return result
 		return wrapper
 
