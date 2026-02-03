@@ -71,7 +71,9 @@ class source(Debrid):
 					url = self.build_url(item['server'], item['requestId'], item['fileName'])
 					results_append({'filename': item['fileName'], 'folder_name': item['fileName'], 'link': url})
 			for i in threads: i.join()
-		except Exception: pass
+		except Exception as e:
+			from modules.kodi_utils import logger
+			logger('POV oc_cloud._scrape_cloud', str(e))
 
 	def _scrape_folders(self, folder_info):
 		try:
@@ -81,5 +83,7 @@ class source(Debrid):
 				try:
 					results_append({'filename': item, 'folder_name': folder_info['fileName'], 'link': item})
 				except Exception: pass
-		except Exception: pass
+		except Exception as e:
+			from modules.kodi_utils import logger
+			logger('POV oc_cloud._scrape_folders', str(e))
 

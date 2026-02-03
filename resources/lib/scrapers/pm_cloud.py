@@ -64,5 +64,7 @@ class source(Debrid):
 					item.update({'filename': item['name'], 'folder_name': item['path'], 'link': item['id']})
 					results_append(item)
 				except Exception: pass
-		except Exception: pass
+		except Exception as e:
+			from modules.kodi_utils import logger
+			logger('POV pm_cloud._scrape_cloud', str(e))
 

@@ -102,17 +102,22 @@ class POVPlayer(kodi_utils.xbmc_player):
 						self.remaining_time = round(self.total_time - self.curr_time)
 						if self.remaining_time <= self.autoscrape_next_window_time:
 							if not self.nextep_started and self.autoscrape_nextep: self.run_scrape_next_ep()
-				except Exception: pass
+				except Exception as e:
+					kodi_utils.logger('POVPlayer.playback_loop', str(e))
 				if not self.subs_searched: self.run_subtitles()
 			if not self.media_marked and getattr(self, 'curr_time', 0) >= 120:
 				try: self.media_watched_marker()
-				except Exception: pass
+				except Exception as e:
+					kodi_utils.logger('POVPlayer.media_watched_marker', str(e))
 			try: self.run_scrobble_stop()
-			except Exception: pass
+			except Exception as e:
+				kodi_utils.logger('POVPlayer.run_scrobble_stop', str(e))
 			try: self.run_simkl_scrobble_stop()
-			except Exception: pass
+			except Exception as e:
+				kodi_utils.logger('POVPlayer.run_simkl_scrobble_stop', str(e))
 			try: self.run_trakt_scrobble_stop()
-			except Exception: pass
+			except Exception as e:
+				kodi_utils.logger('POVPlayer.run_trakt_scrobble_stop', str(e))
 			ws.clear_local_bookmarks()
 		except Exception as e: kodi_utils.logger('POVPlayer.run', str(e))
 

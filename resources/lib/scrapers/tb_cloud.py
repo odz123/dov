@@ -72,7 +72,9 @@ class source(Debrid):
 				Thread(target=self._scrape_folders, args=(self.user_cloud_webdl, 'webdl'))
 			)): i.start()
 			for i in threads: i.join()
-		except Exception: pass
+		except Exception as e:
+			from modules.kodi_utils import logger
+			logger('POV tb_cloud._scrape_cloud', str(e))
 
 	def _scrape_folders(self, function, media_type):
 		try:
@@ -87,5 +89,7 @@ class source(Debrid):
 						})
 						results_append(item)
 					except Exception: pass
-		except Exception: pass
+		except Exception as e:
+			from modules.kodi_utils import logger
+			logger('POV tb_cloud._scrape_folders', str(e))
 

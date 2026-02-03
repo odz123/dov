@@ -70,7 +70,9 @@ class source(Debrid):
 				i.start()
 			self._scrape_downloads()
 			for i in threads: i.join()
-		except Exception: pass
+		except Exception as e:
+			from modules.kodi_utils import logger
+			logger('POV ad_cloud._scrape_cloud', str(e))
 
 	def _scrape_folders(self, folder_id, filename):
 		try:
@@ -85,7 +87,9 @@ class source(Debrid):
 					})
 					results_append(item)
 				except Exception: pass
-		except Exception: pass
+		except Exception as e:
+			from modules.kodi_utils import logger
+			logger('POV ad_cloud._scrape_folders', str(e))
 
 	def _scrape_downloads(self):
 		try:
@@ -97,5 +101,7 @@ class source(Debrid):
 					item.update({'folder_name': item['filename'], 'downloads': True})
 					results_append(item)
 				except Exception: pass
-		except Exception: pass
+		except Exception as e:
+			from modules.kodi_utils import logger
+			logger('POV ad_cloud._scrape_downloads', str(e))
 

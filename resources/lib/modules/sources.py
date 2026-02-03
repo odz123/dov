@@ -2,7 +2,7 @@ import json
 import time
 import re, random
 from concurrent.futures import ThreadPoolExecutor as TPE, as_completed
-from threading import Thread
+from threading import Thread, Lock
 from windows import open_window, create_window
 from scrapers import folders
 from modules.debrid import debrid_enabled, debrid_type_enabled, debrid_valid_hosts, Source, DebridCheck
@@ -39,6 +39,7 @@ class SourceSelect:
 		self.progress_dialog, self.pov_background_url = None, None
 		self.threads, self.providers, self.sources, self.internal_scraper_names = [], [], [], []
 		self.prescrape_scrapers, self.prescrape_threads, self.prescrape_sources = [], [], []
+		self._sources_lock = Lock()
 		self.remove_scrapers = ['external']# needs to be mutable so leave as list.
 		self.exclude_list = ['easynews', 'library']# needs to be mutable so leave as list.
 		self.internal_resolutions = dict.fromkeys('4K 1080p 720p SD total'.split(), 0)
@@ -240,8 +241,9 @@ class SourceSelect:
 		else: module = function()
 		sources = module.results(self.meta['search_info'])
 		if not sources: return
-		if prescrape: self.prescrape_sources.extend(sources)
-		else: self.sources.extend(sources)
+		with self._sources_lock:
+			if prescrape: self.prescrape_sources.extend(sources)
+			else: self.sources.extend(sources)
 
 	def activate_external_providers(self):
 		self.debrid_enabled = debrid_enabled()

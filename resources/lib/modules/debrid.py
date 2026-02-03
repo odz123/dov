@@ -128,7 +128,9 @@ class Source:
 			if self.debrid in default_hosters_providers and not self.source.lower() == 'torrent':
 				return import_debrid(self.debrid).unrestrict_link(self.url)
 			return self.url
-		except Exception: pass
+		except Exception as e:
+			from modules.kodi_utils import logger
+			logger('POV Source.resolve_sources', str(e))
 
 	def resolve_external_sources(self, api, title, season, episode):
 		from modules.source_utils import supported_video_extensions, seas_ep_filter, extras_filter
@@ -342,16 +344,14 @@ class DebridCheck:
 		return list(set(checked_hashes))
 
 	def cache_write(self, hashes):
-		cache = DebridCache()
-		try: cache.set_many(hashes, self.debrid)
-		finally: cache.close()
+		with DebridCache() as cache:
+			cache.set_many(hashes, self.debrid)
 
 	@classmethod
 	def set_cached_hashes(cls, hash_list):
 		cls.hash_list = hash_list
-		cache = DebridCache()
-		try: cls.cached_hashes = cache.get_many(hash_list) or []
-		finally: cache.close()
+		with DebridCache() as cache:
+			cls.cached_hashes = cache.get_many(hash_list) or []
 
 	hash_list, cached_hashes = [], []
 

@@ -22,7 +22,9 @@ class DebridCache(BaseCache):
 				expired = [i for i in cache_data if i[3] <= current_time]
 				if expired: self.remove_many(expired)
 				if valid: result = valid
-		except Exception: pass
+		except Exception as e:
+			from modules.kodi_utils import logger
+			logger('POV DebridCache.get_many', str(e))
 		return result
 
 	def set_many(self, hash_list, debrid):
@@ -30,13 +32,17 @@ class DebridCache(BaseCache):
 			expires = self._get_timestamp(datetime.now() + timedelta(hours=24))
 			insert_list = [(i[0], debrid, i[1], expires) for i in hash_list]
 			self.dbcur.executemany(SET_MANY, insert_list)
-		except Exception: pass
+		except Exception as e:
+			from modules.kodi_utils import logger
+			logger('POV DebridCache.set_many', str(e))
 
 	def remove_many(self, old_cached_data):
 		try:
 			old_cached_data = [(str(i[0]),) for i in old_cached_data]
 			self.dbcur.executemany(REMOVE_MANY, old_cached_data)
-		except Exception: pass
+		except Exception as e:
+			from modules.kodi_utils import logger
+			logger('POV DebridCache.remove_many', str(e))
 
 	def clear_database(self):
 		try:

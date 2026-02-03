@@ -152,9 +152,8 @@ def clean_settings():
 				dict_item['default'] = setting_default
 			current_user_settings.append(dict_item)
 		new_content = _make_content(current_user_settings)
-		nfo_file = xbmcvfs.File(settings_xml, 'w')
-		nfo_file.write(new_content)
-		nfo_file.close()
+		with xbmcvfs.File(settings_xml, 'w') as nfo_file:
+			nfo_file.write(new_content)
 		sleep(200)
 		notification(title=addon_name, message=lang(32042).format(str(len(removed_settings))))
 	except Exception:

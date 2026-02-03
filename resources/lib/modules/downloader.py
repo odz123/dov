@@ -11,7 +11,9 @@ from modules.utils import clean_file_name, clean_title, safe_string, remove_acce
 # from modules.kodi_utils import logger
 
 ls = kodi_utils.local_string
-ctx = ssl.SSLContext(ssl.PROTOCOL_TLS)
+ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+ctx.check_hostname = False
+ctx.verify_mode = ssl.CERT_NONE
 levels = ['../../../..', '../../..', '../..', '..']
 poster_empty = kodi_utils.media_path('box_office.png')
 video_extensions = ('m4v', '3g2', '3gp', 'nsv', 'tp', 'ts', 'ty', 'pls', 'rm', 'rmvb', 'mpd', 'ifo', 'mov', 'qt', 'divx', 'xvid', 'bivx', 'vob', 'nrg', 'img', 'iso', 'udf', 'pva',
@@ -230,69 +232,78 @@ class Downloader:
 		f = kodi_utils.open_file(dest, 'w')
 		chunk  = None
 		chunks = []
-		while True:
-			downloaded = total
-			for c in chunks: downloaded += len(c)
-			percent = min(round(float(downloaded)*100 / self.content), 100)
-			playing = kodi_utils.player.isPlaying()
-			if show_notifications:
-				if percent >= notify:
-					notify += notification_frequency
-					try:
-						line1 = '%s - [I]%s[/I]' % (str(percent)+'%', self.final_name)
-						if not playing: kodi_utils.notification(line1, 3000, self.image)
-					except Exception: pass
-			chunk = None
-			error = False
-			try:
-				chunk  = self.resp.read(self.size)
-				if not chunk:
-					if percent < 99:
-						error = True
-					else:
-						while len(chunks) > 0:
-							c = chunks.pop(0)
-							f.write(c)
-							del c
-						f.close()
-						return self.finish_download(self.final_name, self.media_type, True, self.image)
-			except Exception as e:
-				error = True
-				sleep_time = 10
-				errno = 0
-				if hasattr(e, 'errno'):
-					errno = e.errno
-				if errno == 10035: # 'A non-blocking socket operation could not be completed immediately'
-					pass
-				if errno == 10054: #'An existing connection was forcibly closed by the remote host'
-					errors = 10 #force resume
-					sleep_time  = 30
-				if errno == 11001: # 'getaddrinfo failed'
-					errors = 10 #force resume
-					sleep_time  = 30
-			if chunk:
-				errors = 0
-				chunks.append(chunk)
-				if len(chunks) > 5:
-					c = chunks.pop(0)
-					f.write(c)
-					total += len(c)
-					del c
-			if error:
-				errors += 1
-				count  += 1
-				kodi_utils.sleep(sleep_time*1000)
-			if (self.resumable and errors > 0) or errors >= 10:
-				if (not self.resumable and resume >= 50) or resume >= 500:
-					try: f.close()
-					except Exception: pass
-					return self.finish_download(self.final_name, self.media_type, False, self.image)
-				resume += 1
-				errors  = 0
-				if self.resumable:
-					chunks  = []
-					self.resp = self.get_response(url, self.headers, total)
-				else: pass
+		try:
+			while True:
+				downloaded = total
+				for c in chunks: downloaded += len(c)
+				percent = min(round(float(downloaded)*100 / self.content), 100)
+				playing = kodi_utils.player.isPlaying()
+				if show_notifications:
+					if percent >= notify:
+						notify += notification_frequency
+						try:
+							line1 = '%s - [I]%s[/I]' % (str(percent)+'%', self.final_name)
+							if not playing: kodi_utils.notification(line1, 3000, self.image)
+						except Exception: pass
+				chunk = None
+				error = False
+				try:
+					chunk  = self.resp.read(self.size)
+					if not chunk:
+						if percent < 99:
+							error = True
+						else:
+							while len(chunks) > 0:
+								c = chunks.pop(0)
+								f.write(c)
+								del c
+							f.close()
+							f = None
+							return self.finish_download(self.final_name, self.media_type, True, self.image)
+				except Exception as e:
+					error = True
+					sleep_time = 10
+					errno = 0
+					if hasattr(e, 'errno'):
+						errno = e.errno
+					if errno == 10035: # 'A non-blocking socket operation could not be completed immediately'
+						pass
+					if errno == 10054: #'An existing connection was forcibly closed by the remote host'
+						errors = 10 #force resume
+						sleep_time  = 30
+					if errno == 11001: # 'getaddrinfo failed'
+						errors = 10 #force resume
+						sleep_time  = 30
+				if chunk:
+					errors = 0
+					chunks.append(chunk)
+					if len(chunks) > 5:
+						c = chunks.pop(0)
+						f.write(c)
+						total += len(c)
+						del c
+				if error:
+					errors += 1
+					count  += 1
+					kodi_utils.sleep(sleep_time*1000)
+				if (self.resumable and errors > 0) or errors >= 10:
+					if (not self.resumable and resume >= 50) or resume >= 500:
+						try: f.close()
+						except Exception: pass
+						f = None
+						return self.finish_download(self.final_name, self.media_type, False, self.image)
+					resume += 1
+					errors  = 0
+					if self.resumable:
+						chunks  = []
+						self.resp = self.get_response(url, self.headers, total)
+					else: pass
+		except Exception:
+			pass
+		finally:
+			if f is not None:
+				try: f.close()
+				except Exception: pass
 
 	def get_response(self, url, headers, size):
 		try:
