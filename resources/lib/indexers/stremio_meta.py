@@ -76,6 +76,15 @@ class StremioMetaCache:
 		from caches.meta_cache import MetaCache
 		self._metacache = MetaCache()
 
+	def close(self):
+		"""Close the underlying MetaCache connection."""
+		try:
+			if self._metacache:
+				self._metacache.close()
+				self._metacache = None
+		except Exception:
+			pass
+
 	def get(self, media_type, media_id):
 		"""Get metadata from cache (SQLite + memory)"""
 		try:
@@ -936,7 +945,10 @@ def stremio_movie_meta(imdb_id, use_cache=True):
 		return None
 
 	provider = StremioMetaProvider()
-	return provider.get_movie_meta(imdb_id, use_cache=use_cache)
+	try:
+		return provider.get_movie_meta(imdb_id, use_cache=use_cache)
+	finally:
+		provider.cache.close()
 
 
 def stremio_tvshow_meta(imdb_id, use_cache=True):
@@ -954,7 +966,10 @@ def stremio_tvshow_meta(imdb_id, use_cache=True):
 		return None
 
 	provider = StremioMetaProvider()
-	return provider.get_tvshow_meta(imdb_id, use_cache=use_cache)
+	try:
+		return provider.get_tvshow_meta(imdb_id, use_cache=use_cache)
+	finally:
+		provider.cache.close()
 
 
 def stremio_season_episodes_meta(imdb_id, season_num):
@@ -972,7 +987,10 @@ def stremio_season_episodes_meta(imdb_id, season_num):
 		return None
 
 	provider = StremioMetaProvider()
-	return provider.get_season_episodes(imdb_id, season_num)
+	try:
+		return provider.get_season_episodes(imdb_id, season_num)
+	finally:
+		provider.cache.close()
 
 
 def update_addon_meta_support(addon_info, manifest):
@@ -1074,6 +1092,9 @@ def clear_stremio_meta_cache():
 	"""Clear all cached Stremio metadata from SQLite database"""
 	try:
 		cache = StremioMetaCache()
-		cache.delete_all()
+		try:
+			cache.delete_all()
+		finally:
+			cache.close()
 	except Exception:
 		pass

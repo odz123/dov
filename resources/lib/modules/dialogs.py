@@ -603,8 +603,9 @@ def refresh_cached_meta(meta):
 	from caches.meta_cache import MetaCache
 	try:
 		media_type, tmdb_id = meta['mediatype'], meta['tmdb_id']
-		MetaCache().delete(media_type, 'tmdb_id', tmdb_id, meta)
-		if media_type == 'tvshow': MetaCache().delete_all_seasons_memory_cache(tmdb_id)
+		with MetaCache() as mc:
+			mc.delete(media_type, 'tmdb_id', tmdb_id, meta)
+			if media_type == 'tvshow': mc.delete_all_seasons_memory_cache(tmdb_id)
 		notification(32576, 1500)
 		container_refresh()
 	except Exception: notification(32574)
@@ -643,7 +644,8 @@ def clear_and_rescrape(media_type, meta, season=None, episode=None):
 	from caches.providers_cache import ExternalProvidersCache
 	from modules.sources import SourceSelect
 	show_busy_dialog()
-	deleted = ExternalProvidersCache().delete_cache_single(media_type, str(meta['tmdb_id']))
+	with ExternalProvidersCache() as epc:
+		deleted = epc.delete_cache_single(media_type, str(meta['tmdb_id']))
 	hide_busy_dialog()
 	if not deleted: return notification(32574)
 	play_params = {'mode': 'play_media', 'tmdb_id': meta['tmdb_id'], 'autoplay': 'false'}

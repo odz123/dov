@@ -543,7 +543,8 @@ def trakt_indicators_movies():
 	result = [(i,) for i in call_trakt('sync/watched/movies')] # TaskPool requires tuple
 #	threads = list(make_thread_list(_process, result, Thread))
 	for i in TaskPool().tasks(_process, result, Thread): i.join()
-	trakt_cache.TraktCache().set_bulk_movie_watched(insert_list)
+	with trakt_cache.TraktCache() as tc:
+		tc.set_bulk_movie_watched(insert_list)
 
 def trakt_indicators_tv():
 	def _process(item):
@@ -563,7 +564,8 @@ def trakt_indicators_tv():
 	result = [(i,) for i in call_trakt('sync/watched/shows?extended=full')] # TaskPool requires tuple
 #	threads = list(make_thread_list(_process, result, Thread))
 	for i in TaskPool().tasks(_process, result, Thread): i.join()
-	trakt_cache.TraktCache().set_bulk_tvshow_watched(insert_list)
+	with trakt_cache.TraktCache() as tc:
+		tc.set_bulk_tvshow_watched(insert_list)
 
 def trakt_playback_progress():
 	url = {'path': 'sync/playback%s', 'with_auth': True, 'pagination': False}
@@ -583,7 +585,8 @@ def trakt_progress_movies(progress_info):
 	if not progress_items: return
 	threads = list(make_thread_list(_process, progress_items, Thread))
 	for i in threads: i.join()
-	trakt_cache.TraktCache().set_bulk_movie_progress(insert_list)
+	with trakt_cache.TraktCache() as tc:
+		tc.set_bulk_movie_progress(insert_list)
 
 def trakt_progress_tv(progress_info):
 	def _process_tmdb_ids(item):
@@ -613,7 +616,8 @@ def trakt_progress_tv(progress_info):
 	threads = list(make_thread_list(_process_tmdb_ids, all_shows, Thread))
 	for i in threads: i.join()
 	insert_list = list(_process())
-	trakt_cache.TraktCache().set_bulk_tvshow_progress(insert_list)
+	with trakt_cache.TraktCache() as tc:
+		tc.set_bulk_tvshow_progress(insert_list)
 
 def trakt_official_status(media_type):
 	if not kodi_utils.addon_installed('script.trakt'): return True

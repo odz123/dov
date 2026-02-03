@@ -50,7 +50,8 @@ def search_history(params):
 	setting_id, action_dict = mode_dict[params['action']]
 	url_params = dict(action_dict)
 	kodi_utils.add_dir(__handle__, action_dict, new_search_str, iconImage=default_icon, isFolder=False)
-	contents = MainCache().get(setting_id)
+	with MainCache() as mc:
+		contents = mc.get(setting_id)
 	if contents: kodi_utils.add_items(__handle__, list(_builder()))
 	kodi_utils.set_category(__handle__, params.get('name'))
 	kodi_utils.set_content(__handle__, '')
@@ -88,20 +89,26 @@ def add_to_search_history(search_name, search_list):
 	try:
 		result = []
 		maincache = MainCache()
-		cache = maincache.get(search_list)
-		if cache: result = cache
-		if search_name in result: result.remove(search_name)
-		result.insert(0, search_name)
-		result = result[:50]
-		maincache.set(search_list, result, expiration=timedelta(days=365))
+		try:
+			cache = maincache.get(search_list)
+			if cache: result = cache
+			if search_name in result: result.remove(search_name)
+			result.insert(0, search_name)
+			result = result[:50]
+			maincache.set(search_list, result, expiration=timedelta(days=365))
+		finally:
+			maincache.close()
 	except Exception: pass
 
 def remove_from_search_history(params):
 	try:
 		maincache = MainCache()
-		result = maincache.get(params['setting_id'])
-		result.remove(params.get('query'))
-		maincache.set(params['setting_id'], result, expiration=timedelta(days=365))
+		try:
+			result = maincache.get(params['setting_id'])
+			result.remove(params.get('query'))
+			maincache.set(params['setting_id'], result, expiration=timedelta(days=365))
+		finally:
+			maincache.close()
 		kodi_utils.notification(32576)
 		kodi_utils.container_refresh()
 	except Exception: pass
@@ -112,7 +119,8 @@ def clear_search_history():
 		kwargs = {'items': json.dumps(list_items), 'heading': hist_str}
 		setting = kodi_utils.select_dialog(list(clear_history_list.keys()), **kwargs)
 		if setting is None: return
-		MainCache().delete(setting)
+		with MainCache() as mc:
+			mc.delete(setting)
 		kodi_utils.notification(32576)
 	except Exception: pass
 

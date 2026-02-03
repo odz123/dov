@@ -103,7 +103,8 @@ class EasyDebridAPI:
 			except Exception: user_cloud_success = False
 			# HASH CACHED STATUS
 			try:
-				DebridCache().clear_debrid_results('ed')
+				with DebridCache() as dc:
+					dc.clear_debrid_results('ed')
 				hash_cache_status_success = True
 			except Exception: hash_cache_status_success = False
 		except Exception: return False
