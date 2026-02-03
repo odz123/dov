@@ -451,7 +451,9 @@ class SourceSelect:
 				if src.get('provider', '').startswith('stremio'):
 					self.meta['stremio_source'] = True
 			return POVPlayer().run(url, self.meta, progress_media)
-		except Exception: pass
+		except Exception as e:
+			from modules.kodi_utils import logger
+			logger('play_file error', str(e))
 
 	def filter_results(self, results):
 		# Combine all filtering into a single pass for performance
@@ -599,6 +601,7 @@ class SourceSelect:
 	@classmethod
 	def factory(cls, params):
 		if params.get('media_type') == 'episode':
+			cls.nextep_params = []
 			cls.nextep_callback(params)
 			while cls.nextep_params:
 				try: cls().playback_prep(cls.nextep_params.pop())
@@ -608,6 +611,8 @@ class SourceSelect:
 	@classmethod
 	def nextep_callback(cls, params):
 		if not isinstance(params, dict): return
+		if not hasattr(cls, 'nextep_params') or not isinstance(cls.nextep_params, list):
+			cls.nextep_params = []
 		cls.nextep_params.insert(0, params)
 
 	@classmethod
@@ -707,7 +712,7 @@ class Manager:
 					valid_hosters = {i for i in result_hosters if i in v_set}
 					self.final_sources.extend([{**i, 'debrid': k} for i in hoster_sources if i['source'].lower() in valid_hosters])
 		except Exception: notification(32574)
-		finally: tpe.shutdown(False)
+		finally: tpe.shutdown(wait=True)
 		return self.final_sources
 
 	def wait(self, debrid_check=False):
