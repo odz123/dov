@@ -95,11 +95,15 @@ class EasyNewsAPI:
 
 	def unrestrict_link(self, url_dl, spool=False):
 		response = session.get(url_dl, auth=(self.username, self.password), stream=True, timeout=timeout*3)
-		if not response.ok: return None
-		if spool: return response
-		chunk = next(response.iter_content(chunk_size=1048576), b'')
-		if len(chunk): resolved_link = response.url # direct/unrestricted link
-		else: resolved_link = None
+		if not response.ok:
+			response.close()
+			return None
+		if spool: return response  # Caller is responsible for closing when spool=True
+		try:
+			chunk = next(response.iter_content(chunk_size=1048576), b'')
+			resolved_link = response.url if chunk else None  # direct/unrestricted link
+		finally:
+			response.close()
 		return resolved_link
 
 def clear_media_results_database():

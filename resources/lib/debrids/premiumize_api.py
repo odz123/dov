@@ -99,16 +99,19 @@ class PremiumizeAPI:
 		try:
 			extensions = supported_video_extensions()
 			torrent = self.instant_transfer(magnet_url)
-			torrent_files = torrent['content']
+			if not torrent or not isinstance(torrent, dict):
+				return None
+			torrent_files = torrent.get('content', [])
 			torrent_files = [
 				{'link': item['link'],
 				 'size': item['size'],
 				 'filename': item['path'].split('/')[-1]}
 				for item in torrent_files
-				if item['path'].lower().endswith(tuple(extensions))
+				if item.get('path', '').lower().endswith(tuple(extensions))
 			]
 			return torrent_files
-		except Exception: pass
+		except Exception as e:
+			kodi_utils.logger('POV Premiumize', 'parse_magnet_pack error: %s' % str(e))
 
 	def zip_folder(self, folder_id):
 		url = 'zip/generate'

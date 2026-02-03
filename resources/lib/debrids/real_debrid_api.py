@@ -124,25 +124,28 @@ class RealDebridAPI:
 
 	def parse_magnet_pack(self, magnet_url, info_hash, errors=False):
 		from modules.source_utils import supported_video_extensions
+		torrent_id = None
 		try:
 			extensions = supported_video_extensions()
 			torrent_id = self.create_transfer(magnet_url)
-			for key in ['ended'] * 3:
+			torrent_info = {}
+			for _ in range(3):
 				kodi_utils.sleep(500)
 				torrent_info = self.torrent_info(torrent_id)
-				if key in torrent_info: break
+				if torrent_info.get('ended'): break
 			else: raise Exception('real debrid uncached magnet')
-			torrent_files = (i for i in torrent_info['files'] if i['selected'])
+			torrent_files = (i for i in torrent_info.get('files', []) if i['selected'])
 			torrent_files = [
 				{'link': link,
 				 'size': item['bytes'],
 				 'torrent_id': torrent_id,
 				 'filename': item['path'].replace('/', '')}
-				for item, link in zip(torrent_files, torrent_info['links'])
+				for item, link in zip(torrent_files, torrent_info.get('links', []))
 				if item['path'].lower().endswith(tuple(extensions))
 			]
 			return torrent_files
 		except Exception as e:
+			kodi_utils.logger('POV RealDebrid', 'parse_magnet_pack error: %s' % str(e))
 			if torrent_id: self.delete_torrent(torrent_id)
 			if errors: raise
 

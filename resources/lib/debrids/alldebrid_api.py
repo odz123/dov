@@ -69,7 +69,10 @@ class AllDebridAPI:
 		if not result or not isinstance(result, dict): return {}
 		magnets = result.get('magnets', [])
 		# When requesting by ID, return the first magnet dict (or empty dict if not found)
-		return magnets[0] if magnets else {}
+		# Ensure magnets is a list before indexing
+		if not isinstance(magnets, list) or not magnets:
+			return {}
+		return magnets[0] if isinstance(magnets[0], dict) else {}
 
 	def delete_torrent(self, transfer_id):
 		url = 'v4.1/magnet/delete'

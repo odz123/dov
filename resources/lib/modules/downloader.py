@@ -119,11 +119,15 @@ class Downloader:
 					from debrids.alldebrid_api import AllDebridAPI as debrid_function
 				elif self.provider == 'torbox':
 					from debrids.torbox_api import TorBoxAPI as debrid_function
-				url = self.params_get('pack_files')['link']
-				if self.provider == 'premiumize.me':
-					url = debrid_function().add_headers_to_url(url)
-				if self.provider in ('real-debrid', 'alldebrid', 'torbox'):
-					url = debrid_function().unrestrict_link(url)
+				pack_files = self.params_get('pack_files')
+				if not pack_files or 'link' not in pack_files:
+					url = None
+				else:
+					url = pack_files['link']
+					if self.provider == 'premiumize.me':
+						url = debrid_function().add_headers_to_url(url)
+					if self.provider in ('real-debrid', 'alldebrid', 'torbox'):
+						url = debrid_function().unrestrict_link(url)
 		else:
 			if self.action.startswith('cloud'):
 				if '_direct' in self.action:
