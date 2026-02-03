@@ -163,11 +163,17 @@ def checkUndesirablesDatabase():
 
 class POVMonitor(kodi_utils.xbmc_monitor):
 	def __enter__(self):
-		self.threads = (Thread(target=traktMonitor, daemon=True), Thread(target=premAccntNotification, daemon=True))
+		# traktMonitor: daemon=True since it loops until abortRequested
+		# premAccntNotification: daemon=False since it should complete before shutdown
+		self.threads = (Thread(target=traktMonitor, daemon=True), Thread(target=premAccntNotification, daemon=False))
 		return self
 
 	def __exit__(self, exc_type, exc_value, traceback):
-		for i in self.threads: i.join()
+		# Only join the premAccntNotification thread (non-daemon) with timeout
+		# traktMonitor is daemon and will be terminated when main thread exits
+		for i in self.threads:
+			if not i.daemon:
+				i.join(timeout=5.0)  # Wait max 5 seconds for non-daemon threads
 
 	def startUpServices(self):
 		try: initializeDatabases()

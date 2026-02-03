@@ -5,10 +5,10 @@ from caches import BaseCache, maincache_db, get_property, set_property, clear_pr
 BASE_GET = 'SELECT expires, data FROM maincache WHERE id = ?'
 BASE_SET = 'INSERT OR REPLACE INTO maincache (id, data, expires) VALUES (?, ?, ?)'
 BASE_DELETE = 'DELETE FROM maincache WHERE id = ?'
-LIKE_SELECT = 'SELECT id from maincache where id LIKE %s'
-LIKE_DELETE = 'DELETE FROM maincache WHERE id LIKE %s'
 DELETE = 'DELETE FROM maincache WHERE id = ?'
-ALL_LIST_ADD = ' OR id LIKE '
+# Static whitelist of allowed LIKE patterns for media lists (prevents SQL injection)
+MEDIA_LIST_PATTERNS = ('tmdb%', 'trakt%', 'mdb%', 'imdb%', 'pov%', 'POV%', 'subtitles%', 'https%')
+FOLDERSCRAPER_PATTERN = 'pov_FOLDERSCRAPER_%'
 
 class MainCache(BaseCache):
 	db_file = maincache_db
@@ -64,9 +64,10 @@ class MainCache(BaseCache):
 		clear_property(string)
 
 	def delete_all_lists(self):
-		from modules.meta_lists import media_lists
-		command = LIKE_SELECT % ALL_LIST_ADD.join(media_lists)
-		self.dbcur.execute(command)
+		# Build parameterized query with LIKE conditions for each pattern
+		conditions = ' OR '.join(['id LIKE ?' for _ in MEDIA_LIST_PATTERNS])
+		select_query = 'SELECT id FROM maincache WHERE ' + conditions
+		self.dbcur.execute(select_query, MEDIA_LIST_PATTERNS)
 		results = self.dbcur.fetchall()
 		try:
 			# Batch delete using executemany instead of N+1 pattern
@@ -78,11 +79,11 @@ class MainCache(BaseCache):
 		except Exception: pass
 
 	def delete_all_folderscrapers(self):
-		self.dbcur.execute(LIKE_SELECT % "'pov_FOLDERSCRAPER_%'")
+		self.dbcur.execute('SELECT id FROM maincache WHERE id LIKE ?', (FOLDERSCRAPER_PATTERN,))
 		remove_list = [str(i[0]) for i in self.dbcur.fetchall()]
 		if not remove_list: return 'success'
 		try:
-			self.dbcur.execute(LIKE_DELETE % "'pov_FOLDERSCRAPER_%'")
+			self.dbcur.execute('DELETE FROM maincache WHERE id LIKE ?', (FOLDERSCRAPER_PATTERN,))
 			# VACUUM removed - should be run during maintenance only
 			for item in remove_list: self.delete_memory_cache(str(item))
 		except Exception: pass

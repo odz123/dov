@@ -30,9 +30,12 @@ class Router:
 			from indexers.discover import Discover
 			runmode(Discover, params, mode.split('.')[1])
 		elif mode == 'media_play':
-			from modules.kodi_utils import player, close_all_dialog
+			from modules.kodi_utils import player, close_all_dialog, notification
+			url = params_get('url')
+			if not url:
+				return notification(32692)  # No playable sources found
 			close_all_dialog()
-			player.play(params['url'])
+			player.play(url)
 		elif mode == 'play_media':
 			from modules.sources import SourceSelect
 			SourceSelect.factory(params)

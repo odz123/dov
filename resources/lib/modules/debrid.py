@@ -118,6 +118,8 @@ class Source:
 					episode = self.meta.get('custom_episode') or self.meta.get('episode')
 				else: title, season, episode = metadata.get_title(self.meta), None, None
 				api = import_debrid(self.debrid)
+				if not api:
+					return None
 				api.store_to_cloud = settings.store_resolved_torrent_to_cloud(self.debrid)
 				if self.url.startswith('magnet'):
 					return self.resolve_external_sources(api, title, season, episode)

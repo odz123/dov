@@ -55,6 +55,8 @@ def runner(params):
 				else: pass
 			append(Thread(target=Downloader(item).run))
 		for i in threads: i.start()
+		# Wait for all download threads to complete
+		for i in threads: i.join()
 	else: Downloader(params).run()
 
 class Downloader:

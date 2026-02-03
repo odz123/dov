@@ -66,9 +66,10 @@ class AllDebridAPI:
 		url = 'v4.1/magnet/status'
 		params = {'id': transfer_id}
 		result = self._get(url, params)
-		if not result or not isinstance(result, dict): return []
-		result = result['magnets']
-		return result
+		if not result or not isinstance(result, dict): return {}
+		magnets = result.get('magnets', [])
+		# When requesting by ID, return the first magnet dict (or empty dict if not found)
+		return magnets[0] if magnets else {}
 
 	def delete_torrent(self, transfer_id):
 		url = 'v4.1/magnet/delete'
@@ -108,12 +109,13 @@ class AllDebridAPI:
 		try:
 			extensions = supported_video_extensions()
 			torrent_id = self.create_transfer(magnet_url)
-			for key in ['completionDate'] * 3:
+			transfer_info = {}
+			for _ in range(3):
 				kodi_utils.sleep(500)
 				transfer_info = self.list_transfer(torrent_id)
-				if transfer_info[key]: break
+				if transfer_info.get('completionDate'): break
 			else: raise Exception('alldebrid uncached magnet')
-			transfer_info['links'] = self.flatten_magnet_files(transfer_info['files'])
+			transfer_info['links'] = self.flatten_magnet_files(transfer_info.get('files', []))
 			torrent_files = [
 				{'link': item['l'],
 				 'size': item['s'],
