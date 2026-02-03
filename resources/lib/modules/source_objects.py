@@ -1,4 +1,5 @@
 import json
+from threading import Lock
 from caches.providers_cache import ExternalProvidersCache
 from indexers.metadata import movie_meta_with_stremio, tvshow_meta_with_stremio, season_episodes_meta_with_stremio, get_title
 from modules.kodi_utils import local_string as ls, get_setting
@@ -187,9 +188,10 @@ class ExternalSource:
 						'external': True, 'provider': provider, 'scrape_provider': self.scrape_provider, 'URLName': URLName,
 						'extraInfo': extraInfo, 'quality': quality, 'size_label': size_label, 'size': round(size, 2)
 					})
-					if not quality in self.resolutions: self.resolutions['SD'] += 1
-					else: self.resolutions[quality] += 1
-					self.resolutions['total'] += 1
+					with self._resolutions_lock:
+						if not quality in self.resolutions: self.resolutions['SD'] += 1
+						else: self.resolutions[quality] += 1
+						self.resolutions['total'] += 1
 				except Exception: pass
 		except Exception: pass
 		return sources
@@ -198,4 +200,5 @@ class ExternalSource:
 	timeout = 10
 	hostDict = {}
 	resolutions = dict.fromkeys(resolutions.split(), 0)
+	_resolutions_lock = Lock()
 

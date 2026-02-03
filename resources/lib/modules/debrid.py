@@ -357,9 +357,13 @@ class DebridCheck:
 
 import requests
 from threading import Lock
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 from fenom.client import randomagent
 
+_retry = Retry(total=2, backoff_factor=0.3, status_forcelist=(502, 503, 504))
 session = requests.session()
+session.mount('https://', HTTPAdapter(max_retries=_retry))
 session.headers.update({'User-Agent': randomagent(), 'Accept': 'application/json'})
 
 # Pre-compile regex pattern for hash extraction (used by multiple functions)

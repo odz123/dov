@@ -413,49 +413,51 @@ def mark_as_watched_unwatched_tvshow(params):
 	except (ValueError, TypeError): tvdb_id = 0
 	watched_indicators = settings.watched_indicators()
 	kodi_utils.progressDialogBG.create(ls(32577), '')
-	data_base = get_database(watched_indicators)
-	title, year = params.get('title', ''), params.get('year', '')
-	meta_user_info = settings.metadata_user_info()
-	adjust_hours = settings.date_offset()
-	current_date = get_datetime()
-	insert_list = []
-	insert_append = insert_list.append
-	meta = metadata.tvshow_meta('tmdb_id', tmdb_id, meta_user_info, get_datetime())
-	season_data = meta['season_data']
-	season_data = [i for i in season_data if i['season_number'] > 0]
-	total = len(season_data)
-	last_played = get_last_played_value(data_base)
-	for count, item in enumerate(season_data, 1):
-		season_number = item['season_number']
-		ep_data = metadata.season_episodes_meta(season_number, meta, meta_user_info)
-		for ep in ep_data:
-			season_number = ep['season']
-			ep_number = ep['episode']
-			display = 'S%.2dE%.2d' % (int(season_number), int(ep_number))
-			kodi_utils.progressDialogBG.update(int(float(count)/float(total)*100) if total > 0 else 0, ls(32577), '%s' % display)
-			episode_date, premiered = adjust_premiered_date(ep['premiered'], adjust_hours)
-			if not episode_date or current_date < episode_date: continue
-			insert_append(make_batch_insert(action, 'episode', tmdb_id, season_number, ep_number, last_played, title))
-	Thread(target=simkl_watched_unwatched, args=(action, 'shows', tmdb_id), daemon=True).start()
-	if watched_indicators == 1:
-		if not trakt_watched_unwatched(action, 'shows', tmdb_id, tvdb_id): return kodi_utils.notification(32574)
-		clear_trakt_collection_watchlist_data('watchlist', 'tvshow')
-	elif watched_indicators == 2:
-		data = []
-		episodes = {}
-		for i in insert_list:
-			season_num = i[2]
-			if season_num not in episodes:
-				episodes[season_num] = []
-			episodes[season_num].append({'number': i[3]})
-		for k, v in episodes.items():
-			if action == 'mark_as_watched':
-				for i in v: i['watched_at'] = last_played
-			data.append({'number': k, 'episodes': v})
-		if not mdbl_watched_unwatched(action, 'shows', tmdb_id, tvdb_id, data): return kodi_utils.notification(32574)
-		clear_mdbl_collection_watchlist_data('watchlist')
-	batch_mark_as_watched_unwatched(watched_indicators, insert_list, action)
-	kodi_utils.progressDialogBG.close()
+	try:
+		data_base = get_database(watched_indicators)
+		title, year = params.get('title', ''), params.get('year', '')
+		meta_user_info = settings.metadata_user_info()
+		adjust_hours = settings.date_offset()
+		current_date = get_datetime()
+		insert_list = []
+		insert_append = insert_list.append
+		meta = metadata.tvshow_meta('tmdb_id', tmdb_id, meta_user_info, get_datetime())
+		season_data = meta['season_data']
+		season_data = [i for i in season_data if i['season_number'] > 0]
+		total = len(season_data)
+		last_played = get_last_played_value(data_base)
+		for count, item in enumerate(season_data, 1):
+			season_number = item['season_number']
+			ep_data = metadata.season_episodes_meta(season_number, meta, meta_user_info)
+			for ep in ep_data:
+				season_number = ep['season']
+				ep_number = ep['episode']
+				display = 'S%.2dE%.2d' % (int(season_number), int(ep_number))
+				kodi_utils.progressDialogBG.update(int(float(count)/float(total)*100) if total > 0 else 0, ls(32577), '%s' % display)
+				episode_date, premiered = adjust_premiered_date(ep['premiered'], adjust_hours)
+				if not episode_date or current_date < episode_date: continue
+				insert_append(make_batch_insert(action, 'episode', tmdb_id, season_number, ep_number, last_played, title))
+		Thread(target=simkl_watched_unwatched, args=(action, 'shows', tmdb_id), daemon=True).start()
+		if watched_indicators == 1:
+			if not trakt_watched_unwatched(action, 'shows', tmdb_id, tvdb_id): return kodi_utils.notification(32574)
+			clear_trakt_collection_watchlist_data('watchlist', 'tvshow')
+		elif watched_indicators == 2:
+			data = []
+			episodes = {}
+			for i in insert_list:
+				season_num = i[2]
+				if season_num not in episodes:
+					episodes[season_num] = []
+				episodes[season_num].append({'number': i[3]})
+			for k, v in episodes.items():
+				if action == 'mark_as_watched':
+					for i in v: i['watched_at'] = last_played
+				data.append({'number': k, 'episodes': v})
+			if not mdbl_watched_unwatched(action, 'shows', tmdb_id, tvdb_id, data): return kodi_utils.notification(32574)
+			clear_mdbl_collection_watchlist_data('watchlist')
+		batch_mark_as_watched_unwatched(watched_indicators, insert_list, action)
+	finally:
+		kodi_utils.progressDialogBG.close()
 	if settings.sync_kodi_library_watchstatus(): batch_mark_kodi_library(action, insert_list, title, year)
 	kodi_utils.container_refresh()
 
@@ -469,34 +471,36 @@ def mark_as_watched_unwatched_season(params):
 	insert_list = []
 	insert_append = insert_list.append
 	kodi_utils.progressDialogBG.create(ls(32577), '')
-	data_base = get_database(watched_indicators)
-	meta_user_info = settings.metadata_user_info()
-	adjust_hours = settings.date_offset()
-	current_date = get_datetime()
-	meta = metadata.tvshow_meta('tmdb_id', tmdb_id, meta_user_info, get_datetime())
-	ep_data = metadata.season_episodes_meta(season, meta, meta_user_info)
-	last_played = get_last_played_value(data_base)
-	for count, item in enumerate(ep_data, 1):
-		season_number = item['season']
-		ep_number = item['episode']
-		display = 'S%.2dE%.2d' % (season_number, ep_number)
-		episode_date, premiered = adjust_premiered_date(item['premiered'], adjust_hours)
-		if not episode_date or current_date < episode_date: continue
-		kodi_utils.progressDialogBG.update(int(float(count) / float(len(ep_data)) * 100) if ep_data else 0, ls(32577), '%s' % display)
-		insert_append(make_batch_insert(action, 'episode', tmdb_id, season_number, ep_number, last_played, title))
-	Thread(target=simkl_watched_unwatched, args=(action, 'season', tmdb_id, season), daemon=True).start()
-	if watched_indicators == 1:
-		if not trakt_watched_unwatched(action, 'season', tmdb_id, tvdb_id, season): return kodi_utils.notification(32574)
-		clear_trakt_collection_watchlist_data('watchlist', 'tvshow')
-	elif watched_indicators == 2:
-		episodes = [{'number': i[3]} for i in insert_list]
-		if action == 'mark_as_watched':
-			for i in episodes: i['watched_at'] = last_played
-		data = [{'number': season, 'episodes': episodes}]
-		if not mdbl_watched_unwatched(action, 'season', tmdb_id, tvdb_id, data): return kodi_utils.notification(32574)
-		clear_mdbl_collection_watchlist_data('watchlist')
-	batch_mark_as_watched_unwatched(watched_indicators, insert_list, action)
-	kodi_utils.progressDialogBG.close()
+	try:
+		data_base = get_database(watched_indicators)
+		meta_user_info = settings.metadata_user_info()
+		adjust_hours = settings.date_offset()
+		current_date = get_datetime()
+		meta = metadata.tvshow_meta('tmdb_id', tmdb_id, meta_user_info, get_datetime())
+		ep_data = metadata.season_episodes_meta(season, meta, meta_user_info)
+		last_played = get_last_played_value(data_base)
+		for count, item in enumerate(ep_data, 1):
+			season_number = item['season']
+			ep_number = item['episode']
+			display = 'S%.2dE%.2d' % (season_number, ep_number)
+			episode_date, premiered = adjust_premiered_date(item['premiered'], adjust_hours)
+			if not episode_date or current_date < episode_date: continue
+			kodi_utils.progressDialogBG.update(int(float(count) / float(len(ep_data)) * 100) if ep_data else 0, ls(32577), '%s' % display)
+			insert_append(make_batch_insert(action, 'episode', tmdb_id, season_number, ep_number, last_played, title))
+		Thread(target=simkl_watched_unwatched, args=(action, 'season', tmdb_id, season), daemon=True).start()
+		if watched_indicators == 1:
+			if not trakt_watched_unwatched(action, 'season', tmdb_id, tvdb_id, season): return kodi_utils.notification(32574)
+			clear_trakt_collection_watchlist_data('watchlist', 'tvshow')
+		elif watched_indicators == 2:
+			episodes = [{'number': i[3]} for i in insert_list]
+			if action == 'mark_as_watched':
+				for i in episodes: i['watched_at'] = last_played
+			data = [{'number': season, 'episodes': episodes}]
+			if not mdbl_watched_unwatched(action, 'season', tmdb_id, tvdb_id, data): return kodi_utils.notification(32574)
+			clear_mdbl_collection_watchlist_data('watchlist')
+		batch_mark_as_watched_unwatched(watched_indicators, insert_list, action)
+	finally:
+		kodi_utils.progressDialogBG.close()
 	if settings.sync_kodi_library_watchstatus(): batch_mark_kodi_library(action, insert_list, title, year)
 	kodi_utils.container_refresh()
 
@@ -717,10 +721,10 @@ def batch_mark_episodes_as_watched_unwatched_kodi_library(action, show_info, epi
 					progressDialogBG.update(int(float(count) / float(len(ep_ids)) * 100) if ep_ids else 0, ls(32577), display)
 					query = {"jsonrpc": "2.0", "method": "VideoLibrary.SetEpisodeDetails", "params": {"episodeid": ep_id, "playcount": playcount}, "id": 1}
 					action_append(query)
-				else: pass
 			except (ValueError, KeyError, IndexError): pass
 		r = execJSONRPC(json.dumps(action_list))
-		progressDialogBG.close()
 		return r
 	except Exception: pass
+	finally:
+		progressDialogBG.close()
 

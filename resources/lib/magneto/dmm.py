@@ -7,6 +7,9 @@ import ctypes, random, time
 import re, requests
 from fenom import client, source_utils
 
+# Module-level session for connection pooling (HTTP keep-alive)
+session = requests.Session()
+
 
 class source:
 	timeout = 7
@@ -59,7 +62,7 @@ class source:
 			dmmProblemKey, solution = get_secret()
 			headers = {'User-Agent': client.randomagent(), 'Accept-Encoding': 'gzip, deflate, br', 'Accept': '*/*'}
 			params = {'dmmProblemKey': dmmProblemKey, 'solution': solution}
-			results = requests.get(url, params=params, headers=headers, timeout=self.timeout)
+			results = session.get(url, params=params, headers=headers, timeout=self.timeout)
 			response_json = results.json()
 			files = response_json.get('results', [])
 		except Exception:

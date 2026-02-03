@@ -6,6 +6,9 @@
 import requests
 from fenom import source_utils
 
+# Module-level session for connection pooling (HTTP keep-alive)
+session = requests.Session()
+
 
 class source:
 	timeout = 10
@@ -44,7 +47,7 @@ class source:
 				params = {'type': 'movie', 'id': '%s' % imdb}
 			# log_utils.log('url = %s' % url)
 			if 'timeout' in data: self.timeout = int(data['timeout'])
-			results = requests.get(url, params=params, headers=self._headers(), timeout=self.timeout)
+			results = session.get(url, params=params, headers=self._headers(), timeout=self.timeout)
 			response_json = results.json()
 			files = response_json.get('data', {}).get('results', [])
 			undesirables = source_utils.get_undesirables()
