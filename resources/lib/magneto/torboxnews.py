@@ -7,6 +7,9 @@ import hashlib, requests
 from fenom import source_utils
 from fenom.control import setting as getSetting
 
+# Module-level session for connection pooling (HTTP keep-alive)
+session = requests.Session()
+
 
 class source:
 	timeout = 9
@@ -46,7 +49,7 @@ class source:
 			# log_utils.log('url = %s' % url)
 			if 'timeout' in data: self.timeout = int(data['timeout'])
 			headers = {'User-Agent': self.user_agent, 'Authorization': 'Bearer %s' % self.token}
-			results = requests.get(url, params=params, headers=headers, timeout=self.timeout)
+			results = session.get(url, params=params, headers=headers, timeout=self.timeout)
 			response_json = results.json()
 			files = response_json.get('data', {}).get('nzbs', [])
 			undesirables = source_utils.get_undesirables()

@@ -96,15 +96,17 @@ class Indexer(Debrid):
 		len_files = len(files)
 		progressBG = kodi_utils.progressDialogBG
 		progressBG.create('Offcloud', 'Clearing cloud files')
-		for count, i in enumerate(files, 1):
-			try:
-				req = Thread(target=self.delete_torrent, args=(i['requestId'],), name=i['fileName'])
-				req.start()
-				progressBG.update(int(count / len_files * 100), '%s: %s...' % (ls(32785), req.name))
-				req.join(1)
+		try:
+			for count, i in enumerate(files, 1):
+				try:
+					req = Thread(target=self.delete_torrent, args=(i['requestId'],), name=i['fileName'])
+					req.start()
+					progressBG.update(int(count / len_files * 100), '%s: %s...' % (ls(32785), req.name))
+					req.join(1)
+				except Exception: pass
+		finally:
+			try: progressBG.close()
 			except Exception: pass
-		try: progressBG.close()
-		except Exception: pass
 		self.clear_cache()
 
 	def show_account_info(self):

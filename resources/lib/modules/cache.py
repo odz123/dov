@@ -127,22 +127,23 @@ def clean_databases(current_time=None, database_check=True, silent=False):
 	if database_check: check_databases()
 	current_time = current_time or get_current_time()
 	command_base = 'DELETE from %s WHERE CAST(%s AS INT) <= ?'
-	for db, sql in (
-		(external_db, command_base % ('results_data', 'expires')),
-		(debridcache_db, command_base % ('debrid_data', 'expires')),
-		(maincache_db, command_base % ('maincache', 'expires')),
-		(metacache_db, command_base % ('metadata', 'expires')),
-		(metacache_db, command_base % ('function_cache', 'expires')),
-		(metacache_db, command_base % ('season_metadata', 'expires')),
-		(metacache_db, command_base % ('stremio_metadata', 'expires'))
-	):
+	# Group cleanup commands per database to avoid redundant connections
+	# Each entry: (database, list_of_table_expire_column_pairs)
+	db_cleanup_groups = (
+		(external_db, (('results_data', 'expires'),)),
+		(debridcache_db, (('debrid_data', 'expires'),)),
+		(maincache_db, (('maincache', 'expires'),)),
+		(metacache_db, (('metadata', 'expires'), ('function_cache', 'expires'), ('season_metadata', 'expires'), ('stremio_metadata', 'expires'))),
+	)
+	for db, table_groups in db_cleanup_groups:
 		dbcon = None
 		try:
 			dbcon = database_connect(db)
 			dbcur = dbcon.cursor()
 			dbcur.execute("""PRAGMA synchronous = OFF""")
 			dbcur.execute("""PRAGMA journal_mode = OFF""")
-			dbcur.execute(sql, (current_time,))
+			for table, expires_col in table_groups:
+				dbcur.execute(command_base % (table, expires_col), (current_time,))
 			dbcon.commit()
 			dbcur.execute("""VACUUM""")
 		except Exception:
@@ -279,12 +280,14 @@ def clear_all_cache():
 		('external_scrapers', '%s %s' % (ls(32118), ls(32524)))
 	)
 	kodi_utils.progressDialog.create('POV', '')
-	for count, (cache_type, cache_label) in enumerate(caches, 1):
-		try:
-			if kodi_utils.progressDialog.iscanceled(): break
-			kodi_utils.progressDialog.update(int(count / len(caches) * 100), line % (ls(32816), cache_label))
-			clear_cache(cache_type, silent=True)
-			kodi_utils.sleep(200)
-		except Exception: kodi_utils.notification(32574, 1500)
-	kodi_utils.progressDialog.close()
+	try:
+		for count, (cache_type, cache_label) in enumerate(caches, 1):
+			try:
+				if kodi_utils.progressDialog.iscanceled(): break
+				kodi_utils.progressDialog.update(int(count / len(caches) * 100), line % (ls(32816), cache_label))
+				clear_cache(cache_type, silent=True)
+				kodi_utils.sleep(200)
+			except Exception: kodi_utils.notification(32574, 1500)
+	finally:
+		kodi_utils.progressDialog.close()
 
