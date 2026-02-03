@@ -16,6 +16,24 @@ def _safe_int(value, default=0):
 	try: return int(value)
 	except (ValueError, TypeError): return default
 
+class ProgressDialogManager:
+	"""Context manager for safe progress dialog handling to prevent resource leaks."""
+	def __init__(self, meta, create_func, close_func):
+		self.meta = meta
+		self.create_func = create_func
+		self.close_func = close_func
+		self.dialog = None
+
+	def __enter__(self):
+		try:
+			self.dialog = self.create_func(self.meta)
+		except Exception: pass
+		return self.dialog
+
+	def __exit__(self, exc_type, exc_val, exc_tb):
+		self.close_func(self.dialog)
+		return False  # Don't suppress exceptions
+
 POVPlayer, progressDialogBG, notification = player.POVPlayer, kodi_utils.progressDialogBG, kodi_utils.notification
 show_busy_dialog, hide_busy_dialog, close_all_dialog = kodi_utils.show_busy_dialog, kodi_utils.hide_busy_dialog, kodi_utils.close_all_dialog
 get_property, set_property, clear_property = kodi_utils.get_property, kodi_utils.set_property, kodi_utils.clear_property
@@ -347,12 +365,18 @@ class SourceSelect:
 		self.progress_dialog = create_window(('windows.sources', 'ProgressMedia'), 'progress_media.xml', meta=self.meta)
 		Thread(target=self.progress_dialog.run).start()
 
-	def _kill_progress_dialog(self):
-		try: self.progress_dialog.close()
-		except Exception: close_all_dialog()
-		try: del self.progress_dialog
+	def _kill_progress_dialog(self, dialog=None):
+		"""Safely close and cleanup progress dialog to prevent resource leaks."""
+		target = dialog if dialog is not None else self.progress_dialog
+		if target is not None:
+			try: target.close()
+			except Exception: pass
+		try: close_all_dialog()
 		except Exception: pass
-		self.progress_dialog = None
+		if dialog is None:
+			try: del self.progress_dialog
+			except Exception: pass
+			self.progress_dialog = None
 
 	def display_results(self, results):
 		window_style = results_xml_style()
@@ -796,10 +820,14 @@ class Manager:
 		self.progress_dialog = create_window(('windows.sources', 'ProgressMedia'), 'progress_media.xml', meta=self.meta)
 		Thread(target=self.progress_dialog.run).start()
 
-	def _kill_progress_dialog(self):
-		try: self.progress_dialog.close()
-		except Exception: pass
-		try: del self.progress_dialog
-		except Exception: pass
-		self.progress_dialog = None
+	def _kill_progress_dialog(self, dialog=None):
+		"""Safely close and cleanup progress dialog to prevent resource leaks."""
+		target = dialog if dialog is not None else self.progress_dialog
+		if target is not None:
+			try: target.close()
+			except Exception: pass
+		if dialog is None:
+			try: del self.progress_dialog
+			except Exception: pass
+			self.progress_dialog = None
 

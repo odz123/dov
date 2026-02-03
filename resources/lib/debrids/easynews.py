@@ -66,8 +66,9 @@ def spool_easynews(params):
 		kodi_utils.progressDialogBG.close()
 	shutdown = Event()
 	fileobj = kodi_utils.open_file(file_path, 'w')
+	thread = None
 	try:
-		thread = Thread(target=_downloader, args=(response, fileobj, shutdown))
+		thread = Thread(target=_downloader, args=(response, fileobj, shutdown), daemon=True)
 		thread.start()
 		for i in range(20):
 			if fileobj.size() > 1048576 * 20: break
@@ -75,7 +76,10 @@ def spool_easynews(params):
 		POVPlayer().run(file_path, json.loads(params.get('meta', '{}')))
 	finally:
 		shutdown.set()
-		fileobj.close()
+		if thread and thread.is_alive():
+			thread.join(timeout=5.0)  # Wait up to 5 seconds for thread to finish
+		try: fileobj.close()
+		except Exception: pass
 		kodi_utils.delete_file(file_path)
 
 def _downloader(response, fileobj, shutdown):
@@ -85,6 +89,9 @@ def _downloader(response, fileobj, shutdown):
 			if chunk: fileobj.write(chunk)
 	except Exception as e:
 		kodi_utils.logger('POV easynews Downloader Exception', str(e))
+	finally:
+		try: response.close()
+		except Exception: pass
 
 def account_info(params):
 	from datetime import datetime
@@ -107,5 +114,8 @@ def account_info(params):
 		append(ls(32762) % usage_info[1].replace('Gigs', 'GB'))
 		kodi_utils.hide_busy_dialog()
 		return kodi_utils.show_text(ls(32070).upper(), '\n\n'.join(body), font_size='large')
-	except Exception: kodi_utils.hide_busy_dialog()
+	except Exception as e:
+		kodi_utils.logger('easynews.account_info', str(e))
+	finally:
+		kodi_utils.hide_busy_dialog()
 
