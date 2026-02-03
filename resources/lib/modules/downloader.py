@@ -209,14 +209,24 @@ class Downloader:
 		self.resp = self.get_response(self.url, self.headers, 0)
 		if not self.resp: self.return_notification(ok_dialog=32575)
 		try: self.content = int(self.resp.headers['Content-Length'])
-		except Exception: self.content = 0
+		except (KeyError, ValueError, TypeError): self.content = 0
 		try: self.resumable = 'bytes' in self.resp.headers['Accept-Ranges'].lower()
-		except Exception: self.resumable = False
-		if self.content < 1: self.return_notification(ok_dialog=32575)
+		except (KeyError, AttributeError): self.resumable = False
+		if self.content < 1:
+			self._close_response()
+			self.return_notification(ok_dialog=32575)
 		self.size = 1024 * 1024
 		self.mb = self.content / (1024 * 1024)
 		if self.content < self.size: self.size = self.content
 		kodi_utils.hide_busy_dialog()
+
+	def _close_response(self):
+		"""Safely close the HTTP response to prevent resource leaks."""
+		try:
+			if self.resp:
+				self.resp.close()
+		except Exception: pass
+		self.resp = None
 
 	def start_download(self, url, dest):
 		if self.action not in ('image', 'meta.pack'):
@@ -255,6 +265,7 @@ class Downloader:
 							f.write(c)
 							del c
 						f.close()
+						self._close_response()
 						return self.finish_download(self.final_name, self.media_type, True, self.image)
 			except Exception as e:
 				error = True
@@ -286,11 +297,13 @@ class Downloader:
 				if (not self.resumable and resume >= 50) or resume >= 500:
 					try: f.close()
 					except Exception: pass
+					self._close_response()
 					return self.finish_download(self.final_name, self.media_type, False, self.image)
 				resume += 1
 				errors  = 0
 				if self.resumable:
 					chunks  = []
+					self._close_response()  # Close old response before creating new one
 					self.resp = self.get_response(url, self.headers, total)
 				else: pass
 

@@ -187,11 +187,11 @@ class TorBoxAPI:
 			if not season: selected_files.sort(key=lambda k: k['size'], reverse=True)
 			file_key = next((i['link'] for i in selected_files), None)
 			file_url = self.unrestrict_usenet(file_key)
-			if not store_to_cloud: Thread(target=self.delete_usenet, args=(nzb_id,)).start()
+			if not store_to_cloud: Thread(target=self.delete_usenet, args=(nzb_id,), daemon=True).start()
 			return file_url
 		except Exception as e:
-			kodi_utils.logger('main exception', str(e))
-			if nzb_id: Thread(target=self.delete_usenet, args=(nzb_id,)).start()
+			kodi_utils.logger('torbox_api.resolve_nzb', str(e))
+			if nzb_id: Thread(target=self.delete_usenet, args=(nzb_id,), daemon=True).start()
 			return None
 
 	def user_cloud(self, request_id=None, check_cache=True, completed=True):
@@ -230,7 +230,9 @@ class TorBoxAPI:
 				clear_property('torbox_usenet_queries')
 				dbcon.commit()
 				usenet_queries_success = True
-			except Exception: usenet_queries_success = False
+			except Exception as e:
+				kodi_utils.logger('torbox_api.clear_cache usenet_queries', str(e))
+				usenet_queries_success = False
 			# USER CLOUD
 			try:
 				dbcur.execute("""SELECT id FROM maincache WHERE id LIKE ?""", ('pov_tb_user_cloud%',))
@@ -240,8 +242,12 @@ class TorBoxAPI:
 					for i in user_cloud_cache: clear_property(i)
 					dbcon.commit()
 				user_cloud_success = True
-			except Exception: user_cloud_success = False
-		except Exception: return False
+			except Exception as e:
+				kodi_utils.logger('torbox_api.clear_cache user_cloud', str(e))
+				user_cloud_success = False
+		except Exception as e:
+			kodi_utils.logger('torbox_api.clear_cache', str(e))
+			return False
 		finally:
 			dbcon.close()
 		# HASH CACHED STATUS
@@ -249,7 +255,9 @@ class TorBoxAPI:
 			with DebridCache() as dc:
 				dc.clear_debrid_results('tb')
 			hash_cache_status_success = True
-		except Exception: hash_cache_status_success = False
+		except Exception as e:
+			kodi_utils.logger('torbox_api.clear_cache hash_cache', str(e))
+			hash_cache_status_success = False
 		if False in (usenet_queries_success, user_cloud_success, hash_cache_status_success): return False
 		return True
 
