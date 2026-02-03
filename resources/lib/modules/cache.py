@@ -185,7 +185,8 @@ def clear_cache(cache_type, silent=False):
 	if cache_type == 'meta':
 		if not _confirm(): return
 		from caches.meta_cache import MetaCache
-		MetaCache().delete_all()
+		with MetaCache() as mc:
+			mc.delete_all()
 	elif cache_type == 'internal_scrapers':
 		if not _confirm(): return
 		from debrids.easynews_api import clear_media_results_database
@@ -196,8 +197,10 @@ def clear_cache(cache_type, silent=False):
 		if not _confirm(): return
 		from caches.providers_cache import ExternalProvidersCache
 		from caches.debrid_cache import DebridCache
-		data = ExternalProvidersCache().delete_cache()
-		debrid_cache = DebridCache().clear_database()
+		with ExternalProvidersCache() as epc:
+			data = epc.delete_cache()
+		with DebridCache() as dc:
+			debrid_cache = dc.clear_database()
 		success = (data, debrid_cache) == ('success', 'success')
 	elif cache_type == 'trakt':
 		if not _confirm(): return
@@ -244,7 +247,8 @@ def clear_cache(cache_type, silent=False):
 		success = OffcloudAPI().clear_cache()
 	elif cache_type == 'folders':
 		from caches.main_cache import MainCache
-		MainCache().delete_all_folderscrapers()
+		with MainCache() as mc:
+			mc.delete_all_folderscrapers()
 	elif cache_type == 'stremio_catalog':
 		if not _confirm(): return
 		from indexers.stremio_catalog import clear_stremio_catalog_cache
@@ -252,11 +256,13 @@ def clear_cache(cache_type, silent=False):
 	elif cache_type == 'stremio_meta':
 		if not _confirm(): return
 		from caches.meta_cache import MetaCache
-		MetaCache().delete_all_stremio()
+		with MetaCache() as mc:
+			mc.delete_all_stremio()
 	else: # 'list'
 		if not _confirm(): return
 		from caches.main_cache import MainCache
-		MainCache().delete_all_lists()
+		with MainCache() as mc:
+			mc.delete_all_lists()
 	if not silent and success: kodi_utils.notification(32576, 1500)
 
 def clear_all_cache():

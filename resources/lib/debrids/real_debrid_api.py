@@ -199,7 +199,8 @@ class RealDebridAPI:
 			dbcon.close()
 		# HASH CACHED STATUS
 		try:
-			DebridCache().clear_debrid_results('rd')
+			with DebridCache() as dc:
+				dc.clear_debrid_results('rd')
 			hash_cache_status_success = True
 		except Exception: hash_cache_status_success = False
 		if False in (user_cloud_success, download_links_success, hoster_links_success, hash_cache_status_success): return False

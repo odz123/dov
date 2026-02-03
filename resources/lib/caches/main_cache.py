@@ -89,12 +89,15 @@ class MainCache(BaseCache):
 
 def cache_object(function, string, url, json=False, expiration=24):
 	maincache = MainCache()
-	cache = maincache.get(string)
-	if cache: return cache
-	if isinstance(url, list): args = tuple(url)
-	else: args = (url,)
-	if json: result = function(*args).json()
-	else: result = function(*args)
-	maincache.set(string, result, expiration=timedelta(hours=expiration))
-	return result
+	try:
+		cache = maincache.get(string)
+		if cache: return cache
+		if isinstance(url, list): args = tuple(url)
+		else: args = (url,)
+		if json: result = function(*args).json()
+		else: result = function(*args)
+		maincache.set(string, result, expiration=timedelta(hours=expiration))
+		return result
+	finally:
+		maincache.close()
 

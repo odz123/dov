@@ -514,7 +514,10 @@ def get_stremio_movie_meta(imdb_id):
 	try:
 		from indexers.stremio_meta import StremioMetaProvider
 		provider = StremioMetaProvider()
-		return provider.get_movie_meta(imdb_id)
+		try:
+			return provider.get_movie_meta(imdb_id)
+		finally:
+			provider.cache.close()
 	except Exception:
 		pass
 	return None
@@ -524,7 +527,10 @@ def get_stremio_tvshow_meta(imdb_id):
 	try:
 		from indexers.stremio_meta import StremioMetaProvider
 		provider = StremioMetaProvider()
-		return provider.get_tvshow_meta(imdb_id)
+		try:
+			return provider.get_tvshow_meta(imdb_id)
+		finally:
+			provider.cache.close()
 	except Exception:
 		pass
 	return None
@@ -534,7 +540,10 @@ def get_stremio_season_meta(imdb_id, season):
 	try:
 		from indexers.stremio_meta import StremioMetaProvider
 		provider = StremioMetaProvider()
-		return provider.get_season_episodes(imdb_id, int(season))
+		try:
+			return provider.get_season_episodes(imdb_id, int(season))
+		finally:
+			provider.cache.close()
 	except Exception:
 		pass
 	return None

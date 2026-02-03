@@ -1196,15 +1196,18 @@ class StremioIndexer:
 		try:
 			from indexers.stremio_meta import StremioMetaProvider
 			provider = StremioMetaProvider()
-			pov_type = 'movie' if meta_type == 'movie' else 'tvshow'
+			try:
+				pov_type = 'movie' if meta_type == 'movie' else 'tvshow'
 
-			if pov_type == 'movie':
-				pov_meta = provider._convert_movie_meta(stremio_meta, imdb_id)
-			else:
-				pov_meta = provider._convert_tvshow_meta(stremio_meta, imdb_id)
+				if pov_type == 'movie':
+					pov_meta = provider._convert_movie_meta(stremio_meta, imdb_id)
+				else:
+					pov_meta = provider._convert_tvshow_meta(stremio_meta, imdb_id)
 
-			if pov_meta:
-				provider.cache.set(pov_type, imdb_id, pov_meta)
+				if pov_meta:
+					provider.cache.set(pov_type, imdb_id, pov_meta)
+			finally:
+				provider.cache.close()
 		except Exception:
 			pass
 

@@ -613,16 +613,19 @@ def set_history(media_type, name, query):
 	from datetime import timedelta
 	string = 'pov_discover_%s_%s' % (media_type, query)
 	maincache = MainCache()
-	cache = maincache.get(string)
-	if cache: return
-	if media_type == 'movie':
-		mode = 'build_movie_list'
-		action = 'tmdb_movies_discover'
-	else:
-		mode = 'build_tvshow_list'
-		action = 'tmdb_tv_discover'
-	data = {'mode': mode, 'action': action, 'name': name, 'query': query}
-	maincache.set(string, data, expiration=timedelta(days=7))
+	try:
+		cache = maincache.get(string)
+		if cache: return
+		if media_type == 'movie':
+			mode = 'build_movie_list'
+			action = 'tmdb_movies_discover'
+		else:
+			mode = 'build_tvshow_list'
+			action = 'tmdb_tv_discover'
+		data = {'mode': mode, 'action': action, 'name': name, 'query': query}
+		maincache.set(string, data, expiration=timedelta(days=7))
+	finally:
+		maincache.close()
 
 def remove_from_history(params):
 	dbcon = kodi_utils.database_connect(maincache_db, isolation_level=None)

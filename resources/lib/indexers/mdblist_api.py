@@ -180,15 +180,18 @@ def mdbl_list_items(list_id, list_type):
 	elif list_id == 'watchlist': return mdblist_watchlist('all', None, '')
 	else: url = 'lists/%s/items?unified=true' % list_id
 	cache = MainCache()
-	cache_get, cache_set = cache.get, cache.set
-	string = 'mdbl_userlists_%s' % list_id
-	result = cache_get(string)
-	if not result:
-		result = call_mdblist(url, params=params)
-		if result: cache_set(string, result, expiration=timedelta(hours=EXPIRES_1_HOURS))
-	if list_type and ignore_articles and not sort_index:
-		result.sort(key=lambda k: title_key(k['title'], ignore_articles), reverse=False)
-	return result
+	try:
+		cache_get, cache_set = cache.get, cache.set
+		string = 'mdbl_userlists_%s' % list_id
+		result = cache_get(string)
+		if not result:
+			result = call_mdblist(url, params=params)
+			if result: cache_set(string, result, expiration=timedelta(hours=EXPIRES_1_HOURS))
+		if list_type and ignore_articles and not sort_index:
+			result.sort(key=lambda k: title_key(k['title'], ignore_articles), reverse=False)
+		return result
+	finally:
+		cache.close()
 
 def mdbl_modify_collection(data, action='add'):
 	if action == 'add': url, key = 'sync/collection', 'updated'
@@ -243,7 +246,8 @@ def mdbl_indicators_movies(watched_info):
 	if not watched_items: return
 #	threads = list(make_thread_list(_process, watched_items, Thread))
 	for i in TaskPool().tasks(_process, watched_items, Thread): i.join()
-	mdbl_cache.MDBLCache().set_bulk_movie_watched(insert_list)
+	with mdbl_cache.MDBLCache() as mc:
+		mc.set_bulk_movie_watched(insert_list)
 
 def mdbl_indicators_tv(watched_info):
 	def _process(item):
@@ -259,7 +263,8 @@ def mdbl_indicators_tv(watched_info):
 	if not watched_items: return
 #	threads = list(make_thread_list(_process, watched_items, Thread))
 	for i in TaskPool().tasks(_process, watched_items, Thread): i.join()
-	mdbl_cache.MDBLCache().set_bulk_tvshow_watched(insert_list)
+	with mdbl_cache.MDBLCache() as mc:
+		mc.set_bulk_tvshow_watched(insert_list)
 
 def mdbl_progress(action, media, media_id, percent, season=None, episode=None, resume_id=None, refresh_mdb=False):
 	url = 'scrobble/pause'
@@ -339,7 +344,8 @@ def mdbl_progress_movies(progress_info):
 	if not progress_items: return
 	threads = list(make_thread_list(_process, progress_items, Thread))
 	for i in threads: i.join()
-	mdbl_cache.MDBLCache().set_bulk_movie_progress(insert_list)
+	with mdbl_cache.MDBLCache() as mc:
+		mc.set_bulk_movie_progress(insert_list)
 
 def mdbl_progress_tv(progress_info):
 	def _process(item):
@@ -357,7 +363,8 @@ def mdbl_progress_tv(progress_info):
 	if not progress_items: return
 	threads = list(make_thread_list(_process, progress_items, Thread))
 	for i in threads: i.join()
-	mdbl_cache.MDBLCache().set_bulk_tvshow_progress(insert_list)
+	with mdbl_cache.MDBLCache() as mc:
+		mc.set_bulk_tvshow_progress(insert_list)
 
 def get_mdbl_movie_id(item):
 	if item['tmdb']: return item['tmdb']

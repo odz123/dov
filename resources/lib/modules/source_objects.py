@@ -132,32 +132,32 @@ class ExternalSource:
 		return self.sources
 
 	def get_movie_source(self, provider, module):
-		epc = ExternalProvidersCache()
-		sources = epc.get(provider, self.media_type, self.tmdb_id, self.title, self.year, '', '')
-		if sources is None:
-			sources = module().sources(self.data, self.hostDict)
-			sources = self.process_sources(provider, sources)
-			epc.set(provider, self.media_type, self.tmdb_id, self.title, self.year, '', '', sources, self.single_expiry)
+		with ExternalProvidersCache() as epc:
+			sources = epc.get(provider, self.media_type, self.tmdb_id, self.title, self.year, '', '')
+			if sources is None:
+				sources = module().sources(self.data, self.hostDict)
+				sources = self.process_sources(provider, sources)
+				epc.set(provider, self.media_type, self.tmdb_id, self.title, self.year, '', '', sources, self.single_expiry)
 		if sources:
 			self.sources.extend(sources)
 
 	def get_episode_source(self, provider, module, pack):
 		if pack in pack_check: s_check, e_check = '' if pack == show_display else self.season, ''
 		else: s_check, e_check = self.season, self.episode
-		epc = ExternalProvidersCache()
-		sources = epc.get(provider, self.media_type, self.tmdb_id, self.title, self.year, s_check, e_check)
-		if sources is None:
-			if pack == show_display:
-				expiry_hours = self.show_expiry
-				sources = module().sources_packs(self.data, self.hostDict, search_series=True, total_seasons=self.total_seasons)
-			elif pack == season_display:
-				expiry_hours = self.season_expiry
-				sources = module().sources_packs(self.data, self.hostDict)
-			else:
-				expiry_hours = self.single_expiry
-				sources = module().sources(self.data, self.hostDict)
-			sources = self.process_sources(provider, sources)
-			epc.set(provider, self.media_type, self.tmdb_id, self.title, self.year, s_check, e_check, sources, expiry_hours)
+		with ExternalProvidersCache() as epc:
+			sources = epc.get(provider, self.media_type, self.tmdb_id, self.title, self.year, s_check, e_check)
+			if sources is None:
+				if pack == show_display:
+					expiry_hours = self.show_expiry
+					sources = module().sources_packs(self.data, self.hostDict, search_series=True, total_seasons=self.total_seasons)
+				elif pack == season_display:
+					expiry_hours = self.season_expiry
+					sources = module().sources_packs(self.data, self.hostDict)
+				else:
+					expiry_hours = self.single_expiry
+					sources = module().sources(self.data, self.hostDict)
+				sources = self.process_sources(provider, sources)
+				epc.set(provider, self.media_type, self.tmdb_id, self.title, self.year, s_check, e_check, sources, expiry_hours)
 		if sources:
 			if pack == season_display: sources = [i for i in sources if not 'episode_start' in i or i['episode_start'] <= self.episode <= i['episode_end']]
 			elif pack == show_display: sources = [i for i in sources if i['last_season'] >= self.season]

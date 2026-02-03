@@ -144,7 +144,8 @@ class OffcloudAPI:
 			dbcon.close()
 		# HASH CACHED STATUS
 		try:
-			DebridCache().clear_debrid_results('oc')
+			with DebridCache() as dc:
+				dc.clear_debrid_results('oc')
 			hash_cache_status_success = True
 		except Exception: hash_cache_status_success = False
 		if False in (user_cloud_success, hash_cache_status_success): return False

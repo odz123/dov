@@ -26,11 +26,14 @@ def search(imdb_id, season=None, episode=None):
 		cache_name += '_%s_%s' % (season, episode)
 		params.update({'season': season, 'episode': episode})
 	maincache = MainCache()
-	cache = maincache.get(cache_name)
-	if cache: return cache
-	response = _get(search_url, params=params, retry=True)
-	if not response.ok: return []
-	response = response.json()
-	if response: maincache.set(cache_name, response, expiration=timedelta(hours=24))
-	return response
+	try:
+		cache = maincache.get(cache_name)
+		if cache: return cache
+		response = _get(search_url, params=params, retry=True)
+		if not response.ok: return []
+		response = response.json()
+		if response: maincache.set(cache_name, response, expiration=timedelta(hours=24))
+		return response
+	finally:
+		maincache.close()
 
