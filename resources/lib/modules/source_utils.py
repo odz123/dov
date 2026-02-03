@@ -8,7 +8,6 @@ from indexers.metadata import season_episodes_meta_with_stremio
 from modules import kodi_utils
 from modules.settings import check_prescrape_sources, date_offset, metadata_user_info
 from modules.utils import manual_function_import, adjust_premiered_date, get_datetime, jsondate_to_datetime, subtract_dates
-# from modules.kodi_utils import logger
 
 string = str
 RES_4K = ('.4k', 'hd4k', '4khd', '.uhd', 'ultrahd', 'ultra.hd', 'hd2160', '2160hd', '2160', '2160p', '216o', '216op')

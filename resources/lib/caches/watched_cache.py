@@ -9,7 +9,6 @@ from caches.mdbl_cache import clear_mdbl_collection_watchlist_data
 from caches.trakt_cache import clear_trakt_collection_watchlist_data
 from caches import ConnectionPool
 from modules import kodi_utils, settings, utils
-# logger = kodi_utils.logger
 
 timeout = 20
 ls, sleep = kodi_utils.local_string, kodi_utils.sleep

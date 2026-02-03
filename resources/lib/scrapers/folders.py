@@ -6,7 +6,6 @@ from modules import source_utils
 from modules.kodi_utils import list_dirs, open_file
 from modules.utils import clean_file_name, normalize, remove_accents, make_thread_list
 from modules.settings import source_folders_directory, filter_by_name
-# from modules.kodi_utils import logger
 
 extensions = source_utils.supported_video_extensions()
 internal_results, check_title, clean_title = source_utils.internal_results, source_utils.check_title, source_utils.clean_title

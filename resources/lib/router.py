@@ -16,7 +16,9 @@ class Router:
 
 	def routing(self, sys):
 		try: params = dict(parse_qsl(sys.argv[2][1:]))
-		except Exception as e: return logger('routing error', str(e))
+		except Exception as e:
+			logger('routing parse error', f'{e} - argv: {sys.argv}')
+			return
 
 		params_get = params.get
 		mode = params_get('mode', 'navigator.main')

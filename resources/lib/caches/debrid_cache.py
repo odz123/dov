@@ -1,6 +1,5 @@
 from datetime import datetime, timedelta
 from caches import BaseCache, debridcache_db
-# from modules.kodi_utils import logger
 
 GET_MANY = 'SELECT * FROM debrid_data WHERE hash in (%s)'
 SET_MANY = 'INSERT INTO debrid_data VALUES (?, ?, ?, ?)'

@@ -2,7 +2,6 @@ from debrids.premiumize_api import PremiumizeAPI as Debrid
 from modules import source_utils
 from modules.utils import clean_file_name, normalize
 from modules.settings import enabled_debrids_check, filter_by_name
-# from modules.kodi_utils import logger
 
 internal_results, check_title, clean_title = source_utils.internal_results, source_utils.check_title, source_utils.clean_title
 get_file_info, release_info_format, seas_ep_filter = source_utils.get_file_info, source_utils.release_info_format, source_utils.seas_ep_filter

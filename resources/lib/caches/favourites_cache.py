@@ -1,7 +1,6 @@
 from caches import BaseCache, favourites_db, container_refresh
 from modules import settings
 from modules.utils import sort_for_article, paginate_list
-# from modules.kodi_utils import logger
 
 INSERT_FAV = 'INSERT INTO favourites VALUES (?, ?, ?)'
 DELETE_FAV = 'DELETE FROM favourites where db_type = ? and tmdb_id = ?'

@@ -4,7 +4,6 @@ from debrids.alldebrid_api import AllDebridAPI as Debrid
 from modules import kodi_utils
 from modules.source_utils import supported_video_extensions
 from modules.utils import clean_file_name, normalize
-# from modules.kodi_utils import logger
 
 get_setting, set_setting = kodi_utils.get_setting, kodi_utils.set_setting
 ls, build_url, make_listitem = kodi_utils.local_string, kodi_utils.build_url, kodi_utils.make_listitem

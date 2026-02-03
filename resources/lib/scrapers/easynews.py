@@ -2,7 +2,6 @@ from debrids.easynews_api import EasyNewsAPI as Debrid
 from modules import source_utils
 from modules.utils import clean_file_name, normalize
 from modules.settings import filter_by_name, easynews_language_filter
-# from modules.kodi_utils import logger
 
 internal_results, check_title = source_utils.internal_results, source_utils.check_title
 get_file_info, release_info_format = source_utils.get_file_info, source_utils.release_info_format

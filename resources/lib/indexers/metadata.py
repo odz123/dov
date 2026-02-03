@@ -3,7 +3,6 @@ from indexers import tmdb_api as tmdb, fanarttv_api as fanarttv
 from caches.meta_cache import MetaCache
 from modules.utils import jsondate_to_datetime, subtract_dates, TaskPool
 from modules.kodi_utils import get_setting
-# from modules.kodi_utils import logger
 
 movie_data, tvshow_data, tmdb_english_translation = tmdb.movie_details, tmdb.tvshow_details, tmdb.english_translation
 movie_external_id, tvshow_external_id, season_episodes_details = tmdb.movie_external_id, tmdb.tvshow_external_id, tmdb.season_episodes_details

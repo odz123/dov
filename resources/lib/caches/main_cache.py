@@ -1,6 +1,5 @@
 from datetime import datetime, timedelta
 from caches import BaseCache, maincache_db, get_property, set_property, clear_property, literal_eval
-# from modules.kodi_utils import logger
 
 BASE_GET = 'SELECT expires, data FROM maincache WHERE id = ?'
 BASE_SET = 'INSERT OR REPLACE INTO maincache (id, data, expires) VALUES (?, ?, ?)'

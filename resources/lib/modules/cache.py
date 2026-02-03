@@ -1,5 +1,4 @@
 from modules import kodi_utils
-# logger = kodi_utils.logger
 
 # Constants
 BYTES_PER_MB = 1048576
