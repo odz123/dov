@@ -108,9 +108,18 @@ def get_headers_for_url(base_url, extra_headers=None):
 	return headers
 
 
-def _urllib_fallback(url, timeout=8):
-	"""Fallback fetch using urllib.request (different TLS fingerprint).
-	Used when requests library gets blocked by Cloudflare."""
+def _urllib_fallback_core(url, timeout=8, return_raw=False):
+	"""Core fallback fetch using urllib.request (different TLS fingerprint).
+	Used when requests library gets blocked by Cloudflare.
+
+	Args:
+		url: URL to fetch
+		timeout: Request timeout in seconds
+		return_raw: If True, returns response-like object; if False, returns parsed JSON
+
+	Returns:
+		Parsed JSON dict/list, or response-like object, or None on failure
+	"""
 	import json
 	import gzip
 	from io import BytesIO
@@ -131,16 +140,41 @@ def _urllib_fallback(url, timeout=8):
 		for key, value in headers.items():
 			req.add_header(key, value)
 		response = urllib.request.urlopen(req, timeout=int(timeout))
-		result = response.read(5242880)
+		data = response.read(5242880)
 		try:
 			encoding = response.headers.get('Content-Encoding', '')
 		except Exception:
 			encoding = ''
 		if encoding == 'gzip':
-			result = gzip.GzipFile(fileobj=BytesIO(result)).read()
-		return json.loads(result.decode('utf-8', errors='ignore'))
+			data = gzip.GzipFile(fileobj=BytesIO(data)).read()
+
+		if return_raw:
+			content_type = ''
+			try:
+				content_type = response.headers.get('Content-Type', '')
+			except Exception:
+				pass
+
+			class UrllibResponse:
+				"""Simple response-like object compatible with requests.Response."""
+				def __init__(self, data, content_type):
+					self.status_code = 200
+					self.headers = {'content-type': content_type}
+					self.content = data
+					self.text = data.decode('utf-8', errors='ignore')
+				def json(self):
+					return json.loads(self.content.decode('utf-8', errors='ignore'))
+
+			return UrllibResponse(data, content_type)
+		else:
+			return json.loads(data.decode('utf-8', errors='ignore'))
 	except Exception:
 		return None
+
+
+def _urllib_fallback(url, timeout=8):
+	"""Fallback fetch using urllib.request - returns parsed JSON."""
+	return _urllib_fallback_core(url, timeout, return_raw=False)
 
 
 def fetch_json(url, timeout=8, headers=None, max_retries=2, error_callback=None):
@@ -266,54 +300,8 @@ def fetch_raw(url, timeout=8, headers=None, max_retries=2):
 
 
 def _urllib_fallback_raw(url, timeout=8):
-	"""Fallback raw fetch using urllib.request.
-	Returns a response-like object or None on failure."""
-	import gzip
-	import json
-	from io import BytesIO
-	import urllib.request
-
-	headers = {
-		'User-Agent': BROWSER_HEADERS['User-Agent'],
-		'Accept': 'application/json, text/plain, */*',
-		'Accept-Language': 'en-US,en;q=0.9',
-		'Accept-Encoding': 'gzip, deflate',
-		'sec-ch-ua': BROWSER_HEADERS['sec-ch-ua'],
-		'sec-ch-ua-mobile': '?0',
-		'sec-ch-ua-platform': '"Windows"',
-	}
-
-	try:
-		req = urllib.request.Request(url)
-		for key, value in headers.items():
-			req.add_header(key, value)
-		response = urllib.request.urlopen(req, timeout=int(timeout))
-		data = response.read(5242880)
-		try:
-			encoding = response.headers.get('Content-Encoding', '')
-		except Exception:
-			encoding = ''
-		if encoding == 'gzip':
-			data = gzip.GzipFile(fileobj=BytesIO(data)).read()
-		content_type = ''
-		try:
-			content_type = response.headers.get('Content-Type', '')
-		except Exception:
-			pass
-
-		# Return a simple response-like object compatible with requests.Response
-		class UrllibResponse:
-			def __init__(self, data, content_type):
-				self.status_code = 200
-				self.headers = {'content-type': content_type}
-				self.content = data
-				self.text = data.decode('utf-8', errors='ignore')
-			def json(self):
-				return json.loads(self.content.decode('utf-8', errors='ignore'))
-
-		return UrllibResponse(data, content_type)
-	except Exception:
-		return None
+	"""Fallback raw fetch using urllib.request - returns response-like object."""
+	return _urllib_fallback_core(url, timeout, return_raw=True)
 
 
 def fetch_streams(base_url, media_type, media_id, timeout=8, error_callback=None):

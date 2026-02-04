@@ -4,7 +4,7 @@
 """
 
 import ctypes, random, time
-import re, requests
+import requests
 from fenom import client, source_utils
 
 # Module-level session for connection pooling (HTTP keep-alive)
