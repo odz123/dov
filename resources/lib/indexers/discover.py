@@ -95,7 +95,7 @@ class Discover:
 		api_result = function(title, year)
 		if not api_result: return kodi_utils.notification(32575)
 		results = api_result.get('results', [])
-		if len(results) == 0: return kodi_utils.notification(32575)
+		if not results: return kodi_utils.notification(32575)
 		choice_list = []
 		append = choice_list.append
 		for item in results:

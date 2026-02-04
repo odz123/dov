@@ -300,7 +300,7 @@ def _fetch_all_items(args):
 				if simkl_id:
 					try:
 						lookup = simkl_search_by_id('simkl', simkl_id)
-						if lookup and isinstance(lookup, list) and len(lookup) > 0:
+						if isinstance(lookup, list) and lookup:
 							lookup_ids = lookup[0].get('ids') or {}
 							tmdb_id = lookup_ids.get('tmdb') or ''
 							imdb_id = lookup_ids.get('imdb') or ''
