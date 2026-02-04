@@ -4,7 +4,6 @@ from indexers.metadata import tvshow_meta_with_stremio, season_episodes_meta_wit
 from caches.watched_cache import get_watched_info_tv, get_watched_status_season, get_bookmarks, get_resumetime, get_watched_status_episode
 from modules import kodi_utils, settings
 from modules.utils import adjust_premiered_date, get_datetime
-# from modules.kodi_utils import logger
 
 tv_meta_function, season_meta_function, default_duration = tvshow_meta_with_stremio, season_episodes_meta_with_stremio, 3600
 KODI_VERSION, make_cast_list = kodi_utils.get_kodi_version(), kodi_utils.make_cast_list

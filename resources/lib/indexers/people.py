@@ -4,7 +4,6 @@ from windows import open_window
 from indexers.images import Images
 from indexers.tmdb_api import tmdb_people_info, tmdb_image_base
 from modules.kodi_utils import media_path, select_dialog, dialog, notification
-# from modules.kodi_utils import logger
 
 poster_empty = media_path('people.png')
 

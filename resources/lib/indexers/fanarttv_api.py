@@ -1,5 +1,4 @@
 import requests
-# from modules.kodi_utils import logger
 
 # Code snippets from nixgates. Thankyou.
 API_KEY = 'a7ad21743fd710fccb738232f2fbdcfc'
@@ -46,7 +45,7 @@ def parse_art(art, language):
 		if not result: result = [(x['url'], x['likes']) for x in art if any(value == x.get('lang') for value in ('00', ''))]
 		if result:
 			result.sort(key=lambda x: int(x[1]), reverse=True)
-			result = [x[0] for x in result][0]
+			result = result[0][0]
 	except Exception: result = ''
 	if not 'http' in result: result = ''
 	return result

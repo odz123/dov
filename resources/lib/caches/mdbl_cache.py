@@ -1,7 +1,6 @@
 from ast import literal_eval
 from modules.kodi_utils import mdbl_db, database_connect
 from modules.utils import chunks
-# from modules.kodi_utils import logger
 
 timeout = 20
 SELECT = 'SELECT id FROM mdbl_data'

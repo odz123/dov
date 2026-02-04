@@ -9,7 +9,6 @@ from indexers.metadata import movie_external_id, tvshow_external_id
 from modules import kodi_utils, settings
 from modules.cache import check_databases
 from modules.utils import make_thread_list, paginate_list, sort_for_article, title_key, jsondate_to_datetime, TaskPool
-# logger = kodi_utils.logger
 
 get_setting, js2date = kodi_utils.get_setting, jsondate_to_datetime
 review_provider_id = {1: 'Trakt', 2: 'TMDb', 3: 'RT', 4: 'Metacritics'}

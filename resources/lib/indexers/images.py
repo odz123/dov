@@ -5,7 +5,7 @@ from windows import open_window
 from indexers.tmdb_api import tmdb_people_full_info, tmdb_popular_people, tmdb_image_base
 from indexers.imdb_api import imdb_images, people_get_imdb_id, imdb_people_images
 from modules.kodi_utils import media_path, notification, set_property, make_listitem, list_dirs, delete_file
-# from modules.kodi_utils import logger
+
 
 class Images:
 	def run(self, params):
@@ -169,8 +169,8 @@ class Images:
 					listitem = make_listitem()
 					image_url = os.path.join(folder_path, item)
 					try:
-						thumb_url = [i for i in thumbs if i == item][0]
-						thumb_url = os.path.join(thumbs_path, thumb_url)
+						thumb_url = os.path.join(thumbs_path, item) if item in thumbs else None
+						if not thumb_url: raise ValueError('not found')
 					except Exception:
 						thumb_url = os.path.join(folder_path, item)
 					listitem.setProperty('tikiskins.thumb', thumb_url)

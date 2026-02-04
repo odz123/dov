@@ -137,18 +137,8 @@ def extract_base_url_and_config(url):
 
 def _parse_addons_str(addons_str):
 	"""Parse addons string, trying JSON first then falling back to ast.literal_eval for backward compatibility"""
-	try:
-		addons = json.loads(addons_str)
-		return addons if isinstance(addons, list) else []
-	except (json.JSONDecodeError, ValueError):
-		pass
-	try:
-		import ast
-		addons = ast.literal_eval(addons_str)
-		return addons if isinstance(addons, list) else []
-	except Exception:
-		pass
-	return []
+	from modules.source_utils import _parse_stremio_addons
+	return _parse_stremio_addons(addons_str)
 
 
 def get_stremio_addons():

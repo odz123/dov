@@ -23,7 +23,6 @@ import time
 from ast import literal_eval
 from threading import Thread
 from modules.kodi_utils import get_setting, get_property, set_property, clear_property
-# from modules.kodi_utils import logger
 
 
 # Stremio to POV genre mapping

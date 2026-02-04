@@ -7,7 +7,6 @@ from indexers.tvshows import TVShows
 from modules import kodi_utils
 from modules.utils import paginate_list, TaskPool
 from modules.settings import paginate, page_limit, nav_jump_use_alphabet
-# logger = kodi_utils.logger
 
 KODI_VERSION, ls = kodi_utils.get_kodi_version(), kodi_utils.local_string
 build_url, make_listitem = kodi_utils.build_url, kodi_utils.make_listitem
