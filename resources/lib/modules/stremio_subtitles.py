@@ -10,13 +10,13 @@
 	- idPrefixes and per-resource type filtering
 """
 
+import json
 import os
 import re
 from modules.kodi_utils import (
 	get_setting, set_property, get_property, clear_property,
 	translate_path, notification, select_dialog
 )
-import json
 from modules import http_client
 
 
