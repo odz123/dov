@@ -31,6 +31,8 @@ def set_PRAGMAS(dbcon):
 	dbcur = dbcon.cursor()
 	dbcur.execute("""PRAGMA synchronous = OFF""")
 	dbcur.execute("""PRAGMA journal_mode = OFF""")
+	dbcur.execute("""PRAGMA mmap_size = 268435456""")
+	dbcur.execute("""PRAGMA cache_size = -8000""")
 	return dbcur
 
 def get_database(watched_indicators):
