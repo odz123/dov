@@ -1,7 +1,7 @@
 import json
 import time
 import re, random
-from concurrent.futures import ThreadPoolExecutor as TPE, as_completed
+from concurrent.futures import ThreadPoolExecutor as TPE
 from threading import Thread
 from windows import open_window, create_window
 from scrapers import folders
@@ -45,7 +45,7 @@ folder_scrapers = ('folder1', 'folder2', 'folder3', 'folder4', 'folder5')
 quality_ranks = {'4K': 1, '1080p': 2, '720p': 3, 'SD': 4, 'SCR': 5, 'CAM': 5, 'TELE': 5}
 av1_filter_key, hevc_filter_key, hdr_filter_key, dolby_vision_filter_key = '[B]AV1[/B]', '[B]HEVC[/B]', '[B]HDR[/B]', '[B]D/VISION[/B]'
 total_format, int_format, ext_format = '[COLOR %s][B]%s[/B][/COLOR]', '[COLOR %s][B]Int: [/B][/COLOR]%s', '[COLOR %s][B]Ext: [/B][/COLOR]%s'
-ext_scr_format, unfinshed_import_format, format_line = '[COLOR %s][B]%s[/B][/COLOR]', '[COLOR red]+%s[/COLOR]', '%s[CR]%s[CR]%s'
+ext_scr_format, format_line = '[COLOR %s][B]%s[/B][/COLOR]', '%s[CR]%s[CR]%s'
 diag_format, resolutions, pack_display = '4K: %s | 1080p: %s | 720p: %s | SD: %s | Total: %s', '4K 1080p 720p SD total', '%s (%s)'
 dialog_format = '[COLOR %s][B]%s[/B][/COLOR] 4K: %s | 1080p: %s | 720p: %s | SD: %s | Total: %s'
 remaining_format, season_str, show_str, nextep_str, nores_str = ls(32676), ls(32537), ls(32089), ls(32801), ls(32760)
@@ -102,7 +102,8 @@ class SourceSelect:
 		self.size_filter = int(get_setting('results.size_filter', '0'))
 		self.include_unknown_size = get_setting('results.include.unknown.size') == 'true'
 		self.sleep_time = settings.display_sleep_time()
-		self.timeout = int(get_setting('scrapers.timeout.1', '10')) * 2 if self.disabled_ignored else int(get_setting('scrapers.timeout.1', '10'))
+		base_timeout = int(get_setting('scrapers.timeout.1', '10'))
+		self.timeout = base_timeout * 2 if self.disabled_ignored else base_timeout
 		if get_setting('results.language_filter') == 'true': self.priority_language = get_setting('results.language')
 		else: self.priority_language = None
 		if not hasattr(self, 'meta'): self.meta = get_source_meta(self.params)
@@ -540,7 +541,7 @@ class SourceSelect:
 	def sort_results(self, results):
 		for item in results:
 			provider, quality = item['scrape_provider'], item.get('quality', 'SD')
-			account_type = item.get('debrid', provider).lower() if provider == 'external' else provider.lower()
+			account_type = (item.get('debrid', provider) if provider == 'external' else provider).lower()
 			item['provider_rank'] = self._get_provider_rank(account_type)
 			item['quality_rank'] = self._get_quality_rank(quality)
 		results.sort(key=self.sort_function)

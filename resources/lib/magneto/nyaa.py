@@ -47,7 +47,6 @@ class source:
 			url2 = self.search_link % quote_plus(query2)
 			url2 = '%s%s' % (self.base_link, url2)
 			urls.append(url2)
-			# log_utils.log('urls = %s' % urls)
 			if 'timeout' in data: self.timeout = int(data['timeout'])
 			undesirables = source_utils.get_undesirables()
 			check_foreign_audio = source_utils.check_foreign_audio()

@@ -46,7 +46,6 @@ class source:
 				params.update({'season': int(season), 'episode': int(episode)})
 			else:
 				hdlr = year
-			# log_utils.log('url = %s' % url)
 			if 'timeout' in data: self.timeout = int(data['timeout'])
 			headers = {'User-Agent': self.user_agent, 'Authorization': 'Bearer %s' % self.token}
 			results = session.get(url, params=params, headers=headers, timeout=self.timeout)

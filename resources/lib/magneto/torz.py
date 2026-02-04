@@ -49,7 +49,6 @@ class source:
 				hdlr = year
 				url = '%s%s' % (self.base_link, self.movieSearch_link)
 				params = {'sid': imdb}
-			# log_utils.log('url = %s' % url)
 			if 'timeout' in data: self.timeout = int(data['timeout'])
 			from urllib.parse import urlencode
 			full_url = '%s?%s' % (url, urlencode(params))

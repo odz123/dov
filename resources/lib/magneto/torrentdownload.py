@@ -43,7 +43,6 @@ class source:
 			url = '%s%s' % (self.base_link, url)
 			urls.append(url)
 			urls.append(url + '&p=2')
-			# log_utils.log('urls = %s' % urls)
 			threads = []
 			append = threads.append
 			for url in urls:
