@@ -259,7 +259,7 @@ class Downloader:
 					if percent < 99:
 						error = True
 					else:
-						while len(chunks) > 0:
+						while chunks:
 							c = chunks.pop(0)
 							f.write(c)
 							del c

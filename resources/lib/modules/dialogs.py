@@ -23,7 +23,7 @@ def imdb_keywords_choice(media_type, imdb_id, poster):
 	from indexers.history import add_to_search_history
 	show_busy_dialog()
 	keywords_info = imdb_keywords(imdb_id)
-	if len(keywords_info) == 0:
+	if not keywords_info:
 		hide_busy_dialog()
 		return notification(32760, 1500)
 	meta_type = 'movie' if media_type == 'movies' else 'tvshow'
@@ -71,7 +71,7 @@ def genres_choice(media_type, genres, poster, return_genres=False):
 	else: genre_action, meta_type, action = tvshow_genres, 'tvshow', 'tmdb_tv_genres'
 	genre_list = _process_dicts(genres, genre_action)
 	if return_genres: return genre_list
-	if len(genre_list) == 0: return notification(32760, 1500)
+	if not genre_list: return notification(32760, 1500)
 	mode = 'build_%s_list' % meta_type
 	choices = [{'mode': mode, 'action': action, 'genre_id': i['value'][0]} for i in genre_list]
 	list_items = [{'line1': i['genre'], 'icon': poster} for i in genre_list]

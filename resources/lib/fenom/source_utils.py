@@ -617,10 +617,11 @@ def scraper_error(provider):
 
 def is_host_valid(url, domains):
 	try:
-		if any(x in url.lower() for x in ('.rar.', '.zip.', '.part.', '.sample.')) or any(url.lower().endswith(x) for x in ('.bmp', '.gif', '.jpg', '.nfo', '.part', '.png', '.rar', '.sample.', '.srt', '.txt', '.zip')):
+		url_lower = url.lower()
+		if any(x in url_lower for x in ('.rar.', '.zip.', '.part.', '.sample.')) or any(url_lower.endswith(x) for x in ('.bmp', '.gif', '.jpg', '.nfo', '.part', '.png', '.rar', '.sample.', '.srt', '.txt', '.zip')):
 			return False, ''
 		host = __top_domain(url)
-		hosts = [domain.lower() for domain in domains if host and host in domain.lower()]
+		hosts = [domain_lower for domain in domains if host and host in (domain_lower := domain.lower())]
 		if hosts and '.' not in host: host = hosts[0]
 		if hosts and any([h for h in ('google', 'picasa', 'blogspot') if h in host]): host = 'gvideo'
 		if hosts and any([h for h in ('akamaized', 'ocloud') if h in host]): host = 'CDN'

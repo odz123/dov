@@ -679,8 +679,8 @@ class Manager:
 		self.internal_scrapers, self.prescrape_sources = internal_scrapers, prescrape_sources
 		self.display_uncached_torrents = display_uncached_torrents
 		self.disabled_ignored, self.progress_dialog = disabled_ignored, progress_dialog
-		self.internal_activated = len(self.internal_scrapers) > 0
-		self.internal_prescraped = len(self.prescrape_sources) > 0
+		self.internal_activated = bool(self.internal_scrapers)
+		self.internal_prescraped = bool(self.prescrape_sources)
 		self.processed_prescrape = False
 		self.processed_internal_scrapers, self.sources, self.final_sources = [], [], []
 		self.processed_internal_scrapers_append = self.processed_internal_scrapers.append

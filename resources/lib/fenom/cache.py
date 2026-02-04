@@ -25,12 +25,8 @@ def get(function, duration, *args):
 				return result
 
 		fresh_result = repr(function(*args))
-		invalid = False
-		try:  # Sometimes None is returned as a string instead of None type for "fresh_result"
-			if not fresh_result: invalid = True
-			elif fresh_result == 'None' or fresh_result == '' or fresh_result == '[]' or fresh_result == '{}': invalid = True
-			elif len(fresh_result) == 0: invalid = True
-		except Exception: pass
+		# Sometimes None is returned as a string instead of None type for "fresh_result"
+		invalid = not fresh_result or fresh_result in ('None', '', '[]', '{}')
 
 		if invalid: # If the cache is old, but we didn't get "fresh_result", return the old cache
 			if cache_result: return result
