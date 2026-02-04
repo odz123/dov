@@ -223,7 +223,8 @@ class MenuEditor:
 	def _remove_active_shortcut_folder(self, main_menu_items_list, folder_name):
 		for x in main_menu_items_list:
 			try:
-				match = [i for i in x[1] if str(i['name']) == str(folder_name)][0]
+				match = next((i for i in x[1] if str(i['name']) == str(folder_name)), None)
+				if match is None: continue
 				new_list = [i for i in x[1] if i != match]
 				self._db_execute('set', x[0], new_list, refresh=False)
 			except Exception: pass
