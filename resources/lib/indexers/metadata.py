@@ -216,8 +216,8 @@ def english_translation(media_type, media_id, user_info):
 	return english
 
 def movie_expiry(current_date, meta, user_info=None):
+	cache_mid = _get_cache_expiry(user_info, 'mid') if user_info else EXPIRES_7_DAYS
 	try:
-		cache_mid = _get_cache_expiry(user_info, 'mid') if user_info else EXPIRES_7_DAYS
 		cache_long = _get_cache_expiry(user_info, 'long') if user_info else EXPIRES_14_DAYS
 		cache_max = _get_cache_expiry(user_info, 'max') if user_info else EXPIRES_182_DAYS
 		difference = subtract_dates_function(current_date, jsondate_to_datetime_function(meta['premiered'], date_format, remove_time=True))
@@ -225,8 +225,8 @@ def movie_expiry(current_date, meta, user_info=None):
 		elif difference <= 14: expiration = cache_mid
 		elif difference <= 30: expiration = cache_long
 		else: expiration = cache_max
-	except Exception: return _get_cache_expiry(user_info, 'mid') if user_info else EXPIRES_7_DAYS
-	return max(expiration, _get_cache_expiry(user_info, 'mid') if user_info else EXPIRES_7_DAYS)
+	except Exception: return cache_mid
+	return max(expiration, cache_mid)
 
 def tvshow_expiry(current_date, meta, user_info=None):
 	try:

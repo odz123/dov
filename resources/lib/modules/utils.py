@@ -204,7 +204,6 @@ def clean_title(title):
 		title = title.lower()
 		title = _RE_HTML_ENTITY.sub('', title)
 		title = _RE_HTML_ENTITY_FIX.sub('\\1;\\2', title)
-		title = _RE_HTML_ENTITY_FIX.sub('\\1;\\2', title)
 		title = title.replace('&quot;', '\"').replace('&amp;', '&')
 		title = _RE_CLEAN_TITLE.sub('', title)
 	except Exception: pass
