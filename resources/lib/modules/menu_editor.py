@@ -3,7 +3,6 @@ from ast import literal_eval
 from urllib.parse import parse_qsl
 from caches.navigator_cache import navigator_cache
 from modules import kodi_utils, menu_lists as default_menus
-# from modules.kodi_utils import logger
 
 ls, media_path = kodi_utils.local_string, kodi_utils.media_path
 main_list_name_dict = {'RootList': ls(32457), 'MovieList': ls(32028), 'TVShowList': ls(32029), 'AnimeList': 'Anime'}

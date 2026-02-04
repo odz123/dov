@@ -245,7 +245,7 @@ class SourceSelect:
 		if self.active_folders:
 			self.folder_info = self.get_folderscraper_info()
 			self.internal_scraper_names = [i for i in active_internal_scrapers if i != 'folders']
-			self.internal_scraper_names += [i[0] for i in self.folder_info]
+			self.internal_scraper_names.extend(i[0] for i in self.folder_info)
 			self.active_internal_scrapers = active_internal_scrapers
 		else:
 			self.folder_info = []
@@ -358,7 +358,7 @@ class SourceSelect:
 	def _quality_filter(self):
 		setting = 'results_quality_%s' % self.media_type if not self.autoplay else 'autoplay_quality_%s' % self.media_type
 		filter_list = quality_filter(setting)
-		if self.include_prerelease_results and 'SD' in filter_list: filter_list += ['SCR', 'CAM', 'TELE']
+		if self.include_prerelease_results and 'SD' in filter_list: filter_list.extend(('SCR', 'CAM', 'TELE'))
 		return filter_list
 
 	def _clear_properties(self):
@@ -679,8 +679,8 @@ class Manager:
 		self.internal_scrapers, self.prescrape_sources = internal_scrapers, prescrape_sources
 		self.display_uncached_torrents = display_uncached_torrents
 		self.disabled_ignored, self.progress_dialog = disabled_ignored, progress_dialog
-		self.internal_activated = len(self.internal_scrapers) > 0
-		self.internal_prescraped = len(self.prescrape_sources) > 0
+		self.internal_activated = bool(self.internal_scrapers)
+		self.internal_prescraped = bool(self.prescrape_sources)
 		self.processed_prescrape = False
 		self.processed_internal_scrapers, self.sources, self.final_sources = [], [], []
 		self.processed_internal_scrapers_append = self.processed_internal_scrapers.append

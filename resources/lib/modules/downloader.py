@@ -8,7 +8,6 @@ from windows import open_window
 from modules import debrid, kodi_utils
 from modules.settings import download_directory, get_art_provider, get_language
 from modules.utils import clean_file_name, clean_title, safe_string, remove_accents
-# from modules.kodi_utils import logger
 
 ls = kodi_utils.local_string
 ctx = ssl.SSLContext(ssl.PROTOCOL_TLS)
@@ -184,8 +183,8 @@ class Downloader:
 			final_name = os.path.splitext(urlparse(name).path)[0].split('/')[-1]
 		else:
 			name_url = unquote(self.url)
-			file_name = clean_title(name_url.split('/')[-1])
-			if clean_title(self.title).lower() in file_name.lower():
+			file_name = clean_title(name_url.split('/')[-1]).lower()
+			if clean_title(self.title).lower() in file_name:
 				final_name = os.path.splitext(urlparse(name_url).path)[0].split('/')[-1]
 			else:
 				try: final_name = self.name.translate(str.maketrans('', '', r'\/:*?"<>|')).strip('.')
@@ -260,7 +259,7 @@ class Downloader:
 					if percent < 99:
 						error = True
 					else:
-						while len(chunks) > 0:
+						while chunks:
 							c = chunks.pop(0)
 							f.write(c)
 							del c

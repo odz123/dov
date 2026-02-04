@@ -19,6 +19,9 @@ from modules.kodi_utils import (
 )
 from modules import http_client
 
+# Valid subtitle file extensions
+_SUBTITLE_EXTENSIONS = ('.srt', '.sub', '.ass', '.ssa', '.vtt')
+
 
 # Language code mapping (ISO 639-1 to full name)
 LANGUAGE_CODES = {
@@ -279,7 +282,7 @@ def download_subtitle(subtitle_url, filename=None):
 			url_parts = subtitle_url.split('/')
 			filename = url_parts[-1] if url_parts else 'subtitle.srt'
 			# Ensure it has an extension
-			if not any(filename.endswith(ext) for ext in ['.srt', '.sub', '.ass', '.ssa', '.vtt']):
+			if not filename.endswith(_SUBTITLE_EXTENSIONS):
 				filename += '.srt'
 
 		# Clean filename

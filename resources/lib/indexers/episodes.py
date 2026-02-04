@@ -81,8 +81,8 @@ class Episodes:
 				if orig_episode >= episode_count: orig_season, orig_episode, new_season = orig_season + 1, 1, True
 				else: orig_episode, new_season = orig_episode + 1, False
 			episodes_data = season_meta_function(orig_season, meta, self.meta_user_info)
-			try: item = [i for i in episodes_data if i['episode'] == orig_episode][0]
-			except Exception: return
+			item = next((i for i in episodes_data if i['episode'] == orig_episode), None)
+			if not item: return
 			item_get = item.get
 			season, episode, ep_name = item_get('season'), item_get('episode'), item_get('title')
 			str_season_zfill2, str_episode_zfill2 = string(season).zfill(1), string(episode).zfill(2)

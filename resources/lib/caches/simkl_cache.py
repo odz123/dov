@@ -1,7 +1,6 @@
 import time
 from ast import literal_eval
 from modules.kodi_utils import simkl_db, database_connect
-# from modules.kodi_utils import logger
 
 timeout = 20
 CACHE_TTL = 14400  # 4 hours

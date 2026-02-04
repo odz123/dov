@@ -7,7 +7,6 @@ from indexers.tvshows import TVShows
 from modules import kodi_utils
 from modules.utils import paginate_list, TaskPool
 from modules.settings import paginate, page_limit, nav_jump_use_alphabet
-# logger = kodi_utils.logger
 
 KODI_VERSION, ls = kodi_utils.get_kodi_version(), kodi_utils.local_string
 build_url, make_listitem = kodi_utils.build_url, kodi_utils.make_listitem
@@ -43,9 +42,10 @@ def search_mdbl_lists(params):
 	if search_title: lists, pages = mdblist_api.mdbl_searchlists(search_title) or [], '1'
 	else: lists, pages = [], page
 	__handle__ = int(sys.argv[1])
+	page_int = int(page)
 	kodi_utils.add_items(__handle__, list(_process()))
-	if int(pages) > int(page):
-		url = {'mode': 'build_mdb_list.search_mdb_lists', 'search_title': search_title, 'new_page': int(page) + 1}
+	if int(pages) > page_int:
+		url = {'mode': 'build_mdb_list.search_mdb_lists', 'search_title': search_title, 'new_page': page_int + 1}
 		kodi_utils.add_dir(__handle__, url, nextpage_str)
 	kodi_utils.set_category(__handle__, search_title)
 	kodi_utils.set_content(__handle__, 'files')

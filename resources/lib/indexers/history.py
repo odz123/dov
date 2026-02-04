@@ -4,7 +4,6 @@ from urllib.parse import unquote
 from datetime import timedelta
 from caches.main_cache import MainCache
 from modules import kodi_utils, settings
-# from modules.kodi_utils import logger
 
 ls, build_url, make_listitem = kodi_utils.local_string, kodi_utils.build_url, kodi_utils.make_listitem
 search_icon = kodi_utils.media_path('search_history.png')

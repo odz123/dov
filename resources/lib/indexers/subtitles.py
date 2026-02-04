@@ -2,7 +2,6 @@ import requests
 from datetime import timedelta
 from caches.main_cache import MainCache
 from modules.kodi_utils import notification, sleep
-# from modules.kodi_utils import logger
 
 search_url = 'https://sub.wyzie.ru/search'
 timeout = 5.05

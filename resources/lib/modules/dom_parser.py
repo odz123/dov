@@ -94,7 +94,7 @@ def parse_dom(html, name='', attrs=None, req=False, exclude_comments=False):
 	try:
 		if attrs is None: attrs = {}
 		name = name.strip()
-		if isinstance(html, str) or isinstance(html, DomMatch): html = [html]
+		if isinstance(html, (str, DomMatch)): html = [html]
 		elif not isinstance(html, list): return ''
 		if not name: return ''
 		if not isinstance(attrs, dict): return ''

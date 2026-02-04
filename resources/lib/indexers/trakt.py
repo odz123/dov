@@ -9,7 +9,6 @@ from indexers.tvshows import TVShows
 from modules import kodi_utils
 from modules.utils import paginate_list, jsondate_to_datetime, TaskPool
 from modules.settings import paginate, page_limit, nav_jump_use_alphabet
-# logger = kodi_utils.logger
 
 KODI_VERSION, ls = kodi_utils.get_kodi_version(), kodi_utils.local_string
 build_url, make_listitem = kodi_utils.build_url, kodi_utils.make_listitem
@@ -205,7 +204,7 @@ def trakt_account_info():
 		else: movies_watched_minutes = ('{:0>8}'.format(str(timedelta(minutes=movie_minutes)))).split(', ')
 		if len(movies_watched_minutes) < 2: movies_watched_minutes = ['0 days', movies_watched_minutes[0] if movies_watched_minutes else '0:00:00']
 		time_parts = movies_watched_minutes[1].split(':')
-		movies_watched_minutes = ('%s %s hours %s minutes' % (movies_watched_minutes[0], time_parts[0] if len(time_parts) > 0 else '0', time_parts[1] if len(time_parts) > 1 else '00'))
+		movies_watched_minutes = ('%s %s hours %s minutes' % (movies_watched_minutes[0], time_parts[0] if time_parts else '0', time_parts[1] if len(time_parts) > 1 else '00'))
 		shows_collected = stats['shows']['collected']
 		shows_watched = stats['shows']['watched']
 		episodes_watched = stats['episodes']['watched']
@@ -215,7 +214,7 @@ def trakt_account_info():
 		else: episodes_watched_minutes = ('{:0>8}'.format(str(timedelta(minutes=episode_minutes)))).split(', ')
 		if len(episodes_watched_minutes) < 2: episodes_watched_minutes = ['0 days', episodes_watched_minutes[0] if episodes_watched_minutes else '0:00:00']
 		time_parts = episodes_watched_minutes[1].split(':')
-		episodes_watched_minutes = ('%s %s hours %s minutes' % (episodes_watched_minutes[0], time_parts[0] if len(time_parts) > 0 else '0', time_parts[1] if len(time_parts) > 1 else '00'))
+		episodes_watched_minutes = ('%s %s hours %s minutes' % (episodes_watched_minutes[0], time_parts[0] if time_parts else '0', time_parts[1] if len(time_parts) > 1 else '00'))
 		body = []
 		append = body.append
 		append('[B]Username:[/B] %s' % username)

@@ -128,15 +128,15 @@ def request(url, close=True, redirect=True, error=False, proxy=None, post=None, 
 			result = None
 			try: result = '; '.join(['%s=%s' % (i.name, i.value) for i in cookies])
 			except Exception: pass
-			if close == True: response.close()
+			if close: response.close()
 			return result
 		elif output == 'geturl':
 			result = response.geturl()
-			if close is True: response.close()
+			if close: response.close()
 			return result
 		elif output == 'headers':
 			result = response.headers
-			if close is True: response.close()
+			if close: response.close()
 			return result
 		elif output == 'chunk':
 			try: content = int(response.headers['Content-Length'])
@@ -144,12 +144,12 @@ def request(url, close=True, redirect=True, error=False, proxy=None, post=None, 
 			if content < (2048 * 1024): return
 			try: result = response.read(16 * 1024)
 			except Exception: result = response # testing
-			if close is True: response.close()
+			if close: response.close()
 			return result
 		elif output == 'file_size':
 			try: content = int(response.headers['Content-Length'])
 			except Exception: content = 0
-			if close == True: response.close()
+			if close: response.close()
 			return content
 		if limit == '0': result = response.read(224 * 1024)
 		elif limit is not None: result = response.read(int(limit) * 1024)

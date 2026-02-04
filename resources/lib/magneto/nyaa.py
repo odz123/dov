@@ -10,6 +10,11 @@ from fenom import client
 from fenom import source_utils
 
 
+def _clean_anime_title(s, year):
+	"""Clean title string by removing year, parentheses, and normalizing patterns."""
+	return s.replace(year, '').replace('(', '').replace(')', '').replace('&', 'and').replace('.US.', '.').replace('.us.', '.')
+
+
 class source:
 	timeout = 5
 	priority = 5
@@ -83,9 +88,9 @@ class source:
 						if undesirables and source_utils.remove_undesirables(name_info, undesirables): continue
 
 						if hdlr in name:
-							t = name.split(hdlr)[0].replace(year, '').replace('(', '').replace(')', '').replace('&', 'and').replace('.US.', '.').replace('.us.', '.')
-						if hdlr2 in name:
-							t = name.split(hdlr2)[0].replace(year, '').replace('(', '').replace(')', '').replace('&', 'and').replace('.US.', '.').replace('.us.', '.')
+							t = _clean_anime_title(name.split(hdlr)[0], year)
+						elif hdlr2 in name:
+							t = _clean_anime_title(name.split(hdlr2)[0], year)
 						# if cleantitle.get(t) != cleantitle.get(title): continue # Anime title matching is a bitch!
 						try:
 							seeders = int(link[2][0])

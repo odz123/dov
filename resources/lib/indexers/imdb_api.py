@@ -317,7 +317,8 @@ def get_imdb(params):
 			name = params['name']
 			result = session.get(url, timeout=timeout).content
 			result = json.loads(result.replace('imdb$%s(' % name.replace(' ', '_'), '')[:-1])['d']
-			imdb_list = [i['id'] for i in result if i['id'].startswith('nm') and i['l'].lower() == name][0]
+			imdb_list = next((i['id'] for i in result if i['id'].startswith('nm') and i['l'].lower() == name), None)
+			if not imdb_list: raise IndexError('not found')
 		except (IndexError, KeyError, TypeError, ValueError): pass
 		except Exception as e: logger('imdb_api.imdb_people_id primary', str(e))
 		if not imdb_list:
