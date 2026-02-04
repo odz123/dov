@@ -74,7 +74,7 @@ class Indexer(Debrid):
 				listitem.addContextMenuItems(cm)
 				listitem.setArt(default_art)
 				yield (url, listitem, is_folder)
-			except Exception: pass
+			except Exception as e: kodi_utils.logger('Premiumize.torrent_cloud', str(e))
 
 	def browse_downloads(self, items):
 		KODI_VERSION = kodi_utils.get_kodi_version()
@@ -110,7 +110,7 @@ class Indexer(Debrid):
 				listitem.setArt(default_art)
 				if not status == 'finished': listitem.setInfo('video', {'plot': message}) if KODI_VERSION < 20 else listitem.getVideoInfoTag().setPlot(message)
 				yield (url, listitem, is_folder)
-			except Exception: pass
+			except Exception as e: kodi_utils.logger('Premiumize.browse_downloads', str(e))
 
 	def cloud_delete(self, file_type, file_id):
 		if not kodi_utils.confirm_dialog(): return

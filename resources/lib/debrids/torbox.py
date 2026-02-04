@@ -56,7 +56,7 @@ class Indexer(Debrid):
 				listitem.addContextMenuItems(cm)
 				listitem.setArt(default_art)
 				yield (url, listitem, True)
-			except Exception: pass
+			except Exception as e: kodi_utils.logger('TorBox.torrent_cloud', str(e))
 
 	def browse_cloud(self, items):
 		for count, item in enumerate(items, 1):
@@ -78,7 +78,7 @@ class Indexer(Debrid):
 				listitem.setArt(default_art)
 				listitem.setInfo('video', {}) if KODI_VERSION < 20 else listitem.getVideoInfoTag()
 				yield (url, listitem, False)
-			except Exception: pass
+			except Exception as e: kodi_utils.logger('TorBox.browse_cloud', str(e))
 
 	def cloud_delete(self, folder_id, media_type):
 		if not kodi_utils.confirm_dialog(): return

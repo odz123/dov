@@ -56,7 +56,7 @@ class Indexer(Debrid):
 				listitem.addContextMenuItems(cm)
 				listitem.setArt(default_art)
 				yield (url, listitem, is_folder)
-			except Exception: pass
+			except Exception as e: kodi_utils.logger('Offcloud.torrent_cloud', str(e))
 
 	def browse_cloud(self, items):
 		for count, item in enumerate(items, 1):
@@ -79,7 +79,7 @@ class Indexer(Debrid):
 				listitem.setArt(default_art)
 				listitem.setInfo('video', {}) if KODI_VERSION < 20 else listitem.getVideoInfoTag()
 				yield (url, listitem, False)
-			except Exception: pass
+			except Exception as e: kodi_utils.logger('Offcloud.browse_cloud', str(e))
 
 	def cloud_delete(self, folder_id):
 		if not kodi_utils.confirm_dialog(): return
@@ -103,10 +103,10 @@ class Indexer(Debrid):
 					req.start()
 					progressBG.update(int(count / len_files * 100), '%s: %s...' % (ls(32785), req.name))
 					req.join(1)
-				except Exception: pass
+				except Exception as e: kodi_utils.logger('Offcloud.user_cloud_clear', str(e))
 		finally:
 			try: progressBG.close()
-			except Exception: pass
+			except Exception as e: kodi_utils.logger('Offcloud.user_cloud_clear.close', str(e))
 		self.clear_cache()
 
 	def show_account_info(self):

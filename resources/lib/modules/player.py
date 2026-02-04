@@ -68,7 +68,7 @@ class POVPlayer(kodi_utils.xbmc_player):
 				if self.media_type == 'episode': trakt_ids.update({'imdb': self.imdb_id, 'tvdb': self.tvdb_id})
 				kodi_utils.clear_property('script.trakt.ids')
 				kodi_utils.set_property('script.trakt.ids', json.dumps(trakt_ids))
-			except Exception: pass
+			except Exception as e: kodi_utils.logger('POVPlayer.trakt_ids', str(e))
 			self.playback_event = False
 			self.play(url, listitem)
 
@@ -109,17 +109,17 @@ class POVPlayer(kodi_utils.xbmc_player):
 						self.remaining_time = round(self.total_time - self.curr_time)
 						if self.remaining_time <= self.autoscrape_next_window_time:
 							if not self.nextep_started and self.autoscrape_nextep: self.run_scrape_next_ep()
-				except Exception: pass
+				except Exception as e: kodi_utils.logger('POVPlayer.playback_loop', str(e))
 				if not self.subs_searched: self.run_subtitles()
 			if not self.media_marked and getattr(self, 'curr_time', 0) >= MIN_PLAYBACK_FOR_WATCHED:
 				try: self.media_watched_marker()
-				except Exception: pass
+				except Exception as e: kodi_utils.logger('POVPlayer.final_watched_marker', str(e))
 			try: self.run_scrobble_stop()
-			except Exception: pass
+			except Exception as e: kodi_utils.logger('POVPlayer.scrobble_stop', str(e))
 			try: self.run_simkl_scrobble_stop()
-			except Exception: pass
+			except Exception as e: kodi_utils.logger('POVPlayer.simkl_scrobble_stop', str(e))
 			try: self.run_trakt_scrobble_stop()
-			except Exception: pass
+			except Exception as e: kodi_utils.logger('POVPlayer.trakt_scrobble_stop', str(e))
 			ws.clear_local_bookmarks()
 		except Exception as e: kodi_utils.logger('POVPlayer.run', str(e))
 
@@ -162,7 +162,7 @@ class POVPlayer(kodi_utils.xbmc_player):
 			else: banner, clearart, landscape = '', '', ''
 			listitem.setArt({'poster': poster, 'fanart': fanart, 'icon': poster, 'banner': banner, 'clearart': clearart, 'clearlogo': clearlogo, 'landscape': landscape,
 							'tvshow.clearart': clearart, 'tvshow.clearlogo': clearlogo, 'tvshow.landscape': landscape, 'tvshow.banner': banner})
-		except Exception: pass
+		except Exception as e: kodi_utils.logger('POVPlayer._make_listitem', str(e))
 		return listitem
 
 	def bookmarkPOV(self):
@@ -222,32 +222,32 @@ class POVPlayer(kodi_utils.xbmc_player):
 				kodi_utils.clear_property('pov_total_autoplays')
 				if not self.current_point >= self.set_resume: return
 				ws.set_bookmark(self.media_type, self.tmdb_id, self.curr_time, self.total_time, self.title, self.season, self.episode)
-		except Exception: pass
+		except Exception as e: kodi_utils.logger('POVPlayer.media_watched_marker', str(e))
 
 	def run_media_watched(self, function, params):
 		try: function(params)
-		except Exception: pass
+		except Exception as e: kodi_utils.logger('POVPlayer.run_media_watched', str(e))
 
 	def run_scrape_next_ep(self):
 		self.nextep_started = True
 		try:
 			from modules.episode_tools import execute_scrape_nextep
 			execute_scrape_nextep(self.meta)
-		except Exception: pass
+		except Exception as e: kodi_utils.logger('POVPlayer.run_scrape_next_ep', str(e))
 
 	def run_next_ep(self):
 		self.nextep_started = True
 		try:
 			from modules.episode_tools import execute_nextep
 			self._safe_thread(execute_nextep, self.meta, self.nextep_settings)
-		except Exception: pass
+		except Exception as e: kodi_utils.logger('POVPlayer.run_next_ep', str(e))
 
 	def run_random_continual(self):
 		self.nextep_started = True
 		try:
 			from modules.episode_tools import execute_nextep
 			self._safe_thread(execute_nextep, self.meta, self.nextep_settings)
-		except Exception: pass
+		except Exception as e: kodi_utils.logger('POVPlayer.run_random_continual', str(e))
 
 	def run_subtitles(self):
 		self.subs_searched = True
@@ -259,7 +259,7 @@ class POVPlayer(kodi_utils.xbmc_player):
 			video_hash = self.meta.get('stremio_video_hash')
 			video_size = self.meta.get('stremio_video_size')
 			self._safe_thread(Subtitles().get, self.title, self.imdb_id, season, episode, poster, stremio_subs, video_hash, video_size)
-		except Exception: pass
+		except Exception as e: kodi_utils.logger('POVPlayer.run_subtitles', str(e))
 
 	def run_stingers(self):
 		self.stingers_checked = True
@@ -267,7 +267,7 @@ class POVPlayer(kodi_utils.xbmc_player):
 			poster = self.meta.get('poster') or poster_empty
 			tmdb_id = self.tmdb_id if self.media_type == 'movie' and self.stinger_enabled else None
 			self._safe_thread(self.getStingers, tmdb_id, poster)
-		except Exception: pass
+		except Exception as e: kodi_utils.logger('POVPlayer.run_stingers', str(e))
 
 	def run_scrobble_start(self):
 		if self.scrobble_started or self.watched_indicators != 2: return
@@ -275,7 +275,7 @@ class POVPlayer(kodi_utils.xbmc_player):
 		try:
 			from indexers.mdblist_api import mdbl_scrobble
 			self._safe_thread(mdbl_scrobble, 'start', self.media_type, self.tmdb_id, 0, self.season, self.episode)
-		except Exception: pass
+		except Exception as e: kodi_utils.logger('POVPlayer.run_scrobble_start', str(e))
 
 	def run_scrobble_stop(self):
 		if not self.scrobble_started or self.watched_indicators != 2: return
@@ -283,7 +283,7 @@ class POVPlayer(kodi_utils.xbmc_player):
 			from indexers.mdblist_api import mdbl_scrobble
 			progress = getattr(self, 'current_point', 0)
 			self._safe_thread(mdbl_scrobble, 'stop', self.media_type, self.tmdb_id, progress, self.season, self.episode)
-		except Exception: pass
+		except Exception as e: kodi_utils.logger('POVPlayer.run_scrobble_stop', str(e))
 
 	def run_simkl_scrobble_start(self):
 		if self.simkl_scrobble_started: return
@@ -292,7 +292,7 @@ class POVPlayer(kodi_utils.xbmc_player):
 		try:
 			from indexers.simkl_api import simkl_scrobble
 			self._safe_thread(simkl_scrobble, 'start', self.media_type, self.tmdb_id, 0, self.season, self.episode)
-		except Exception: pass
+		except Exception as e: kodi_utils.logger('POVPlayer.run_simkl_scrobble_start', str(e))
 
 	def run_simkl_scrobble_stop(self):
 		if not self.simkl_scrobble_started: return
@@ -300,7 +300,7 @@ class POVPlayer(kodi_utils.xbmc_player):
 			from indexers.simkl_api import simkl_scrobble
 			progress = getattr(self, 'current_point', 0)
 			self._safe_thread(simkl_scrobble, 'stop', self.media_type, self.tmdb_id, progress, self.season, self.episode)
-		except Exception: pass
+		except Exception as e: kodi_utils.logger('POVPlayer.run_simkl_scrobble_stop', str(e))
 
 	def run_trakt_scrobble_start(self):
 		if self.trakt_scrobble_started or self.watched_indicators != 1: return
@@ -309,7 +309,7 @@ class POVPlayer(kodi_utils.xbmc_player):
 			if trakt_official_status(self.media_type) is False: return
 			self.trakt_scrobble_started = True
 			self._safe_thread(trakt_scrobble, 'start', self.media_type, self.tmdb_id, 0, self.season, self.episode)
-		except Exception: pass
+		except Exception as e: kodi_utils.logger('POVPlayer.run_trakt_scrobble_start', str(e))
 
 	def run_trakt_scrobble_stop(self):
 		if not self.trakt_scrobble_started or self.watched_indicators != 1: return
@@ -317,7 +317,7 @@ class POVPlayer(kodi_utils.xbmc_player):
 			from indexers.trakt_api import trakt_scrobble
 			progress = getattr(self, 'current_point', 0)
 			self._safe_thread(trakt_scrobble, 'stop', self.media_type, self.tmdb_id, progress, self.season, self.episode)
-		except Exception: pass
+		except Exception as e: kodi_utils.logger('POVPlayer.run_trakt_scrobble_stop', str(e))
 
 	def info_next_ep(self):
 		self.nextep_info_gathered = True
@@ -336,14 +336,14 @@ class POVPlayer(kodi_utils.xbmc_player):
 			self.start_prep = self.nextep_settings['scraper_time'] + threshold_check
 			self.nextep_settings.update({'threshold_check': threshold_check, 'start_prep': self.start_prep})
 			self.autoscrape_next_window_time = self.nextep_settings['autoscrape_next_window_time']
-		except Exception: pass
+		except Exception as e: kodi_utils.logger('POVPlayer.info_next_ep', str(e))
 
 	def onAVStarted(self):
 		self.playback_event = True
 
 	def onPlayBackStarted(self):
 		try: kodi_utils.hide_busy_dialog()
-		except Exception: pass
+		except Exception as e: kodi_utils.logger('POVPlayer.onPlayBackStarted', str(e))
 
 	def onPlayBackStopped(self):
 		self.playback_event = 'stop'
@@ -388,7 +388,7 @@ class Subtitles(kodi_utils.xbmc_player):
 					if filepath:
 						kodi_utils.notification(32852, icon=poster)
 						return filepath
-			except Exception: pass
+			except Exception as e: kodi_utils.logger('Subtitles._stremio_subs', str(e))
 			return False
 		def _stremio_addon_subs():
 			"""Fetch subtitles from Stremio subtitle addons with video_hash/video_size for better matching"""
@@ -424,7 +424,7 @@ class Subtitles(kodi_utils.xbmc_player):
 					if filepath:
 						kodi_utils.notification(32852, icon=poster)
 						return filepath
-			except Exception: pass
+			except Exception as e: kodi_utils.logger('Subtitles._stremio_addon_subs', str(e))
 			return False
 		def _video_file_subs():
 			try: available_sub_language = self.getSubtitles()
@@ -526,6 +526,6 @@ def infoTagger(listitem, meta=None):
 			elif key in {'episode', 'season', 'year'}: arg = int(arg)
 			func = getattr(infotag, val)
 			func(arg)
-		except Exception: pass
+		except Exception as e: kodi_utils.logger('infoTagger.%s' % key, str(e))
 	return infotag
 
