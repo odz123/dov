@@ -371,167 +371,133 @@ def filter_show_pack(show_title, aliases, imdb, year, season, release_title, tot
 
 
 # from here down we don't filter out, we set and pass "last_season" it covers for the range and addon can filter it so the db will have full valid showPacks.
+# Helper function to check ranges and return last_season - avoids O(n²) double-iteration pattern
+		def _find_range_match(ranges, title, split_pattern):
+			"""Find first matching range in title and return last_season extracted via split_pattern."""
+			for r in ranges:
+				if r in title:
+					return int(r.split(split_pattern)[-1])
+			return None
+
 # set last_season for range type ex "1.2.3.4" or "1.2.3.and.4" (dots or dashes)
 		dot_release_title = release_title.replace('-', '.')
 		dot_season_ranges = []
 		all_seasons = '1'
 		season_count = 2
-		while season_count <= int(total_seasons):
+		total_seasons_int = int(total_seasons)
+		while season_count <= total_seasons_int:
 			dot_season_ranges.append(all_seasons + '.and.%s' % str(season_count))
 			all_seasons += '.%s' % str(season_count)
 			dot_season_ranges.append(all_seasons)
 			season_count += 1
-		if any(i in dot_release_title for i in dot_season_ranges):
-			keys = [i for i in dot_season_ranges if i in dot_release_title]
-			last_season = int(keys[-1].split('.')[-1])
-			return True, last_season
-
-
+		# Optimized: single pass instead of any() + list comprehension
+		match = _find_range_match(dot_season_ranges, dot_release_title, '.')
+		if match: return True, match
 
 # "1.to.9" type range filter (dots or dashes)
 		to_season_ranges = []
 		start_season = '1'
 		season_count = 2
-		while season_count <= int(total_seasons):
+		while season_count <= total_seasons_int:
 			to_season_ranges.append(start_season + '.to.%s' % str(season_count))
 			season_count += 1
-		if any(i in dot_release_title for i in to_season_ranges):
-			keys = [i for i in to_season_ranges if i in dot_release_title]
-			last_season = int(keys[0].split('to.')[1])
-			return True, last_season
+		match = _find_range_match(to_season_ranges, dot_release_title, 'to.')
+		if match: return True, match
 
 # "1.thru.9" range filter (dots or dashes)
 		thru_ranges = [i.replace('to', 'thru') for i in to_season_ranges]
-		if any(i in dot_release_title for i in thru_ranges):
-			keys = [i for i in thru_ranges if i in dot_release_title]
-			last_season = int(keys[0].split('thru.')[1])
-			return True, last_season
+		match = _find_range_match(thru_ranges, dot_release_title, 'thru.')
+		if match: return True, match
 
 # "1-9" range filter
 		dash_ranges = [i.replace('.to.', '-') for i in to_season_ranges]
-		if any(i in release_title for i in dash_ranges):
-			keys = [i for i in dash_ranges if i in release_title]
-			last_season = int(keys[0].split('-')[1])
-			return True, last_season
+		match = _find_range_match(dash_ranges, release_title, '-')
+		if match: return True, match
 
 # "1~9" range filter
 		tilde_ranges = [i.replace('.to.', '~') for i in to_season_ranges]
-		if any(i in release_title for i in tilde_ranges):
-			keys = [i for i in tilde_ranges if i in release_title]
-			last_season = int(keys[0].split('~')[1])
-			return True, last_season
-
-
+		match = _find_range_match(tilde_ranges, release_title, '~')
+		if match: return True, match
 
 # "01.to.09" 2 digit range filter (dots or dashes)
 		to_season_ranges = []
 		start_season = '01'
 		season_count = 2
-		while season_count <= int(total_seasons):
-			to_season_ranges.append(start_season + '.to.%s' % '0' + str(season_count) if int(season_count) < 10 else start_season + '.to.%s' % str(season_count))
+		while season_count <= total_seasons_int:
+			to_season_ranges.append(start_season + '.to.%s' % ('0' + str(season_count) if season_count < 10 else str(season_count)))
 			season_count += 1
-		if any(i in dot_release_title for i in to_season_ranges):
-			keys = [i for i in to_season_ranges if i in dot_release_title]
-			last_season = int(keys[0].split('to.')[1])
-			return True, last_season
+		match = _find_range_match(to_season_ranges, dot_release_title, 'to.')
+		if match: return True, match
 
 # "01.thru.09" 2 digit range filter (dots or dashes)
 		thru_ranges = [i.replace('to', 'thru') for i in to_season_ranges]
-		if any(i in dot_release_title for i in thru_ranges):
-			keys = [i for i in thru_ranges if i in dot_release_title]
-			last_season = int(keys[0].split('thru.')[1])
-			return True, last_season
+		match = _find_range_match(thru_ranges, dot_release_title, 'thru.')
+		if match: return True, match
 
 # "01-09" 2 digit range filtering
 		dash_ranges = [i.replace('.to.', '-') for i in to_season_ranges]
-		if any(i in release_title for i in dash_ranges):
-			keys = [i for i in dash_ranges if i in release_title]
-			last_season = int(keys[0].split('-')[1])
-			return True, last_season
+		match = _find_range_match(dash_ranges, release_title, '-')
+		if match: return True, match
 
 # "01~09" 2 digit range filtering
 		tilde_ranges = [i.replace('.to.', '~') for i in to_season_ranges]
-		if any(i in release_title for i in tilde_ranges):
-			keys = [i for i in tilde_ranges if i in release_title]
-			last_season = int(keys[0].split('~')[1])
-			return True, last_season
-
-
+		match = _find_range_match(tilde_ranges, release_title, '~')
+		if match: return True, match
 
 # "s1.to.s9" single digit range filter (dots or dashes)
 		to_season_ranges = []
 		start_season = 's1'
 		season_count = 2
-		while season_count <= int(total_seasons):
+		while season_count <= total_seasons_int:
 			to_season_ranges.append(start_season + '.to.s%s' % str(season_count))
 			season_count += 1
-		if any(i in dot_release_title for i in to_season_ranges):
-			keys = [i for i in to_season_ranges if i in dot_release_title]
-			last_season = int(keys[0].split('to.s')[1])
-			return True, last_season
+		match = _find_range_match(to_season_ranges, dot_release_title, 'to.s')
+		if match: return True, match
 
 # "s1.thru.s9" single digit range filter (dots or dashes)
 		thru_ranges = [i.replace('to', 'thru') for i in to_season_ranges]
-		if any(i in dot_release_title for i in thru_ranges):
-			keys = [i for i in thru_ranges if i in dot_release_title]
-			last_season = int(keys[0].split('thru.s')[1])
-			return True, last_season
+		match = _find_range_match(thru_ranges, dot_release_title, 'thru.s')
+		if match: return True, match
 
 # "s1-s9" single digit range filtering (dashes)
 		dash_ranges = [i.replace('.to.', '-') for i in to_season_ranges]
-		if any(i in release_title for i in dash_ranges):
-			keys = [i for i in dash_ranges if i in release_title]
-			last_season = int(keys[0].split('-s')[1])
-			return True, last_season
+		match = _find_range_match(dash_ranges, release_title, '-s')
+		if match: return True, match
 
 # "s1~s9" single digit range filtering (dashes)
 		tilde_ranges = [i.replace('.to.', '~') for i in to_season_ranges]
-		if any(i in release_title for i in tilde_ranges):
-			keys = [i for i in tilde_ranges if i in release_title]
-			last_season = int(keys[0].split('~s')[1])
-			return True, last_season
-
-
+		match = _find_range_match(tilde_ranges, release_title, '~s')
+		if match: return True, match
 
 # "s01.to.s09"  2 digit range filter (dots or dash)
 		to_season_ranges = []
 		start_season = 's01'
 		season_count = 2
-		while season_count <= int(total_seasons):
-			to_season_ranges.append(start_season + '.to.s%s' % '0' + str(season_count) if int(season_count) < 10 else start_season + '.to.s%s' % str(season_count))
+		while season_count <= total_seasons_int:
+			to_season_ranges.append(start_season + '.to.s%s' % ('0' + str(season_count) if season_count < 10 else str(season_count)))
 			season_count += 1
-		if any(i in dot_release_title for i in to_season_ranges):
-			keys = [i for i in to_season_ranges if i in dot_release_title]
-			last_season = int(keys[0].split('to.s')[1])
-			return True, last_season
+		match = _find_range_match(to_season_ranges, dot_release_title, 'to.s')
+		if match: return True, match
 
 # "s01.thru.s09" 2 digit  range filter (dots or dashes)
 		thru_ranges = [i.replace('to', 'thru') for i in to_season_ranges]
-		if any(i in dot_release_title for i in thru_ranges):
-			keys = [i for i in thru_ranges if i in dot_release_title]
-			last_season = int(keys[0].split('thru.s')[1])
-			return True, last_season
+		match = _find_range_match(thru_ranges, dot_release_title, 'thru.s')
+		if match: return True, match
 
 # "s01-s09" 2 digit  range filtering (dashes)
 		dash_ranges = [i.replace('.to.', '-') for i in to_season_ranges]
-		if any(i in release_title for i in dash_ranges):
-			keys = [i for i in dash_ranges if i in release_title]
-			last_season = int(keys[0].split('-s')[1])
-			return True, last_season
+		match = _find_range_match(dash_ranges, release_title, '-s')
+		if match: return True, match
 
 # "s01~s09" 2 digit  range filtering (dashes)
 		tilde_ranges = [i.replace('.to.', '~') for i in to_season_ranges]
-		if any(i in release_title for i in tilde_ranges):
-			keys = [i for i in tilde_ranges if i in release_title]
-			last_season = int(keys[0].split('~s')[1])
-			return True, last_season
+		match = _find_range_match(tilde_ranges, release_title, '~s')
+		if match: return True, match
 
 # "s01.s09" 2 digit  range filtering (dots)
 		dot_ranges = [i.replace('.to.', '.') for i in to_season_ranges]
-		if any(i in release_title for i in dot_ranges):
-			keys = [i for i in dot_ranges if i in release_title]
-			last_season = int(keys[0].split('.s')[1])
-			return True, last_season
+		match = _find_range_match(dot_ranges, release_title, '.s')
+		if match: return True, match
 
 		return True, total_seasons
 	except Exception:

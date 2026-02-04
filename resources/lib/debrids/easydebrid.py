@@ -1,4 +1,3 @@
-import sys
 from debrids.easydebrid_api import EasyDebridAPI as Debrid
 from modules import kodi_utils
 # from modules.kodi_utils import logger

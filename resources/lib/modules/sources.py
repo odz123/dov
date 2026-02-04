@@ -4,12 +4,11 @@ import re, random
 from concurrent.futures import ThreadPoolExecutor as TPE
 from threading import Thread
 from windows import open_window, create_window
-from scrapers import folders
 from modules.debrid import debrid_enabled, debrid_type_enabled, debrid_valid_hosts, Source, DebridCheck
 from modules import player, kodi_utils, settings
 from modules.source_objects import get_source_meta, ExternalSource
 from modules.source_utils import external_sources, internal_sources, internal_folders_import
-from modules.source_utils import pack_enable_check, sources_quality_count, scraper_names, stremio_has_debrid_addons, stremio_is_configured
+from modules.source_utils import pack_enable_check, sources_quality_count, stremio_is_configured
 from modules.utils import string_to_float
 
 def _safe_int(value, default=0):
