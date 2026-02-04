@@ -126,7 +126,7 @@ def add_new_default_keywords():
 	from fenom.source_utils import UNDESIRABLES
 	undesirables_cache = Undesirables()
 	current_undesirables = undesirables_cache.get_default()
-	new_undesirables = [i for i in UNDESIRABLES if not i in current_undesirables]
+	new_undesirables = [i for i in UNDESIRABLES if i not in current_undesirables]
 	if not new_undesirables: return
 	new_settings = [(i, False, True) for i in new_undesirables]
 	undesirables_cache.set_many(new_settings)

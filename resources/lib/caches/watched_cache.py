@@ -239,7 +239,7 @@ def get_in_progress_movies(dummy_arg, page_no, letter):
 	finally:
 		if dbcon:
 			_return_connection(db_file, dbcon)
-	data = [{'media_id': i[0], 'title': i[2], 'last_played': i[1]} for i in data if not i[0] == '']
+	data = [{'media_id': i[0], 'title': i[2], 'last_played': i[1]} for i in data if i[0] != '']
 	if settings.lists_sort_order('progress') == 0: original_list = sort_for_article(data, 'title', settings.ignore_articles())
 	else: original_list = sorted(data, key=lambda x: x['last_played'], reverse=True)
 	if paginate: final_list, total_pages = paginate_list(original_list, page_no, letter, limit)
@@ -337,7 +337,7 @@ def get_watched_status_tvshow(watched_info, tmdb_id, aired_eps):
 		else:
 			watched = len([i for i in watched_info if i[0] == tmdb_id])
 		unwatched = aired_eps - watched
-		if watched >= aired_eps and not aired_eps == 0: playcount, overlay = 1, 5
+		if watched >= aired_eps and aired_eps != 0: playcount, overlay = 1, 5
 	except (TypeError, AttributeError): pass
 	return playcount, overlay, watched, unwatched
 
@@ -350,7 +350,7 @@ def get_watched_status_season(watched_info, tmdb_id, season, aired_eps):
 		else:
 			watched = len([i for i in watched_info if i[0] == tmdb_id and i[1] == season])
 		unwatched = aired_eps - watched
-		if watched >= aired_eps and not aired_eps == 0: playcount, overlay = 1, 5
+		if watched >= aired_eps and aired_eps != 0: playcount, overlay = 1, 5
 	except (TypeError, AttributeError): pass
 	return playcount, overlay, watched, unwatched
 

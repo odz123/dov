@@ -170,7 +170,7 @@ def season_episodes_meta(season, meta, user_info):
 			if crew:
 				try: writer = ', '.join([i['name'] for i in crew if i['job'] in writer_credits])
 				except Exception: pass
-				try: director = [i['name'] for i in crew if i['job'] == 'Director'][0]
+				try: director = next((i['name'] for i in crew if i['job'] == 'Director'), '')
 				except Exception: pass
 			yield {
 				'thumb': thumb, 'title': title, 'guest_stars': guest_stars, 'plot': plot, 'premiered': premiered,
@@ -211,7 +211,7 @@ def all_episodes_meta(meta, user_info, Thread):
 def english_translation(media_type, media_id, user_info):
 	key = 'title' if media_type == 'movie' else 'name'
 	translations = tmdb_english_translation(media_type, media_id, user_info['tmdb_api'])
-	try: english = [i['data'][key] for i in translations if i['iso_639_1'] == 'en'][0]
+	try: english = next((i['data'][key] for i in translations if i['iso_639_1'] == 'en'), '')
 	except Exception: english = ''
 	return english
 
@@ -257,11 +257,11 @@ def build_movie_meta(data, user_info, fanarttv_data=None):
 	else: fanart = ''
 	tmdblogo = ''
 	if show_tmdblogo:
-		try: tmdblogo_path = [i['file_path'] for i in data_get('images')['logos'] if 'file_path' in i if i['file_path'].endswith('png')][0]
+		try: tmdblogo_path = next((i['file_path'] for i in data_get('images')['logos'] if 'file_path' in i and i['file_path'].endswith('png')), None)
 		except Exception: tmdblogo_path = None
 		if tmdblogo_path: tmdblogo = tmdb_image_base % (image_resolution['fanart'], tmdblogo_path)
 	title, original_title = data_get('title'), data_get('original_title')
-	try: english_title = [i['data']['title'] for i in data_get('translations')['translations'] if i['iso_639_1'] == 'en'][0]
+	try: english_title = next((i['data']['title'] for i in data_get('translations')['translations'] if i['iso_639_1'] == 'en'), None)
 	except Exception: english_title = None
 	try: year = str(data_get('release_date').split('-')[0] or 0)
 	except Exception: year = ''
@@ -272,9 +272,9 @@ def build_movie_meta(data, user_info, fanarttv_data=None):
 	rootname = '%s (%s)' % (title, year)
 	companies = data_get('production_companies')
 	if companies:
-		if len(companies) == 1: studio = [i['name'] for i in companies][0]
+		if len(companies) == 1: studio = companies[0]['name']
 		else:
-			try: studio = [i['name'] for i in companies if i['logo_path'] not in empty_value_check][0] or [i['name'] for i in companies][0]
+			try: studio = next((i['name'] for i in companies if i['logo_path'] not in empty_value_check), None) or companies[0]['name']
 			except Exception: pass
 	production_countries = data_get('production_countries')
 	if production_countries:
@@ -282,12 +282,13 @@ def build_movie_meta(data, user_info, fanarttv_data=None):
 		country_codes = [i['iso_3166_1'] for i in production_countries]
 	release_dates = data_get('release_dates')
 	if release_dates:
-		try: mpaa = [
-			x['certification']
+		try: mpaa = next(
+			(x['certification']
 			for i in release_dates['results']
 			for x in i['release_dates']
-			if i['iso_3166_1'] == mpaa_country and x['certification']
-		][0]
+			if i['iso_3166_1'] == mpaa_country and x['certification']),
+			''
+		)
 		except Exception: pass
 	credits = data_get('credits')
 	if credits:
@@ -302,7 +303,7 @@ def build_movie_meta(data, user_info, fanarttv_data=None):
 		if crew:
 			try: writer = ', '.join([i['name'] for i in crew if i['job'] in writer_credits])
 			except Exception: pass
-			try: director = [i['name'] for i in crew if i['job'] == 'Director'][0]
+			try: director = next((i['name'] for i in crew if i['job'] == 'Director'), '')
 			except Exception: pass
 	alternative_titles = data_get('alternative_titles')
 	if alternative_titles:
@@ -311,7 +312,7 @@ def build_movie_meta(data, user_info, fanarttv_data=None):
 	videos = data_get('videos')
 	if videos:
 		all_trailers = videos['results']
-		try: trailer = [youtube_url % i['key'] for i in all_trailers if i['site'] == 'YouTube' and i['type'] in trailers_test][0]
+		try: trailer = next((youtube_url % i['key'] for i in all_trailers if i['site'] == 'YouTube' and i['type'] in trailers_test), '')
 		except Exception: pass
 	status, homepage = data_get('status', 'N/A'), data_get('homepage', 'N/A')
 	belongs_to_collection = data_get('belongs_to_collection')
@@ -354,11 +355,11 @@ def build_tvshow_meta(data, user_info, fanarttv_data=None):
 	else: fanart = ''
 	tmdblogo = ''
 	if show_tmdblogo:
-		try: tmdblogo_path = [i['file_path'] for i in data_get('images')['logos'] if 'file_path' in i if i['file_path'].endswith('png')][0]
+		try: tmdblogo_path = next((i['file_path'] for i in data_get('images')['logos'] if 'file_path' in i and i['file_path'].endswith('png')), None)
 		except Exception: tmdblogo_path = None
 		if tmdblogo_path: tmdblogo = tmdb_image_base % (image_resolution['fanart'], tmdblogo_path)
 	title, original_title = data_get('name'), data_get('original_name')
-	try: english_title = [i['data']['name'] for i in data_get('translations')['translations'] if i['iso_639_1'] == 'en'][0]
+	try: english_title = next((i['data']['name'] for i in data_get('translations')['translations'] if i['iso_639_1'] == 'en'), None)
 	except Exception: english_title = None
 	try: year = str(data_get('first_air_date').split('-')[0] or 0)
 	except Exception: year = ''
@@ -369,9 +370,9 @@ def build_tvshow_meta(data, user_info, fanarttv_data=None):
 	rootname = '%s (%s)' % (title, year)
 	networks = data_get('networks')
 	if networks:
-		if len(networks) == 1: studio = [i['name'] for i in networks][0]
+		if len(networks) == 1: studio = networks[0]['name']
 		else:
-			try: studio = [i['name'] for i in networks if i['logo_path'] not in empty_value_check][0] or [i['name'] for i in networks][0]
+			try: studio = next((i['name'] for i in networks if i['logo_path'] not in empty_value_check), None) or networks[0]['name']
 			except Exception: pass
 	production_countries = data_get('production_countries')
 	if production_countries:
@@ -380,10 +381,10 @@ def build_tvshow_meta(data, user_info, fanarttv_data=None):
 	content_ratings = data_get('content_ratings')
 	release_dates = data_get('release_dates')
 	if content_ratings:
-		try: mpaa = [i['rating'] for i in content_ratings['results'] if i['iso_3166_1'] == mpaa_country][0]
+		try: mpaa = next((i['rating'] for i in content_ratings['results'] if i['iso_3166_1'] == mpaa_country), '')
 		except Exception: pass
 	elif release_dates:
-		try: mpaa = [i['release_dates'][0]['certification'] for i in release_dates['results'] if i['iso_3166_1'] == mpaa_country][0]
+		try: mpaa = next((i['release_dates'][0]['certification'] for i in release_dates['results'] if i['iso_3166_1'] == mpaa_country), '')
 		except Exception: pass
 	credits = data_get('credits')
 	if credits:
@@ -398,7 +399,7 @@ def build_tvshow_meta(data, user_info, fanarttv_data=None):
 		if crew:
 			try: writer = ', '.join([i['name'] for i in crew if i['job'] in writer_credits])
 			except Exception: pass
-			try: director = [i['name'] for i in crew if i['job'] == 'Director'][0]
+			try: director = next((i['name'] for i in crew if i['job'] == 'Director'), '')
 			except Exception: pass
 	alternative_titles = data_get('alternative_titles')
 	if alternative_titles:
@@ -407,7 +408,7 @@ def build_tvshow_meta(data, user_info, fanarttv_data=None):
 	videos = data_get('videos')
 	if videos:
 		all_trailers = videos['results']
-		try: trailer = [youtube_url % i['key'] for i in all_trailers if i['site'] == 'YouTube' and i['type'] in trailers_test][0]
+		try: trailer = next((youtube_url % i['key'] for i in all_trailers if i['site'] == 'YouTube' and i['type'] in trailers_test), '')
 		except Exception: pass
 	status, _type, homepage = data_get('status', 'N/A'), data_get('type', 'N/A'), data_get('homepage', 'N/A')
 	created_by = data_get('created_by')
