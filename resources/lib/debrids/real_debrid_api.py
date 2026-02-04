@@ -88,7 +88,7 @@ class RealDebridAPI:
 		cache_info = self.check_hash(hash_string)
 		if hash_string not in cache_info: return False
 		info = cache_info[hash_string]
-		return True if isinstance(info, dict) and len(info.get('rd', [])) > 0 else False
+		return isinstance(info, dict) and bool(info.get('rd'))
 
 	def check_hash(self, hash_string):
 		url = 'torrents/instantAvailability/%s' % hash_string

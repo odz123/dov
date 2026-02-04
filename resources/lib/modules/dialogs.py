@@ -78,6 +78,14 @@ def genres_choice(media_type, genres, poster, return_genres=False):
 	kwargs = {'items': json.dumps(list_items), 'heading': ls(32470)}
 	return select_dialog(choices, **kwargs)
 
+def _build_trakt_ids_data(params):
+	"""Helper to build Trakt IDs data dict - consolidates duplicate pattern."""
+	return {
+		i[0]: i[1] if i[0] == 'imdb' else int(i[1])
+		for i in (('imdb', params.get('imdb_id')), ('tmdb', params.get('tmdb_id')), ('tvdb', params.get('tvdb_id')))
+		if i[1] not in ('', 'None', None)
+	}
+
 def trakt_manager_choice(params):
 	if not get_setting('trakt_user', ''): return notification(32760, 3500)
 	heading = ls(32198).replace('[B]', '').replace('[/B]', '')
@@ -91,32 +99,17 @@ def trakt_manager_choice(params):
 	if choice is None: return
 	from indexers import trakt_api
 	add_str, rem_str = 'Add to %s?' % choice, 'Remove from %s?' % choice
-	if   choice == 'Collection':
-		data = trakt_api.trakt_fetch_collection_watchlist('collection', params['media_type'])
-		action = 'remove' if str(params['tmdb_id']) in {str(i['media_ids']['tmdb']) for i in data} else 'add'
-		data = {
-			i[0]: i[1] if i[0] == 'imdb' else int(i[1])
-			for i in (('imdb', params.get('imdb_id')), ('tmdb', params.get('tmdb_id')), ('tvdb', params.get('tvdb_id')))
-			if not i[1] in ('', 'None', None)
-		}
-		data = {'shows' if params['media_type'] == 'tvshow' else 'movies': [{'ids': data}]}
+	if choice in ('Collection', 'Watchlist'):
+		list_type = 'collection' if choice == 'Collection' else 'watchlist'
+		existing_data = trakt_api.trakt_fetch_collection_watchlist(list_type, params['media_type'])
+		action = 'remove' if str(params['tmdb_id']) in {str(i['media_ids']['tmdb']) for i in existing_data} else 'add'
+		ids_data = _build_trakt_ids_data(params)
+		data = {'shows' if params['media_type'] == 'tvshow' else 'movies': [{'ids': ids_data}]}
 		if action == 'remove':
 			if not kodi_utils.confirm_dialog(text=rem_str, top_space=True): return
-			trakt_api.remove_from_collection(data)
-		else: trakt_api.add_to_collection(data)
-	elif choice == 'Watchlist':
-		data = trakt_api.trakt_fetch_collection_watchlist('watchlist', params['media_type'])
-		action = 'remove' if str(params['tmdb_id']) in {str(i['media_ids']['tmdb']) for i in data} else 'add'
-		data = {
-			i[0]: i[1] if i[0] == 'imdb' else int(i[1])
-			for i in (('imdb', params.get('imdb_id')), ('tmdb', params.get('tmdb_id')), ('tvdb', params.get('tvdb_id')))
-			if not i[1] in ('', 'None', None)
-		}
-		data = {'shows' if params['media_type'] == 'tvshow' else 'movies': [{'ids': data}]}
-		if action == 'remove':
-			if not kodi_utils.confirm_dialog(text=rem_str, top_space=True): return
-			trakt_api.remove_from_watchlist(data)
-		else: trakt_api.add_to_watchlist(data)
+			(trakt_api.remove_from_collection if choice == 'Collection' else trakt_api.remove_from_watchlist)(data)
+		else:
+			(trakt_api.add_to_collection if choice == 'Collection' else trakt_api.add_to_watchlist)(data)
 	elif choice == 'Add': trakt_api.trakt_add_to_list(params)
 	elif choice == 'Remove': trakt_api.trakt_remove_from_list(params)
 	else: trakt_api.hide_unhide_trakt_items(params['tmdb_id'], params.get('media_type', 'movie'), params.get('imdb_id') or params['tmdb_id'], 'dropped')

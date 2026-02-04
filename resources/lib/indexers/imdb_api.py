@@ -192,7 +192,7 @@ def get_imdb(params):
 		try:
 			result = result.replace('"class="lister-page-next', '" class="lister-page-next')
 			next_page = parseDOM(result, 'a', ret='href', attrs={'class': '.*?lister-page-next.*?'})
-			if len(next_page) == 0:
+			if not next_page:
 				next_page = parseDOM(result, 'div', attrs = {'class': 'pagination'})[0]
 				next_page = zip(parseDOM(next_page, 'a', ret='href'), parseDOM(next_page, 'a'))
 				next_page = [i[0] for i in next_page if 'Next' in i[1]]
