@@ -521,7 +521,7 @@ class Navigator:
 					item_get = item.get
 					name = item_get('name', 'Error: No Name')
 					icon = item_get('iconImage') if item_get('network_id', '') != '' else '%s%s' % (icon_path, item_get('iconImage'))
-					isFolder = False if item_get('isFolder', '') == 'false' else True
+					isFolder = item_get('isFolder', '') != 'false'
 					url = build_url(item)
 					edit_params = {'mode': 'menu_editor.edit_menu_shortcut_folder', 'active_list': list_name, 'position': item_position}
 					cm_append((edit_str,'RunPlugin(%s)' % build_url(edit_params)))
@@ -548,7 +548,7 @@ class Navigator:
 					elif item_get('iconImage') == 'pov.png': icon = ku.get_addoninfo('icon')
 					elif item_get('network_id', '') != '': icon = item_get('iconImage')
 					else: icon = '%s%s' % (icon_path, item_get('iconImage'))
-					isFolder = False if item_get('isFolder') == 'false' else True
+					isFolder = item_get('isFolder') != 'false'
 					cm_append((edit_str, 'RunPlugin(%s)' % build_url({'mode': 'menu_editor.edit_menu', 'active_list': self.list_name, 'position': item_position})))
 					cm_append((browse_str, 'RunPlugin(%s)' % build_url({'mode': 'menu_editor.browse', 'active_list': self.list_name})))
 					listitem = make_listitem()

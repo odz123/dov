@@ -188,7 +188,7 @@ class ExternalSource:
 						'extraInfo': extraInfo, 'quality': quality, 'size_label': size_label, 'size': round(size, 2)
 					})
 					with self._resolutions_lock:
-						if not quality in self.resolutions: self.resolutions['SD'] += 1
+						if quality not in self.resolutions: self.resolutions['SD'] += 1
 						else: self.resolutions[quality] += 1
 						self.resolutions['total'] += 1
 				except Exception: pass

@@ -245,7 +245,7 @@ class SourceSelect:
 		if self.active_folders:
 			self.folder_info = self.get_folderscraper_info()
 			self.internal_scraper_names = [i for i in active_internal_scrapers if i != 'folders']
-			self.internal_scraper_names += [i[0] for i in self.folder_info]
+			self.internal_scraper_names.extend(i[0] for i in self.folder_info)
 			self.active_internal_scrapers = active_internal_scrapers
 		else:
 			self.folder_info = []
@@ -358,7 +358,7 @@ class SourceSelect:
 	def _quality_filter(self):
 		setting = 'results_quality_%s' % self.media_type if not self.autoplay else 'autoplay_quality_%s' % self.media_type
 		filter_list = quality_filter(setting)
-		if self.include_prerelease_results and 'SD' in filter_list: filter_list += ['SCR', 'CAM', 'TELE']
+		if self.include_prerelease_results and 'SD' in filter_list: filter_list.extend(('SCR', 'CAM', 'TELE'))
 		return filter_list
 
 	def _clear_properties(self):
