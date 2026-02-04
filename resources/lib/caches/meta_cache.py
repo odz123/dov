@@ -2,7 +2,6 @@ import sqlite3
 from ast import literal_eval
 from datetime import datetime, timedelta
 from caches import BaseCache, metacache_db, get_property, set_property, clear_property
-# from modules.kodi_utils import logger
 
 # Use literal_eval instead of eval for security - only evaluates literals, not arbitrary code
 safe_eval = literal_eval

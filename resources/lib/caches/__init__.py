@@ -3,7 +3,6 @@ from ast import literal_eval
 from datetime import datetime
 from threading import Lock
 from modules import kodi_utils
-# logger = kodi_utils.logger
 
 debridcache_db = kodi_utils.debridcache_db
 favourites_db = kodi_utils.favourites_db

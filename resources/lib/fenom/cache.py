@@ -61,7 +61,11 @@ def cache_get(key):
 		log_utils.error()
 		return None
 	finally:
-		dbcur.close() ; dbcon.close()
+		# Close cursor and connection separately to ensure both are closed even if one fails
+		try: dbcur.close()
+		except Exception: pass
+		try: dbcon.close()
+		except Exception: pass
 
 def cache_insert(key, value):
 	try:
@@ -77,7 +81,11 @@ def cache_insert(key, value):
 		from fenom import log_utils
 		log_utils.error()
 	finally:
-		dbcur.close() ; dbcon.close()
+		# Close cursor and connection separately to ensure both are closed even if one fails
+		try: dbcur.close()
+		except Exception: pass
+		try: dbcon.close()
+		except Exception: pass
 
 def get_connection():
 	if not existsPath(dataPath): makeFile(dataPath)

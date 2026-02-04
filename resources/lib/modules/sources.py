@@ -298,7 +298,7 @@ class SourceSelect:
 		if scrape_type == 'internal':
 			scraper_list, _threads, line1_inst, line2_inst = self.providers, self.threads, ls(32096), 'Int:'
 		else:
-			scraper_list, _threads = self.prescrape_scrapers, self.prescrape_threads,
+			scraper_list, _threads = self.prescrape_scrapers, self.prescrape_threads
 			line1_inst, line2_inst = '%s %s' % (ls(32829), ls(32830)), 'Pre:'
 		self.internal_scrapers = self._get_active_scraper_names(scraper_list)
 		if not self.internal_scrapers: return
@@ -309,7 +309,10 @@ class SourceSelect:
 		start_time = time.monotonic()
 		end_time = start_time + timeout
 		if not self.progress_dialog: self._make_progress_dialog()
-		while alive_threads := [x.name for x in _threads if x.is_alive()]:
+		while True:
+			# Check alive threads once per iteration to avoid repeated list creation
+			alive_threads = [x.name for x in _threads if x.is_alive()]
+			if not alive_threads: break
 			if monitor.abortRequested() or time.monotonic() > end_time: break
 			try:
 				self._process_internal_results()
@@ -319,7 +322,8 @@ class SourceSelect:
 				line3 = remaining_format % ', '.join(alive_threads).upper()
 				percent = int((current_progress/float(timeout))*100) if timeout > 0 else 0
 				self.progress_dialog.update(format_line % (line1, line2, line3), percent)
-			except Exception: pass
+			except Exception:
+				pass  # Dialog update errors are non-critical
 			sleep(self.sleep_time)
 
 	def _get_active_scraper_names(self, scraper_list):

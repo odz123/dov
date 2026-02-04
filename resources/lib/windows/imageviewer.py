@@ -4,7 +4,6 @@ from indexers.tmdb_api import tmdb_popular_people
 from indexers.people import person_data_dialog
 from modules.settings import download_directory
 from modules.kodi_utils import media_path, show_busy_dialog, hide_busy_dialog, local_string as ls
-# from modules.kodi_utils import logger
 
 fanart = BaseDialog.fanart
 next_icon = media_path('item_next.png')

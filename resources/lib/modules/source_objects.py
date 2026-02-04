@@ -6,7 +6,6 @@ from modules.kodi_utils import local_string as ls, get_setting
 from modules.settings import metadata_user_info, date_offset
 from modules.source_utils import get_cache_expiry, get_filename_match, get_file_info, normalize
 from modules.utils import clean_file_name, safe_string, remove_accents, get_datetime, adjust_premiered_date
-# from modules.kodi_utils import logger
 
 season_display, show_display, resolutions = ls(32537), ls(32089), '4K 1080p 720p SD total'
 pack_check = (season_display, show_display)

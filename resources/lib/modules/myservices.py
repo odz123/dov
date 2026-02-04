@@ -3,7 +3,6 @@ import requests
 from threading import Thread, Timer
 from windows import create_window
 from modules import kodi_utils, cache
-# logger = kodi_utils.logger
 
 quote, clear_cache = requests.utils.quote, cache.clear_cache
 get_setting, set_setting, sleep = kodi_utils.get_setting, kodi_utils.set_setting, kodi_utils.sleep

@@ -5,7 +5,6 @@ from windows import open_window
 from modules import kodi_utils, settings
 from modules.meta_lists import language_choices
 from modules.utils import sec2time, make_title_slug
-# from modules.kodi_utils import logger
 
 KODI_VERSION, make_cast_list = kodi_utils.get_kodi_version(), kodi_utils.make_cast_list
 ls, get_setting = kodi_utils.local_string, kodi_utils.get_setting

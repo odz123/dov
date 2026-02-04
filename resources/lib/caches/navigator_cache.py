@@ -1,6 +1,5 @@
 from caches import BaseCache, navigator_db, get_property, set_property, clear_property, literal_eval
 from modules import menu_lists as default_menus
-# from modules.kodi_utils import logger
 
 main_menus = default_menus.main_menus
 GET_LIST = 'SELECT list_contents FROM navigator WHERE list_name = ? AND list_type = ?'

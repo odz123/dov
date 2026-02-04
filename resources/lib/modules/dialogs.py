@@ -3,7 +3,6 @@ from indexers import metadata
 from modules import kodi_utils, source_utils, settings
 from modules.cache import clear_cache
 from modules.utils import get_datetime, clean_file_name
-# logger = kodi_utils.logger
 
 ls, build_url, media_path, select_dialog = kodi_utils.local_string, kodi_utils.build_url, kodi_utils.media_path, kodi_utils.select_dialog
 show_busy_dialog, hide_busy_dialog, notification, ok_dialog = kodi_utils.show_busy_dialog, kodi_utils.hide_busy_dialog, kodi_utils.notification, kodi_utils.ok_dialog

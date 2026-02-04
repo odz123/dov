@@ -6,7 +6,6 @@ from caches.debrid_cache import DebridCache
 from indexers import metadata
 from modules.utils import clean_file_name
 from modules import kodi_utils, settings
-# from modules.kodi_utils import logger
 
 ls, get_setting, notification = kodi_utils.local_string, kodi_utils.get_setting, kodi_utils.notification
 show_busy_dialog, hide_busy_dialog = kodi_utils.show_busy_dialog, kodi_utils.hide_busy_dialog
@@ -128,7 +127,9 @@ class Source:
 			if self.debrid in default_hosters_providers and not self.source.lower() == 'torrent':
 				return import_debrid(self.debrid).unrestrict_link(self.url)
 			return self.url
-		except Exception: pass
+		except Exception as e:
+			kodi_utils.logger('resolve_sources exception', f"{e}\n{self.dumps()}")
+			return None
 
 	def resolve_external_sources(self, api, title, season, episode):
 		from modules.source_utils import supported_video_extensions, seas_ep_filter, extras_filter

@@ -39,9 +39,11 @@ _SERIES_LIKE_TYPES = ('series', 'anime', 'tv', 'channel', 'other')
 
 class StremioCache:
 	"""Simple caching layer for Stremio catalog data using Kodi window properties.
-	Tracks all cache keys in a registry property so they can be cleared."""
+	Tracks all cache keys in a registry property so they can be cleared.
+	Uses in-memory set for registry to avoid JSON parse/dump on every cache operation."""
 
 	_REGISTRY_KEY = 'pov_stremio_cache_keys'
+	_registry_cache = None  # In-memory cache for registry keys
 
 	@staticmethod
 	def _make_cache_key(prefix, *args):
@@ -50,22 +52,32 @@ class StremioCache:
 		return f"pov_stremio_{prefix}_{'_'.join(key_parts)}"
 
 	@staticmethod
+	def _load_registry():
+		"""Load registry from window property into memory (lazy load)"""
+		if StremioCache._registry_cache is None:
+			try:
+				registry = get_property(StremioCache._REGISTRY_KEY)
+				StremioCache._registry_cache = set(json.loads(registry)) if registry else set()
+			except Exception:
+				StremioCache._registry_cache = set()
+		return StremioCache._registry_cache
+
+	@staticmethod
+	def _save_registry():
+		"""Save in-memory registry to window property"""
+		try:
+			if StremioCache._registry_cache:
+				set_property(StremioCache._REGISTRY_KEY, json.dumps(list(StremioCache._registry_cache)))
+		except Exception:
+			pass
+
+	@staticmethod
 	def _register_key(key):
 		"""Track a cache key in the registry for later clearing"""
-		try:
-			registry = get_property(StremioCache._REGISTRY_KEY)
-			if registry:
-				keys = json.loads(registry)
-			else:
-				keys = []
-			if key not in keys:
-				keys.append(key)
-				set_property(StremioCache._REGISTRY_KEY, json.dumps(keys))
-		except Exception:
-			try:
-				set_property(StremioCache._REGISTRY_KEY, json.dumps([key]))
-			except Exception:
-				pass
+		registry = StremioCache._load_registry()
+		if key not in registry:
+			registry.add(key)
+			StremioCache._save_registry()
 
 	@staticmethod
 	def get(key):
@@ -100,15 +112,14 @@ class StremioCache:
 	def clear_all():
 		"""Clear all Stremio catalog cache by iterating tracked keys"""
 		try:
-			registry = get_property(StremioCache._REGISTRY_KEY)
-			if registry:
-				keys = json.loads(registry)
-				for key in keys:
-					try:
-						clear_property(key)
-					except Exception:
-						pass
+			registry = StremioCache._load_registry()
+			for key in registry:
+				try:
+					clear_property(key)
+				except Exception:
+					pass
 			clear_property(StremioCache._REGISTRY_KEY)
+			StremioCache._registry_cache = set()  # Reset in-memory cache
 		except Exception:
 			pass
 
