@@ -204,7 +204,6 @@ def clean_title(title):
 		title = title.lower()
 		title = _RE_HTML_ENTITY.sub('', title)
 		title = _RE_HTML_ENTITY_FIX.sub('\\1;\\2', title)
-		title = _RE_HTML_ENTITY_FIX.sub('\\1;\\2', title)
 		title = title.replace('&quot;', '\"').replace('&amp;', '&')
 		title = _RE_CLEAN_TITLE.sub('', title)
 	except Exception: pass
@@ -333,7 +332,7 @@ def paginate_list(item_list, page, letter, limit=20):
 		title_list = [i['title'].lower() for i in item_list]
 		start_list = [chr(i) for i in range(97, 123)]
 		letter_index = start_list.index(letter)
-		base_list = [element for element in list(chain.from_iterable([val for val in zip_longest(start_list[letter_index:], start_list[:letter_index][::-1])])) if element != None]
+		base_list = [element for element in chain.from_iterable(zip_longest(start_list[letter_index:], start_list[:letter_index][::-1])) if element is not None]
 		for i in base_list:
 			start_index = _get_start_index(i)
 			if start_index is not None: break

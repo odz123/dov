@@ -6,6 +6,14 @@ from modules import kodi_utils, settings
 from modules.meta_lists import language_choices
 from modules.utils import sec2time, make_title_slug
 
+# Player progress thresholds (in percent)
+PROGRESS_RESUME_THRESHOLD = 5
+PROGRESS_WATCHED_THRESHOLD = 90
+# Minimum playback time before marking watched (seconds)
+MIN_PLAYBACK_FOR_WATCHED = 120
+# Default stinger check threshold (seconds)
+DEFAULT_STINGER_THRESHOLD = 30
+
 KODI_VERSION, make_cast_list = kodi_utils.get_kodi_version(), kodi_utils.make_cast_list
 ls, get_setting = kodi_utils.local_string, kodi_utils.get_setting
 fanart_empty = kodi_utils.get_addoninfo('fanart')
@@ -14,7 +22,7 @@ poster_empty = kodi_utils.media_path('box_office.png')
 class POVPlayer(kodi_utils.xbmc_player):
 	def __init__(self):
 		kodi_utils.xbmc_player.__init__(self)
-		self.set_resume, self.set_watched = 5, 90
+		self.set_resume, self.set_watched = PROGRESS_RESUME_THRESHOLD, PROGRESS_WATCHED_THRESHOLD
 		self.playback_event, self.progress_media = None, None
 		self.media_marked, self.nextep_info_gathered = False, False
 		self.subs_searched, self.stingers_checked = False, False
@@ -27,7 +35,7 @@ class POVPlayer(kodi_utils.xbmc_player):
 		self.autoscrape_next_episode = False
 		self.autoscrape_nextep = settings.autoscrape_next_episode()
 		self.stinger_enabled = get_setting('stingers.enable') == 'true'
-		self.stinger_check = int(get_setting('stingers.threshold', '30'))
+		self.stinger_check = int(get_setting('stingers.threshold', str(DEFAULT_STINGER_THRESHOLD)))
 		self.volume_check = get_setting('volumecheck.enabled', 'false') == 'true'
 		self.watched_indicators = settings.watched_indicators()
 		self._threads = []
@@ -84,7 +92,7 @@ class POVPlayer(kodi_utils.xbmc_player):
 					self.current_point = round(float(self.curr_time/self.total_time * 100), 1) if self.total_time > 0 else 0
 					if self.curr_time > self.stinger_check and not self.stingers_checked:
 						self.run_stingers()
-					if self.current_point >= self.set_watched and not self.media_marked and self.curr_time >= 120:
+					if self.current_point >= self.set_watched and not self.media_marked and self.curr_time >= MIN_PLAYBACK_FOR_WATCHED:
 						self.media_watched_marker()
 					if self.play_random_continual:
 						if not self.nextep_info_gathered: self.info_next_ep()
@@ -103,7 +111,7 @@ class POVPlayer(kodi_utils.xbmc_player):
 							if not self.nextep_started and self.autoscrape_nextep: self.run_scrape_next_ep()
 				except Exception: pass
 				if not self.subs_searched: self.run_subtitles()
-			if not self.media_marked and getattr(self, 'curr_time', 0) >= 120:
+			if not self.media_marked and getattr(self, 'curr_time', 0) >= MIN_PLAYBACK_FOR_WATCHED:
 				try: self.media_watched_marker()
 				except Exception: pass
 			try: self.run_scrobble_stop()

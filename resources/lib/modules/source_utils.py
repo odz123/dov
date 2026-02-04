@@ -279,10 +279,10 @@ def scraper_names(folder):
 	sourceSubFolders = {'hosters': '', 'torrents': ''}
 	if folder == 'all': sourceSubFolders = ['']
 	else: sourceSubFolders = [v for k, v in sourceSubFolders.items() if k == folder]
-	for item in sourceSubFolders:
-		files = kodi_utils.list_dirs(source_folder_location % item)[1]
-		for item in files:
-			module_name = item.split('.')[0]
+	for subfolder in sourceSubFolders:
+		files = kodi_utils.list_dirs(source_folder_location % subfolder)[1]
+		for filename in files:
+			module_name = filename.split('.')[0]
 			if module_name == '__init__': continue
 			append(module_name)
 	return providerList
@@ -434,10 +434,10 @@ def check_title(title, release_title, aliases, year, season, episode):
 		else: hdlr = year
 		if hdlr:
 			release_title = release_title.split(hdlr.lower())[0]
-			release_title = release_title.replace(year, '').replace('(', '').replace(')', '').replace('&', 'and').rstrip('.-').rstrip('.').rstrip('-').replace(':', '')
+			release_title = release_title.replace(year, '').replace('(', '').replace(')', '').replace('&', 'and').replace(':', '').rstrip('.-')
 			if not any(release_title == i for i in cleaned_titles): return False
 		else:
-			release_title = release_title.replace(year, '').replace('(', '').replace(')', '').replace('&', 'and').rstrip('.-').rstrip('.').rstrip('-').replace(':', '')
+			release_title = release_title.replace(year, '').replace('(', '').replace(')', '').replace('&', 'and').replace(':', '').rstrip('.-')
 			if not any(i in release_title for i in cleaned_titles): return False
 		return True
 	except Exception: return True
@@ -463,7 +463,6 @@ def clean_title(title):
 		if not title: return
 		title = title.lower()
 		title = _RE_HTML_ENTITY.sub('', title)
-		title = _RE_HTML_ENTITY_FIX.sub('\\1;\\2', title)
 		title = _RE_HTML_ENTITY_FIX.sub('\\1;\\2', title)
 		title = title.replace('&quot;', '\"').replace('&amp;', '&')
 		title = _RE_CLEAN_TITLE.sub('', title)
