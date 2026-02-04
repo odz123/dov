@@ -86,7 +86,7 @@ class RealDebridAPI:
 
 	def check_single_magnet(self, hash_string):
 		cache_info = self.check_hash(hash_string)
-		if not hash_string in cache_info: return False
+		if hash_string not in cache_info: return False
 		info = cache_info[hash_string]
 		return True if isinstance(info, dict) and len(info.get('rd', [])) > 0 else False
 

@@ -233,7 +233,7 @@ class SourceSelect:
 				remainder_list = [i for i in results if id(i) not in priority_set]
 				results = priority_list + remainder_list
 			elif setting == 3:
-				results.sort(key=lambda k: key in k['extraInfo'] and not 'Uncached' in k.get('cache_provider', ''), reverse=True)
+				results.sort(key=lambda k: key in k['extraInfo'] and 'Uncached' not in k.get('cache_provider', ''), reverse=True)
 
 		return stremio_sources + results
 
@@ -244,7 +244,7 @@ class SourceSelect:
 		self.active_folders = 'folders' in active_internal_scrapers
 		if self.active_folders:
 			self.folder_info = self.get_folderscraper_info()
-			self.internal_scraper_names = [i for i in active_internal_scrapers if not i == 'folders']
+			self.internal_scraper_names = [i for i in active_internal_scrapers if i != 'folders']
 			self.internal_scraper_names += [i[0] for i in self.folder_info]
 			self.active_internal_scrapers = active_internal_scrapers
 		else:
@@ -274,7 +274,7 @@ class SourceSelect:
 		else:
 			external_providers = external_sources(ret_all=self.disabled_ignored)
 			self.external_providers = [
-				i for i in external_providers if not i[0] in self.exclude_list
+				i for i in external_providers if i[0] not in self.exclude_list
 				and (i[1].hasEpisodes if self.media_type == 'episode' else i[1].hasMovies)
 			]
 			if not self.season: return
@@ -292,7 +292,7 @@ class SourceSelect:
 
 	def get_folderscraper_info(self):
 		folder_info = [(get_setting('%s.display_name' % i), i) for i in folder_scrapers]
-		return [i for i in folder_info if not i[0] in (None, 'None', '')]
+		return [i for i in folder_info if i[0] not in (None, 'None', '')]
 
 	def scrapers_dialog(self, scrape_type):
 		if scrape_type == 'internal':
@@ -441,7 +441,7 @@ class SourceSelect:
 				return
 			if autoplay:
 				# Filter out external URL sources from autoplay (they can't be auto-played)
-				items = [i for i in results if not 'Uncached' in i.get('cache_provider', '') and not i.get('external_url')]
+				items = [i for i in results if 'Uncached' not in i.get('cache_provider', '') and not i.get('external_url')]
 				# Stremio bingeGroup: prefer sources with matching binge_group for next-episode autoplay
 				preferred_binge_group = self.meta.get('stremio_binge_group')
 				if preferred_binge_group and items:
@@ -451,7 +451,7 @@ class SourceSelect:
 				source_index = results.index(source) if source in results else 0
 				if source_index: items = [
 					i for i in results[source_index + 1:]
-					if not 'Uncached' in i.get('cache_provider', '')
+					if 'Uncached' not in i.get('cache_provider', '')
 				][:40]
 				else: items = []
 				items.insert(0, source)
@@ -729,7 +729,7 @@ class Manager:
 				self.final_sources.extend({**i, 'cache_provider': name, 'debrid': name} for i in torrent_sources if i['hash'] in hashes_set)
 				self.final_sources.extend({**i, 'cache_provider': status, 'debrid': name} for i in torrent_sources if i['hash'] not in hashes_set)
 			self.final_sources = [i for i in self.final_sources if not (i['source'] == 'usenet' and 'Unchecked' in i['cache_provider'])]
-			hoster_sources = [i for i in self.sources if not 'hash' in i]
+			hoster_sources = [i for i in self.sources if 'hash' not in i]
 			# Stremio/Torrentio/AIOStreams/Torz non-torrent sources bypass debrid hoster check
 			# They're direct/debrid_direct/youtube streams that are already resolved or playable
 			direct_bypass_providers = ('stremio', 'torrentio', 'aiostreams', 'torz')

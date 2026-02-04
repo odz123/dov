@@ -37,7 +37,7 @@ class TorBoxAPI:
 		if 'json' in response.headers.get('Content-Type', ''):
 			try: response = response.json()
 			except ValueError: pass
-		if isinstance(response, dict) and 'data' in response and 'success' in response and not 'control' in path: response = response['data']
+		if isinstance(response, dict) and 'data' in response and 'success' in response and 'control' not in path: response = response['data']
 		return response
 
 	def _get(self, url, params=None):
@@ -168,7 +168,7 @@ class TorBoxAPI:
 		nzb_id = None
 		try:
 			extensions = supported_video_extensions()
-			extras_filtering_list = tuple(i for i in extras_filter() if not i in title.lower())
+			extras_filtering_list = tuple(i for i in extras_filter() if i not in title.lower())
 			if not nzb_info:
 				nzb_id = self.create_transfer(nzb_url)
 				nzb_files = self.nzb_info(nzb_id)
