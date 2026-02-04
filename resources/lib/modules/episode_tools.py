@@ -8,7 +8,6 @@ from indexers.metadata import tvshow_meta_with_stremio, season_episodes_meta_wit
 from modules import kodi_utils, settings
 from modules.sources import SourceSelect
 from modules.utils import get_datetime, adjust_premiered_date
-# from modules.kodi_utils import logger
 
 ls, build_url = kodi_utils.local_string, kodi_utils.build_url
 

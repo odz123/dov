@@ -40,8 +40,6 @@ class source:
 			query = re.sub(r'[^A-Za-z0-9\s\.-]+', '', query)
 			url = self.search_link % quote(query)
 			url = '%s%s' % (self.base_link, url)
-			# log_utils.log('url = %s' % url)
-
 			if 'timeout' in data: self.timeout = int(data['timeout'])
 			rjson = client.request(url, timeout=self.timeout)
 			if not rjson or any(value in rjson for value in SERVER_ERROR): return sources

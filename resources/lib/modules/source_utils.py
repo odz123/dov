@@ -322,8 +322,8 @@ def get_filename_match(title, url, name=None):
 	return title_match
 
 def supported_video_extensions():
-	supported_video_extensions = kodi_utils.supported_media().split('|')
-	return [i for i in supported_video_extensions if not i in ('','.iso','.zip')]
+	extensions = kodi_utils.supported_media().split('|')
+	return [i for i in extensions if not i in ('','.iso','.zip')]
 
 def seas_ep_query_list(season, episode):
 	season = int(season)

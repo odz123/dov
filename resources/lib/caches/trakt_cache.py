@@ -69,6 +69,7 @@ class TraktCache:
 		self.dbcur.execute("""PRAGMA synchronous = OFF""")
 		self.dbcur.execute("""PRAGMA journal_mode = OFF""")
 		self.dbcur.execute("""PRAGMA mmap_size = 268435456""")
+		self.dbcur.execute("""PRAGMA cache_size = -8000""")
 
 def cache_trakt_object(function, string, url):
 	with TraktCache() as cache:

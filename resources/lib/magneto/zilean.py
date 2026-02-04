@@ -49,7 +49,6 @@ class source:
 			else:
 				hdlr = year
 				url = '%s%s' % (self.base_link, self.movieSearch_link % imdb)
-			# log_utils.log('url = %s' % url)
 			if 'timeout' in data: self.timeout = int(data['timeout'])
 			results = session.get(url, timeout=self.timeout)
 			files = results.json() if results.status_code == 200 else []

@@ -45,7 +45,6 @@ class source:
 				hdlr = year
 				url = '%s%s' % (self.base_link, self.movieSearch_link)
 				params = {'type': 'movie', 'id': '%s' % imdb}
-			# log_utils.log('url = %s' % url)
 			if 'timeout' in data: self.timeout = int(data['timeout'])
 			results = session.get(url, params=params, headers=self._headers(), timeout=self.timeout)
 			response_json = results.json()

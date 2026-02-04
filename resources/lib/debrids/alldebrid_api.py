@@ -3,7 +3,6 @@ from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 from caches.main_cache import cache_object
 from modules import kodi_utils
-# logger = kodi_utils.logger
 
 ls, get_setting = kodi_utils.local_string, kodi_utils.get_setting
 base_url = 'https://api.alldebrid.com/'

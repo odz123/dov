@@ -34,11 +34,6 @@ string = str
 class MetaCache(BaseCache):
 	db_file = metacache_db
 
-	def _set_PRAGMAS(self):
-		self.dbcur.execute("""PRAGMA synchronous = OFF""")
-		self.dbcur.execute("""PRAGMA journal_mode = OFF""")
-		self.dbcur.execute("""PRAGMA mmap_size = 268435456""")
-
 	def get(self, media_type, id_type, media_id):
 		meta, fanarttv_data = None, None
 		try:

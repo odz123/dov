@@ -42,10 +42,8 @@ class source:
 			self.check_foreign_audio = source_utils.check_foreign_audio()
 
 			query = '%s %s' % (self.title, self.hdlr)
-#			query = re.sub(r'[^A-Za-z0-9\s\.-]+', '', query)
 			query = re.sub(r'(\\\|/| -|:|;|\*|\?|"|\'|<|>|\|)', '', query)
 			query2 = '%s %s' % (self.title, self.hdlr2)
-#			query2 = re.sub(r'[^A-Za-z0-9\s\.-]+', '', query2)
 			query2 = re.sub(r'(\\\|/| -|:|;|\*|\?|"|\'|<|>|\|)', '', query2)
 
 			urls = []
@@ -55,7 +53,6 @@ class source:
 			url2 = self.search_link % quote_plus(query2)
 			url2 = '%s%s' % (self.base_link, url2)
 			urls.append(url2)
-			# log_utils.log('urls = %s' % urls)
 			threads = []
 			append = threads.append
 			for url in urls:
@@ -147,7 +144,6 @@ class source:
 			self.undesirables = source_utils.get_undesirables()
 			self.check_foreign_audio = source_utils.check_foreign_audio()
 
-#			query = re.sub(r'[^A-Za-z0-9\s\.-]+', '', self.title)
 			query = re.sub(r'(\\\|/| -|:|;|\*|\?|"|\'|<|>|\|)', '', self.title)
 			if search_series:
 				queries = [
