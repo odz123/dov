@@ -641,18 +641,19 @@ def tmdb_clean_watchlist(silent=False):
 		watchlist_ids = []
 		watchlist_ids += all_items(watchlist, 'movie')
 		watchlist_ids += all_items(watchlist, 'tv')
-		watchlist_ids = [str(i['id']) for i in watchlist_ids]
+		# Use set for O(1) lookup instead of O(n) list lookup
+		watchlist_ids_set = {str(i['id']) for i in watchlist_ids}
 		m = get_watched_items('movie', 1, 'None', False)
 		t = get_watched_items('tvshow', 1, 'None', False)
 		p = get_in_progress_tvshows('tvshow', 1, 'None', False)
 		items = []
 		items += [
 			{'watchlist': False, 'media_type': 'movie', 'media_id': i['media_id']}
-			for i in m[0] if i['media_id'] in watchlist_ids
+			for i in m[0] if i['media_id'] in watchlist_ids_set
 		]
 		items += [
 			{'watchlist': False, 'media_type': 'tv', 'media_id': i['media_id']}
-			for i in t[0] + p[0] if i['media_id'] in watchlist_ids
+			for i in t[0] + p[0] if i['media_id'] in watchlist_ids_set
 		]
 		if not items: return '0 items to remove.'
 		threads = TaskPool(40).tasks(_remove_item, [(i, 'watchlist') for i in items], Thread)
