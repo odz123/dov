@@ -1,4 +1,5 @@
 from ast import literal_eval
+from caches import _PRAGMA_STATEMENTS
 from modules.kodi_utils import mdbl_db, database_connect
 from modules.utils import chunks
 
@@ -66,10 +67,8 @@ class MDBLCache:
 
 	def _set_PRAGMAS(self):
 		self.dbcur = self.dbcon.cursor()
-		self.dbcur.execute("""PRAGMA synchronous = OFF""")
-		self.dbcur.execute("""PRAGMA journal_mode = OFF""")
-		self.dbcur.execute("""PRAGMA mmap_size = 268435456""")
-		self.dbcur.execute("""PRAGMA cache_size = -8000""")
+		for stmt in _PRAGMA_STATEMENTS:
+			self.dbcur.execute(stmt)
 
 def cache_mdbl_object(function, string, url):
 	with MDBLCache() as cache:

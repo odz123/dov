@@ -111,7 +111,6 @@ class Movies:
 			listitem.addContextMenuItems(cm)
 			listitem.setProperties(props)
 			listitem.setLabel(rootname if self.include_year_in_title else title)
-#			listitem.setContentLookup(False)
 			listitem.setArt({'poster': poster, 'fanart': fanart, 'icon': poster, 'banner': banner, 'clearart': clearart,
 							'clearlogo': clearlogo, 'landscape': landscape, 'discart': discart})
 			if KODI_VERSION < 20:

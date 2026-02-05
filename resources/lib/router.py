@@ -107,21 +107,11 @@ class Router:
 				function = manual_function_import('indexers.tmdb_api', mode.split('.')[-1])
 				function(params)
 		elif 'build' in mode:
-			if 'build_trakt_list' in mode:
+			_build_list_map = {'build_trakt_list': 'indexers.trakt', 'build_mdb_list': 'indexers.mdblist', 'build_simkl_list': 'indexers.simkl', 'build_tmdb_list': 'indexers.tmdb'}
+			_build_match = next((v for k, v in _build_list_map.items() if k in mode), None)
+			if _build_match:
 				from modules.utils import manual_function_import
-				function = manual_function_import('indexers.trakt', mode.split('.')[-1])
-				function(params)
-			elif 'build_mdb_list' in mode:
-				from modules.utils import manual_function_import
-				function = manual_function_import('indexers.mdblist', mode.split('.')[-1])
-				function(params)
-			elif 'build_simkl_list' in mode:
-				from modules.utils import manual_function_import
-				function = manual_function_import('indexers.simkl', mode.split('.')[-1])
-				function(params)
-			elif 'build_tmdb_list' in mode:
-				from modules.utils import manual_function_import
-				function = manual_function_import('indexers.tmdb', mode.split('.')[-1])
+				function = manual_function_import(_build_match, mode.split('.')[-1])
 				function(params)
 			elif mode == 'build_movie_list':
 				from indexers.movies import Indexer
@@ -129,25 +119,10 @@ class Router:
 			elif mode == 'build_tvshow_list':
 				from indexers.tvshows import Indexer
 				Indexer(params).run()
-			elif mode == 'build_season_list':
+			elif mode in ('build_season_list', 'build_episode_list'):
 				from indexers.seasons import Seasons
 				Seasons(params).run()
-			elif mode == 'build_episode_list':
-				from indexers.seasons import Seasons
-				Seasons(params).run()
-			elif mode == 'build_in_progress_episode':
-				from indexers.episodes import Indexer
-				Indexer(params).run()
-			elif mode == 'build_next_episode':
-				from indexers.episodes import Indexer
-				Indexer(params).run()
-			elif mode == 'build_my_calendar':
-				from indexers.episodes import Indexer
-				Indexer(params).run()
-			elif mode == 'build_my_anime_calendar':
-				from indexers.episodes import Indexer
-				Indexer(params).run()
-			elif mode == 'build_anime_calendar':
+			elif mode in ('build_in_progress_episode', 'build_next_episode', 'build_my_calendar', 'build_my_anime_calendar', 'build_anime_calendar'):
 				from indexers.episodes import Indexer
 				Indexer(params).run()
 			elif mode == 'build_navigate_to_page':

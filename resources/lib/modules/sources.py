@@ -15,6 +15,20 @@ def _safe_int(value, default=0):
 	try: return int(value)
 	except (ValueError, TypeError): return default
 
+def _cleanup_dialog(obj, dialog=None, close_all=False):
+	"""Shared progress dialog cleanup to prevent resource leaks."""
+	target = dialog if dialog is not None else obj.progress_dialog
+	if target is not None:
+		try: target.close()
+		except Exception: pass
+	if close_all:
+		try: close_all_dialog()
+		except Exception: pass
+	if dialog is None:
+		try: del obj.progress_dialog
+		except Exception: pass
+		obj.progress_dialog = None
+
 class ProgressDialogManager:
 	"""Context manager for safe progress dialog handling to prevent resource leaks."""
 	def __init__(self, meta, create_func, close_func):
@@ -370,17 +384,7 @@ class SourceSelect:
 		Thread(target=self.progress_dialog.run).start()
 
 	def _kill_progress_dialog(self, dialog=None):
-		"""Safely close and cleanup progress dialog to prevent resource leaks."""
-		target = dialog if dialog is not None else self.progress_dialog
-		if target is not None:
-			try: target.close()
-			except Exception: pass
-		try: close_all_dialog()
-		except Exception: pass
-		if dialog is None:
-			try: del self.progress_dialog
-			except Exception: pass
-			self.progress_dialog = None
+		_cleanup_dialog(self, dialog, close_all=True)
 
 	def display_results(self, results):
 		window_style = results_xml_style()
@@ -825,13 +829,5 @@ class Manager:
 		Thread(target=self.progress_dialog.run).start()
 
 	def _kill_progress_dialog(self, dialog=None):
-		"""Safely close and cleanup progress dialog to prevent resource leaks."""
-		target = dialog if dialog is not None else self.progress_dialog
-		if target is not None:
-			try: target.close()
-			except Exception: pass
-		if dialog is None:
-			try: del self.progress_dialog
-			except Exception: pass
-			self.progress_dialog = None
+		_cleanup_dialog(self, dialog)
 

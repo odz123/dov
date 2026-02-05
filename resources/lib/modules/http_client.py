@@ -172,11 +172,6 @@ def _urllib_fallback_core(url, timeout=8, return_raw=False):
 		return None
 
 
-def _urllib_fallback(url, timeout=8):
-	"""Fallback fetch using urllib.request - returns parsed JSON."""
-	return _urllib_fallback_core(url, timeout, return_raw=False)
-
-
 def fetch_json(url, timeout=8, headers=None, max_retries=2, error_callback=None):
 	"""
 	Fetch JSON from URL using session with Chrome TLS fingerprint.
@@ -223,7 +218,7 @@ def fetch_json(url, timeout=8, headers=None, max_retries=2, error_callback=None)
 
 	# If blocked (403), try urllib fallback with different TLS fingerprint
 	if response is not None and response.status_code == 403:
-		fallback_result = _urllib_fallback(url, timeout=timeout)
+		fallback_result = _urllib_fallback_core(url, timeout=timeout, return_raw=False)
 		if fallback_result is not None:
 			return fallback_result
 
@@ -282,7 +277,7 @@ def fetch_raw(url, timeout=8, headers=None, max_retries=2):
 
 	# If blocked (403), try urllib fallback with different TLS fingerprint
 	if response is not None and response.status_code == 403:
-		fallback_result = _urllib_fallback_raw(url, timeout=timeout)
+		fallback_result = _urllib_fallback_core(url, timeout=timeout, return_raw=True)
 		if fallback_result is not None:
 			return fallback_result, None
 
@@ -297,11 +292,6 @@ def fetch_raw(url, timeout=8, headers=None, max_retries=2):
 		error_msg = 'Connection failed'
 
 	return response, error_msg
-
-
-def _urllib_fallback_raw(url, timeout=8):
-	"""Fallback raw fetch using urllib.request - returns response-like object."""
-	return _urllib_fallback_core(url, timeout, return_raw=True)
 
 
 def fetch_streams(base_url, media_type, media_id, timeout=8, error_callback=None):

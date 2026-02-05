@@ -7,7 +7,7 @@ from indexers.trakt_api import trakt_watched_unwatched, trakt_official_status, t
 from indexers.simkl_api import simkl_watched_unwatched
 from caches.mdbl_cache import clear_mdbl_collection_watchlist_data
 from caches.trakt_cache import clear_trakt_collection_watchlist_data
-from caches import ConnectionPool
+from caches import ConnectionPool, _PRAGMA_STATEMENTS
 from modules import kodi_utils, settings, utils
 
 timeout = 20
@@ -29,10 +29,8 @@ def _return_connection(database_file, dbcon):
 
 def set_PRAGMAS(dbcon):
 	dbcur = dbcon.cursor()
-	dbcur.execute("""PRAGMA synchronous = OFF""")
-	dbcur.execute("""PRAGMA journal_mode = OFF""")
-	dbcur.execute("""PRAGMA mmap_size = 268435456""")
-	dbcur.execute("""PRAGMA cache_size = -8000""")
+	for stmt in _PRAGMA_STATEMENTS:
+		dbcur.execute(stmt)
 	return dbcur
 
 def get_database(watched_indicators):

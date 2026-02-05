@@ -96,7 +96,7 @@ class Seasons:
 					listitem.addContextMenuItems(cm)
 					listitem.setProperties(props)
 					listitem.setLabel(title)
-#					listitem.setContentLookup(False)
+
 					listitem.setArt({'poster': poster, 'icon': poster, 'thumb': poster, 'fanart': fanart, 'banner': banner, 'clearart': clearart, 'clearlogo': clearlogo,
 									'landscape': landscape, 'tvshow.poster': poster, 'tvshow.clearart': clearart, 'tvshow.clearlogo': clearlogo, 'tvshow.landscape': landscape, 'tvshow.banner': banner})
 					if KODI_VERSION < 20:
@@ -190,7 +190,7 @@ class Seasons:
 					listitem.addContextMenuItems(cm)
 					listitem.setProperties(props)
 					listitem.setLabel(display)
-#					listitem.setContentLookup(False)
+
 					listitem.setArt({'poster': show_poster, 'fanart': background, 'thumb': thumb, 'icon': thumb, 'banner': banner, 'clearart': clearart, 'clearlogo': clearlogo,
 									'landscape': thumb, 'tvshow.poster': show_poster, 'tvshow.clearart': clearart, 'tvshow.clearlogo': clearlogo, 'tvshow.landscape': thumb, 'tvshow.banner': banner})
 					if KODI_VERSION < 20:

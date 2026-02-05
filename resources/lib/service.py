@@ -169,24 +169,16 @@ class POVMonitor(kodi_utils.xbmc_monitor):
 	def __exit__(self, exc_type, exc_value, traceback):
 		for i in self.threads: i.join()
 
+	def _safe_run(self, func):
+		try: func()
+		except Exception as e: logger('POV', '%s error: %s' % (func.__name__, str(e)))
+
 	def startUpServices(self):
-		try: initializeDatabases()
-		except Exception as e: logger('POV', 'initializeDatabases error: %s' % str(e))
-		try: checkSettingsFile()
-		except Exception as e: logger('POV', 'checkSettingsFile error: %s' % str(e))
-		try: databaseMaintenance()
-		except Exception as e: logger('POV', 'databaseMaintenance error: %s' % str(e))
-		try: viewsSetWindowProperties()
-		except Exception as e: logger('POV', 'viewsSetWindowProperties error: %s' % str(e))
-		try: reuseLanguageInvokerCheck()
-		except Exception as e: logger('POV', 'reuseLanguageInvokerCheck error: %s' % str(e))
+		for func in (initializeDatabases, checkSettingsFile, databaseMaintenance, viewsSetWindowProperties, reuseLanguageInvokerCheck):
+			self._safe_run(func)
 		for i in self.threads: i.start()
-		try: autoRun()
-		except Exception as e: logger('POV', 'autoRun error: %s' % str(e))
-		try: clearSubs()
-		except Exception as e: logger('POV', 'clearSubs error: %s' % str(e))
-		try: checkUndesirablesDatabase()
-		except Exception as e: logger('POV', 'checkUndesirablesDatabase error: %s' % str(e))
+		for func in (autoRun, clearSubs, checkUndesirablesDatabase):
+			self._safe_run(func)
 
 	def onScreensaverActivated(self):
 		set_property('pov_pause_services', 'true')

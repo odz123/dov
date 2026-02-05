@@ -43,7 +43,6 @@ def get_tmdb_lists(params):
 				listitem = make_listitem()
 				listitem.setLabel(display)
 				listitem.setArt({'icon': poster, 'poster': poster, 'thumb': poster, 'fanart': fanart, 'banner': poster})
-#				listitem.setInfo('video', {'plot': plot}) if KODI_VERSION < 20 else listitem.getVideoInfoTag().setPlot(plot)
 				listitem.addContextMenuItems(cm, replaceItems=False)
 				yield (url, listitem, True)
 			except Exception: pass

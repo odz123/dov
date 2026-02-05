@@ -582,14 +582,9 @@ def merge_stremio_meta(tmdb_meta, stremio_meta, prefer_stremio=False):
 		elif not tmdb_value and stremio_value:
 			merged[field] = stremio_value
 
-	# Special handling for artwork
-	if not merged.get('poster') and stremio_meta.get('poster'):
-		merged['poster'] = stremio_meta['poster']
-	if not merged.get('fanart') and stremio_meta.get('fanart'):
-		merged['fanart'] = stremio_meta['fanart']
-	if not merged.get('clearlogo') and stremio_meta.get('clearlogo'):
-		merged['clearlogo'] = stremio_meta['clearlogo']
-		merged['tmdblogo'] = stremio_meta['clearlogo']
+	# Sync tmdblogo with clearlogo if clearlogo was filled from Stremio
+	if not merged.get('tmdblogo') and merged.get('clearlogo'):
+		merged['tmdblogo'] = merged['clearlogo']
 
 	merged['stremio_supplemented'] = True
 	return merged
