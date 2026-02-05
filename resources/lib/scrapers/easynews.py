@@ -30,7 +30,7 @@ class source(Debrid):
 
 					if title_filter and not check_title(title, normalized, self.aliases, self.year, self.season, self.episode): continue
 					URLName = clean_file_name(normalized).replace('html', ' ').replace('+', ' ').replace('-', ' ')
-					url_dl, size = item['url_dl'], round(float(int(item['rawSize']))/1073741824, 2)
+					url_dl, size = item['url_dl'], round(float(item['rawSize'])/1073741824, 2)
 					video_quality, details = get_file_info(name_info=release_info_format(normalized))
 					sources_append({
 						'source': self.scrape_provider, 'direct': True,

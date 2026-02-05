@@ -3,7 +3,6 @@ from urllib.parse import unquote
 from debrids.easynews_api import EasyNewsAPI as EasyNews
 from modules import kodi_utils
 from modules.utils import clean_file_name
-# from modules.kodi_utils import logger
 
 ls, build_url, make_listitem = kodi_utils.local_string, kodi_utils.build_url, kodi_utils.make_listitem
 down_str = ls(32747)
@@ -19,7 +18,7 @@ def search_easynews(params):
 				url_dl = item_get('url_dl')
 				thumbnail = item_get('thumbnail', default_icon)
 				name = clean_file_name(item_get('name')).upper()
-				size = str(round(float(int(item_get('rawSize')))/1073741824, 1))
+				size = str(round(float(item_get('rawSize'))/1073741824, 1))
 				display = '%02d | [B]%s GB[/B] | [I]%s [/I]' % (count, size, name)
 				url = build_url({'mode': 'easynews.resolve_easynews', 'url_dl': url_dl, 'play': 'true'})
 				down_file_params = {'mode': 'downloader', 'action': 'cloud.easynews_direct', 'name': item_get('name'), 'url': url_dl, 'image': default_icon}

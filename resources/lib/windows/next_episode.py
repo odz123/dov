@@ -1,7 +1,6 @@
 from windows import BaseDialog
 from modules.kodi_utils import media_path
 from modules.settings import get_art_provider
-# from modules.kodi_utils import logger
 
 poster_empty = media_path('box_office.png')
 click_actions = {10: 'close', 11: 'play', 12: 'cancel'}

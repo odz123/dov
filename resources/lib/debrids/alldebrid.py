@@ -5,7 +5,6 @@ from modules import kodi_utils
 from modules.source_utils import supported_video_extensions
 from modules.utils import clean_file_name, normalize
 
-get_setting, set_setting = kodi_utils.get_setting, kodi_utils.set_setting
 ls, build_url, make_listitem = kodi_utils.local_string, kodi_utils.build_url, kodi_utils.make_listitem
 folder_str, file_str, delete_str, down_str = ls(32742).upper(), ls(32743).upper(), ls(32785), ls(32747)
 fanart = kodi_utils.get_addoninfo('fanart')
@@ -60,11 +59,11 @@ class Indexer(Debrid):
 	def browse_cloud(self, items):
 		for count, item in enumerate(items, 1):
 			try:
-				if not item['n'].lower().endswith(tuple(extensions)): continue
+				if not item['n'].lower().endswith(extensions): continue
 				cm = []
 				cm_append = cm.append
 				name = clean_file_name(item['n']).upper()
-				size = float(int(item['s']))/1073741824
+				size = float(item['s'])/1073741824
 				display = '%02d | [B]%s[/B] | %.2f GB | [I]%s [/I]' % (count, file_str, size, name)
 				params = {'name': name, 'url': item['l'], 'image': default_icon}
 				url_params = {**params, 'mode': 'alldebrid.resolve_ad', 'play': 'true'}
@@ -83,11 +82,11 @@ class Indexer(Debrid):
 		items.sort(key=lambda k: k['date'], reverse=True)
 		for count, item in enumerate(items, 1):
 			try:
-				if not item['filename'].lower().endswith(tuple(extensions)): continue
+				if not item['filename'].lower().endswith(extensions): continue
 				cm = []
 				cm_append = cm.append
 				name = clean_file_name(item['filename']).upper()
-				size = float(int(item['size']))/1073741824
+				size = float(item['size'])/1073741824
 				datetime_object = datetime.fromtimestamp(item['date']).strftime('%Y-%m-%d')
 				display = '%02d | %.2f GB | %s | [I]%s [/I]' % (count, size, datetime_object, name)
 				params = {'name': name, 'url': item['link_dl'], 'image': default_icon}

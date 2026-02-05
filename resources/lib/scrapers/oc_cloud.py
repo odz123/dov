@@ -27,7 +27,7 @@ class source(Debrid):
 			extras_filtering_list = tuple(i for i in extras_filter if not i in title.lower())
 			for item in self.scrape_results:
 				try:
-					if not item['filename'].lower().endswith(tuple(extensions)): continue
+					if not item['filename'].lower().endswith(extensions): continue
 					item.update({'filename': item['filename'].split('/')[-1], 'size': 0})
 					formalized = normalize(item['folder_name'])
 					foldername = clean_title(formalized)
@@ -41,7 +41,7 @@ class source(Debrid):
 
 					if title_filter and not check_title(title, normalized, self.aliases, self.year, self.season, self.episode): continue
 					URLName = clean_file_name(normalized).replace('html', ' ').replace('+', ' ').replace('-', ' ')
-					file_dl, size = self.requote_uri(item['link']), round(float(int(item['size']))/1073741824, 2)
+					file_dl, size = self.requote_uri(item['link']), round(float(item['size'])/1073741824, 2)
 					video_quality, details = get_file_info(name_info=release_info_format(normalized))
 					sources_append({
 						'source': self.scrape_provider, 'direct': True,

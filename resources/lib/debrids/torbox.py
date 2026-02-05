@@ -3,9 +3,7 @@ from debrids.torbox_api import TorBoxAPI as Debrid
 from modules import kodi_utils
 from modules.source_utils import supported_video_extensions
 from modules.utils import clean_file_name, normalize
-# from modules.kodi_utils import logger
 
-get_setting, set_setting = kodi_utils.get_setting, kodi_utils.set_setting
 ls, build_url, make_listitem = kodi_utils.local_string, kodi_utils.build_url, kodi_utils.make_listitem
 folder_str, file_str, delete_str, down_str = ls(32742).upper(), ls(32743).upper(), ls(32785), ls(32747)
 fanart = kodi_utils.get_addoninfo('fanart')
@@ -61,11 +59,11 @@ class Indexer(Debrid):
 	def browse_cloud(self, items):
 		for count, item in enumerate(items, 1):
 			try:
-				if not item['short_name'].lower().endswith(tuple(extensions)): continue
+				if not item['short_name'].lower().endswith(extensions): continue
 				cm = []
 				cm_append = cm.append
 				name = clean_file_name(item['short_name']).upper()
-				size = float(int(item['size']))/1073741824
+				size = float(item['size'])/1073741824
 				display = '%02d | [B]%s[/B] | %.2f GB | [I]%s [/I]' % (count, file_str, size, name)
 				params = {'name': name, 'url': item['url'], 'media_type': item['media_type'], 'image': default_icon}
 				url_params = {**params, 'mode': 'torbox.resolve_tb', 'play': 'true'}

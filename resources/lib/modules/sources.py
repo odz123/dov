@@ -191,8 +191,12 @@ class SourceSelect:
 		"""Apply all special filters in optimized passes - combines exclusions into single pass."""
 		# Stremio sources are ready to play - bypass all filtering
 		# Note: provider is 'stremio' after process_sources, not 'stremio_{addon}'
-		stremio_sources = [i for i in results if i.get('provider', '').startswith('stremio')]
-		results = [i for i in results if not i.get('provider', '').startswith('stremio')]
+		# Single-pass partition instead of two list comprehensions
+		stremio_sources = []
+		non_stremio = []
+		for i in results:
+			(stremio_sources if i.get('provider', '').startswith('stremio') else non_stremio).append(i)
+		results = non_stremio
 
 		# Build list of keys to exclude (setting == 1)
 		exclude_keys = []
@@ -419,10 +423,11 @@ class SourceSelect:
 						elif self.progress_dialog and self.progress_dialog.iscanceled(): break
 						total_items = len(items)
 						percent = int((total_items - count) / total_items * 100) if total_items > 0 else 0
+						item_get = item.get
 						name = item['name'].replace('.', ' ').replace('-', ' ').upper()
-						line1 = item.get('scrape_provider'), item.get('cache_provider'), item.get('provider')
+						line1 = item_get('scrape_provider'), item_get('cache_provider'), item_get('provider')
 						line1 = ' | '.join(i for i in line1 if i and i != 'external').upper()
-						line2 = ' | '.join(i for i in (item.get('size_label', ''), item.get('extraInfo', '')) if i)
+						line2 = ' | '.join(i for i in (item_get('size_label', ''), item_get('extraInfo', '')) if i)
 						if self.progress_dialog: self.progress_dialog.update(format_line % (line1, line2, name), percent)
 						else: progressDialogBG.update(percent, name)
 					except Exception: pass
@@ -726,22 +731,36 @@ class Manager:
 			for name, hashes in ((fut.name, fut.result() if fut.done() else []) for fut in self.threads):
 				hashes_set = set(hashes) if hashes else set()  # O(1) lookup
 				status = ('Unchecked %s' if name in ('real-debrid', 'alldebrid') else 'Uncached %s') % name
-				self.final_sources.extend({**i, 'cache_provider': name, 'debrid': name} for i in torrent_sources if i['hash'] in hashes_set)
-				self.final_sources.extend({**i, 'cache_provider': status, 'debrid': name} for i in torrent_sources if i['hash'] not in hashes_set)
-			self.final_sources = [i for i in self.final_sources if not (i['source'] == 'usenet' and 'Unchecked' in i['cache_provider'])]
-			hoster_sources = [i for i in self.sources if 'hash' not in i]
-			# Stremio/Torrentio/AIOStreams/Torz non-torrent sources bypass debrid hoster check
-			# They're direct/debrid_direct/youtube streams that are already resolved or playable
+				# Single pass over torrent_sources instead of two separate passes
+				for i in torrent_sources:
+					d = i.copy()
+					d['debrid'] = name
+					if i['hash'] in hashes_set:
+						d['cache_provider'] = name
+					else:
+						d['cache_provider'] = status
+						if i['source'] == 'usenet' and 'Unchecked' in status:
+							continue
+					self.final_sources.append(d)
+			# Single-pass partition of hoster sources into direct-bypass and regular
 			direct_bypass_providers = ('stremio', 'torrentio', 'aiostreams', 'torz')
-			direct_sources = [i for i in hoster_sources if i.get('direct') and i.get('provider', '').startswith(direct_bypass_providers)]
-			self.final_sources.extend(direct_sources)
-			hoster_sources = [i for i in hoster_sources if not (i.get('direct') and i.get('provider', '').startswith(direct_bypass_providers))]
+			hoster_sources = []
+			for i in self.sources:
+				if 'hash' in i: continue
+				if i.get('direct') and i.get('provider', '').startswith(direct_bypass_providers):
+					self.final_sources.append(i)
+				else:
+					hoster_sources.append(i)
 			result_hosters = {i['source'].lower() for i in hoster_sources}  # Keep as set for O(1) lookup
 			for item in self.debrid_hosters:
 				for k, v in item.items():
 					v_set = set(v)  # O(1) lookup
-					valid_hosters = {i for i in result_hosters if i in v_set}
-					self.final_sources.extend([{**i, 'debrid': k} for i in hoster_sources if i['source'].lower() in valid_hosters])
+					valid_hosters = result_hosters & v_set
+					for i in hoster_sources:
+						if i['source'].lower() in valid_hosters:
+							d = i.copy()
+							d['debrid'] = k
+							self.final_sources.append(d)
 		except Exception: notification(32574)
 		finally: tpe.shutdown(wait=True)
 		return self.final_sources

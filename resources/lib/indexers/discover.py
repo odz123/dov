@@ -136,7 +136,7 @@ class Discover:
 							key_ids_append(str(i['id']))
 							key_words_append(i['name'].upper())
 			except Exception: pass
-			values = ('&with_keywords=%s' % ','.join([i for i in current_key_ids]), ', '.join([i for i in current_keywords]))
+			values = ('&with_keywords=%s' % ','.join(current_key_ids), ', '.join(current_keywords))
 			self._process(key, values)
 
 	def exclude_keywords(self):
@@ -162,7 +162,7 @@ class Discover:
 							key_ids_append(str(i['id']))
 							key_words_append(i['name'].upper())
 			except Exception: pass
-			values = ('&without_keywords=%s' % ','.join([i for i in current_key_ids]), ', '.join([i for i in current_keywords]))
+			values = ('&without_keywords=%s' % ','.join(current_key_ids), ', '.join(current_keywords))
 			self._process(key, values)
 
 	def year_start(self):
@@ -244,7 +244,7 @@ class Discover:
 	def rating(self):
 		key = 'rating'
 		if self._action(key) in ('clear', None): return
-		ratings = [i for i in range(1, 11)]
+		ratings = list(range(1, 11))
 		ratings_list = [str(float(i)) for i in ratings]
 		rating = self._selection_dialog(ratings_list, ratings, heading_base % ('%s %s' % (ls(32661), ls(32621))))
 		if rating is not None:
@@ -254,7 +254,7 @@ class Discover:
 	def rating_votes(self):
 		key = 'rating_votes'
 		if self._action(key) in ('clear', None): return
-		rating_votes = [i for i in range(0, 1001, 50)]
+		rating_votes = list(range(0, 1001, 50))
 		rating_votes.pop(0)
 		rating_votes.insert(0, 1)
 		rating_votes_list = [str(i) for i in rating_votes]
@@ -341,7 +341,7 @@ class Discover:
 					for i in company_choice:
 						company_ids_append(str(i['id']))
 						company_append(i['name'].upper())
-				values = ('&with_companies=%s' % '|'.join([i for i in current_company_ids]), ', '.join([i for i in current_companies]))
+				values = ('&with_companies=%s' % '|'.join(current_company_ids), ', '.join(current_companies))
 				self._process(key, values)
 			except Exception: pass
 
@@ -395,10 +395,8 @@ class Discover:
 					url = build_url(url_params)
 					remove_single_params = {'mode': 'discover_remove_from_history', 'data_id': data_id, 'silent': False}
 					remove_all_params = {'mode': 'discover_remove_all_history', 'media_type': media_type, 'silent': True}
-#					export_params = {'mode': 'navigator.adjust_main_lists', 'method': 'add_external', 'list_name': name, 'menu_item': json.dumps(url_params)}
 					cm_append(('[B]%s[/B]' % remove_str, 'RunPlugin(%s)'% build_url(remove_single_params)))
 					cm_append(('[B]%s[/B]' % clear_str, 'RunPlugin(%s)'% build_url(remove_all_params)))
-#					cm_append(('[B]%s[/B]' % export_str, 'RunPlugin(%s)'% build_url(export_params)))
 					listitem = make_listitem()
 					listitem.setLabel(display)
 					listitem.addContextMenuItems(cm)
@@ -514,24 +512,15 @@ class Discover:
 			string = string_params['base_recommended'] % (string_params['recommended'], '%s')
 			self.discover_params['final_string'] = string
 			return
-		string = string_params['base']
-		if 'year_start' in string_params: string += string_params['year_start']
-		if 'year_end' in string_params: string += string_params['year_end']
-		if 'include_genres' in string_params: string += string_params['include_genres']
-		if 'exclude_genres' in string_params: string += string_params['exclude_genres']
-		if 'include_keywords' in string_params: string += string_params['include_keywords']
-		if 'exclude_keywords' in string_params: string += string_params['exclude_keywords']
-		if 'companies' in string_params: string += string_params['companies']
-		if 'language' in string_params: string += string_params['language']
-		if 'region' in string_params: string += string_params['region']
-		if 'rating' in string_params: string += string_params['rating']
-		if 'rating_votes' in string_params: string += string_params['rating_votes']
-		if 'certification' in string_params: string += string_params['certification']
-		if 'cast' in string_params: string += string_params['cast']
-		if 'network' in string_params: string += string_params['network']
-		if 'adult' in string_params: string += string_params['adult']
-		if 'sort_by' in string_params: string += string_params['sort_by']
-		self.discover_params['final_string'] = string
+		parts = [string_params['base']]
+		sp_get = string_params.get
+		for key in ('year_start', 'year_end', 'include_genres', 'exclude_genres',
+					'include_keywords', 'exclude_keywords', 'companies', 'language',
+					'region', 'rating', 'rating_votes', 'certification', 'cast',
+					'network', 'adult', 'sort_by'):
+			val = sp_get(key)
+			if val: parts.append(val)
+		self.discover_params['final_string'] = ''.join(parts)
 
 	def _build_name(self):
 		values = self.discover_params['search_name']

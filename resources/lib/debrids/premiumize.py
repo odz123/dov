@@ -4,7 +4,6 @@ from modules import kodi_utils
 from modules.source_utils import supported_video_extensions
 from modules.utils import clean_file_name, normalize
 
-get_setting, set_setting = kodi_utils.get_setting, kodi_utils.set_setting
 ls, build_url, make_listitem = kodi_utils.local_string, kodi_utils.build_url, kodi_utils.make_listitem
 folder_str, file_str, down_str, archive_str, rename_str, delete_str = ls(32742).upper(), ls(32743).upper(), ls(32747), ls(32982), ls(32748), ls(32785)
 fanart = kodi_utils.get_addoninfo('fanart')
@@ -39,7 +38,7 @@ class Indexer(Debrid):
 		items.sort(key=lambda k: k['type'], reverse=True)
 		for count, item in enumerate(items, 1):
 			try:
-				if not ('link' in item and item['link'].lower().endswith(tuple(extensions))) and not item['type'] == 'folder': continue
+				if not ('link' in item and item['link'].lower().endswith(extensions)) and not item['type'] == 'folder': continue
 				cm = []
 				cm_append = cm.append
 				file_type = item['type']
@@ -61,7 +60,7 @@ class Indexer(Debrid):
 					url_link = item['link']
 					if url_link.startswith('/'): url_link = 'https:' + url_link
 					size = item['size']
-					display_size = float(int(size))/1073741824
+					display_size = float(size)/1073741824
 					display = '%02d | [B]%s[/B] | %.2f GB | [I]%s [/I]' % (count, file_str, display_size, name)
 					url_params = {'mode': 'media_play', 'url': url_link, 'media_type': 'video'}
 					down_file_params = {'mode': 'downloader', 'action': 'cloud.premiumize', 'name': item['name'], 'url': url_link, 'image': default_icon}
@@ -98,7 +97,7 @@ class Indexer(Debrid):
 					url_link = details['link']
 					if url_link.startswith('/'): url_link = 'https:' + url_link
 					size = details['size']
-					display_size = float(int(size))/1073741824
+					display_size = float(size)/1073741824
 					display = '%02d | %.2f%% | [B]%s[/B] | %.2f GB | [I]%s [/I]' % (count, progress, file_str, display_size, name)
 					url_params = {'mode': 'media_play', 'url': url_link, 'media_type': 'video'}
 					down_file_params = {'mode': 'downloader', 'action': 'cloud.premiumize', 'name': item['name'], 'url': url_link, 'image': default_icon}
@@ -139,7 +138,7 @@ class Indexer(Debrid):
 				days_remaining = (expires - datetime.now()).days
 			else: expires, days_remaining = 'Expired', 'None'
 			points_used = int(math.floor(float(account_info['space_used']) / 1073741824.0))
-			space_used = float(int(account_info['space_used']))/1073741824
+			space_used = float(account_info['space_used'])/1073741824
 			percentage_used = str(round(float(account_info['limit_used']) * 100.0, 1))
 			body = []
 			append = body.append

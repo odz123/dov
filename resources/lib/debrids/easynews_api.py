@@ -6,7 +6,6 @@ from urllib3.util.retry import Retry
 from urllib.parse import urlencode, quote
 from caches.main_cache import cache_object
 from modules.kodi_utils import get_setting
-# from modules.kodi_utils import logger
 
 video_extensions = (
 	'm4v,3g2,3gp,nsv,tp,ts,ty,pls,rm,rmvb,mpd,ifo,mov,qt,divx,xvid,bivx,vob,nrg,img,iso,udf,pva,wmv,asf,asx,ogm,m2v,avi,bin,dat,mpg,mpeg,mp4,mkv,'

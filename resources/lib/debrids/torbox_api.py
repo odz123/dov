@@ -157,7 +157,7 @@ class TorBoxAPI:
 				 'torrent_id': torrent_id,
 				 'filename': item['short_name']}
 				for item in torrent_files['files']
-				if item['short_name'].lower().endswith(tuple(extensions))
+				if item['short_name'].lower().endswith(extensions)
 			]
 			return torrent_files
 		except Exception as e:
@@ -177,7 +177,7 @@ class TorBoxAPI:
 			for i in nzb_files['files']:
 				link, filename, size = '%d,%d' % (nzb_id, i['id']), i['short_name'].lower(), i['size']
 				if filename.endswith('.m2ts'): raise Exception('_m2ts_check failed')
-				if not filename.endswith(tuple(extensions)): continue
+				if not filename.endswith(extensions): continue
 				if (seas_ep_filter(season, episode, filename)
 					if season else
 					not any(x in filename for x in extras_filtering_list)

@@ -1,5 +1,4 @@
 from windows import BaseDialog
-# from modules.kodi_utils import logger
 
 class VideoPlayer(BaseDialog):
 	def __init__(self, *args, **kwargs):

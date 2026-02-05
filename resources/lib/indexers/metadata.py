@@ -158,20 +158,20 @@ def season_episodes_meta(season, meta, user_info):
 			if still_path: thumb = tmdb_image_base % (still_resolution, still_path)
 			else: thumb = None
 			try: duration = ep_data_get('runtime') * 60
-			except Exception: duration = 60 * 60
+			except (TypeError, ValueError): duration = 60 * 60
 			guest_stars_list = ep_data_get('guest_stars')
 			if guest_stars_list:
 				try: guest_stars = [
 					{'name': i['name'], 'role': i['character'], 'thumbnail': tmdb_image_base % (profile_resolution, i['profile_path']) if i['profile_path'] else ''}
 					for i in guest_stars_list
 				]
-				except Exception: pass
+				except (KeyError, TypeError): pass
 			crew = ep_data_get('crew')
 			if crew:
 				try: writer = ', '.join([i['name'] for i in crew if i['job'] in writer_credits])
-				except Exception: pass
+				except (KeyError, TypeError): pass
 				try: director = next((i['name'] for i in crew if i['job'] == 'Director'), '')
-				except Exception: pass
+				except (KeyError, TypeError, StopIteration): pass
 			yield {
 				'thumb': thumb, 'title': title, 'guest_stars': guest_stars, 'plot': plot, 'premiered': premiered,
 				'director': director, 'writer': writer, 'rating': rating, 'votes': votes, 'mediatype': 'episode',

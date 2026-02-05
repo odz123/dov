@@ -1,6 +1,5 @@
 from modules import kodi_utils
 from modules.utils import manual_function_import
-# from modules.kodi_utils import logger
 
 location = kodi_utils.skin_location()
 

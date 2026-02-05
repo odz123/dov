@@ -1,8 +1,7 @@
 from debrids.easydebrid_api import EasyDebridAPI as Debrid
 from modules import kodi_utils
-# from modules.kodi_utils import logger
 
-ls, get_setting, set_setting = kodi_utils.local_string, kodi_utils.get_setting, kodi_utils.set_setting
+ls = kodi_utils.local_string
 
 class Indexer(Debrid):
 	def run(self, params):

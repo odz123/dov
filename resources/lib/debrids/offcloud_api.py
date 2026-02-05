@@ -106,7 +106,7 @@ class OffcloudAPI:
 				 'torrent_id': torrent_id,
 				 'filename': item.split('/')[-1]}
 				for item in torrent_files
-				if item.lower().endswith(tuple(extensions))
+				if item.lower().endswith(extensions)
 			]
 			return torrent_files
 		except Exception as e:

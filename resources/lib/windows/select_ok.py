@@ -1,7 +1,6 @@
 import json
 from windows import BaseDialog
 from modules.kodi_utils import local_string as ls
-# from modules.kodi_utils import logger
 
 class Select(BaseDialog):
 	def __init__(self, *args, **kwargs):

@@ -3,9 +3,7 @@ from debrids.offcloud_api import OffcloudAPI as Debrid
 from modules import kodi_utils
 from modules.source_utils import supported_video_extensions
 from modules.utils import clean_file_name, normalize
-# from modules.kodi_utils import logger
 
-get_setting, set_setting = kodi_utils.get_setting, kodi_utils.set_setting
 ls, build_url, make_listitem = kodi_utils.local_string, kodi_utils.build_url, kodi_utils.make_listitem
 folder_str, file_str, delete_str, down_str = ls(32742).upper(), ls(32743).upper(), ls(32785), ls(32747)
 fanart = kodi_utils.get_addoninfo('fanart')
@@ -61,7 +59,7 @@ class Indexer(Debrid):
 	def browse_cloud(self, items):
 		for count, item in enumerate(items, 1):
 			try:
-				if not item.lower().endswith(tuple(extensions)): continue
+				if not item.lower().endswith(extensions): continue
 				cm = []
 				cm_append = cm.append
 				name = item.split('/')[-1]

@@ -10,7 +10,6 @@ from modules.downloader import runner
 from modules.meta_lists import networks
 from modules.utils import get_datetime
 from modules.kodi_utils import media_path, notification, close_all_dialog, hide_busy_dialog, ok_dialog, fetch_kodi_imagecache, local_string as ls
-# from modules.kodi_utils import logger
 
 fanart_empty = BaseDialog.fanart
 poster_empty = media_path('box_office.png')
