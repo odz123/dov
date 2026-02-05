@@ -1,7 +1,7 @@
 import sys
 from threading import Thread
 from indexers.metadata import tvshow_meta_with_stremio, season_episodes_meta_with_stremio, tmdb_image_base
-from indexers.trakt_api import trakt_fetch_collection_watchlist, trakt_get_hidden_items, trakt_get_my_calendar, trakt_my_anime_calendar, trakt_anime_calendar
+from indexers.trakt_api import trakt_get_hidden_items, trakt_get_my_calendar, trakt_my_anime_calendar, trakt_anime_calendar
 from caches.watched_cache import get_resumetime, get_watched_status_episode, get_watched_info_tv, get_bookmarks, get_next_episodes, get_in_progress_episodes
 from modules import kodi_utils, settings
 from modules.utils import jsondate_to_datetime, adjust_premiered_date, make_day, get_datetime, title_key, date_difference, TaskPool
@@ -166,7 +166,6 @@ class Episodes:
 			listitem.addContextMenuItems(cm)
 			listitem.setProperties(props)
 			listitem.setLabel(display)
-#			listitem.setContentLookup(False)
 			listitem.setArt({'poster': show_poster, 'fanart': background, 'thumb': thumb, 'icon': thumb, 'banner': banner, 'clearart': clearart, 'clearlogo': clearlogo, 'landscape': thumb,
 							'season.poster': season_poster, 'tvshow.poster': show_poster, 'tvshow.clearart': clearart, 'tvshow.clearlogo': clearlogo, 'tvshow.landscape': thumb, 'tvshow.banner': banner})
 			if KODI_VERSION < 20:

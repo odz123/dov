@@ -17,6 +17,14 @@ container_refresh = kodi_utils.container_refresh
 get_property, set_property, clear_property = kodi_utils.get_property, kodi_utils.set_property, kodi_utils.clear_property
 
 
+_PRAGMA_STATEMENTS = (
+	'PRAGMA synchronous = OFF',
+	'PRAGMA journal_mode = OFF',
+	'PRAGMA mmap_size = 268435456',
+	'PRAGMA cache_size = -8000',
+)
+
+
 class ConnectionPool:
 	"""Thread-safe connection pool for SQLite databases.
 	Reuses connections to avoid repeated connection overhead."""
@@ -122,10 +130,8 @@ class BaseCache:
 			pass
 
 	def _set_PRAGMAS(self):
-		self.dbcur.execute("""PRAGMA synchronous = OFF""")
-		self.dbcur.execute("""PRAGMA journal_mode = OFF""")
-		self.dbcur.execute("""PRAGMA mmap_size = 268435456""")
-		self.dbcur.execute("""PRAGMA cache_size = -8000""")
+		for stmt in _PRAGMA_STATEMENTS:
+			self.dbcur.execute(stmt)
 
 	def _get_timestamp(self, date_time):
 		return int(time.mktime(date_time.timetuple()))

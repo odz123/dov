@@ -23,6 +23,26 @@ _RE_SORT_ARTICLE = re.compile(r'(^the |^a |^an )')
 _RE_SLUG_INVALID = re.compile(r'[^a-z0-9_]')
 _RE_SLUG_MULTI_DASH = re.compile(r'--+')
 
+# Pre-built replacement tables for clean_file_name() - avoids list recreation on each call
+_HEX_ENTITIES = (
+	('&#x26;', '&'), ('&#x27;', "'"), ('&#xC6;', 'AE'), ('&#xC7;', 'C'),
+	('&#xF4;', 'o'), ('&#xE9;', 'e'), ('&#xEB;', 'e'), ('&#xED;', 'i'),
+	('&#xEE;', 'i'), ('&#xA2;', 'c'), ('&#xE2;', 'a'), ('&#xEF;', 'i'),
+	('&#xE1;', 'a'), ('&#xE8;', 'e'), ('%2E', '.'), ('&frac12;', '%BD'),
+	('&#xBD;', '%BD'), ('&#xB3;', '%B3'), ('&#xB0;', '%B0'), ('&amp;', '&'),
+	('&#xB7;', '.'), ('&#xE4;', 'A'), ('\xe2\x80\x99', '')
+)
+_SPECIAL_ENCODED = (
+	('"', '%22'), ('*', '%2A'), ('/', '%2F'), (':', ','), ('<', '%3C'),
+	('>', '%3E'), ('?', '%3F'), ('\\', '%5C'), ('|', '%7C')
+)
+_SPECIAL_BLANKS = (
+	('"', ' '), ('/', ' '), (':', ''), ('<', ' '),
+	('>', ' '), ('?', ' '), ('\\', ' '), ('|', ' '), ('%BD;', ' '),
+	('%B3;', ' '), ('%B0;', ' '), ("'", ""), (' - ', ' '), ('.', ' '),
+	('!', ''), (';', ''), (',', '')
+)
+
 class TaskPool:
 	@staticmethod
 	def process(_threads):
@@ -178,22 +198,9 @@ def batch_replace(s, replace_info):
 
 def clean_file_name(s, use_encoding=False, use_blanks=True):
 	try:
-		hex_entities = [['&#x26;', '&'], ['&#x27;', '\''], ['&#xC6;', 'AE'], ['&#xC7;', 'C'],
-					['&#xF4;', 'o'], ['&#xE9;', 'e'], ['&#xEB;', 'e'], ['&#xED;', 'i'],
-					['&#xEE;', 'i'], ['&#xA2;', 'c'], ['&#xE2;', 'a'], ['&#xEF;', 'i'],
-					['&#xE1;', 'a'], ['&#xE8;', 'e'], ['%2E', '.'], ['&frac12;', '%BD'],
-					['&#xBD;', '%BD'], ['&#xB3;', '%B3'], ['&#xB0;', '%B0'], ['&amp;', '&'],
-					['&#xB7;', '.'], ['&#xE4;', 'A'], ['\xe2\x80\x99', '']]
-		special_encoded = [['"', '%22'], ['*', '%2A'], ['/', '%2F'], [':', ','], ['<', '%3C'],
-							['>', '%3E'], ['?', '%3F'], ['\\', '%5C'], ['|', '%7C']]
-
-		special_blanks = [['"', ' '], ['/', ' '], [':', ''], ['<', ' '],
-							['>', ' '], ['?', ' '], ['\\', ' '], ['|', ' '], ['%BD;', ' '],
-							['%B3;', ' '], ['%B0;', ' '], ["'", ""], [' - ', ' '], ['.', ' '],
-							['!', ''], [';', ''], [',', '']]
-		s = batch_replace(s, hex_entities)
-		if use_encoding: s = batch_replace(s, special_encoded)
-		if use_blanks: s = batch_replace(s, special_blanks)
+		s = batch_replace(s, _HEX_ENTITIES)
+		if use_encoding: s = batch_replace(s, _SPECIAL_ENCODED)
+		if use_blanks: s = batch_replace(s, _SPECIAL_BLANKS)
 		s = s.strip()
 	except Exception: pass
 	return s
@@ -303,7 +310,6 @@ def sort_list(sort_key, sort_direction, list_data, ignore_articles):
 		reverse = sort_direction != 'asc'
 		if sort_key == 'rank': return sorted(list_data, key=lambda x: x['rank'], reverse=reverse)
 		elif sort_key == 'added': return sorted(list_data, key=lambda x: x['listed_at'], reverse=reverse)
-#		elif sort_key == 'title': return sorted(list_data, key=lambda x: title_key(x[x['type']].get('title'), ignore_articles), reverse=reverse)
 		elif sort_key == 'title': return sorted(list_data, key=lambda x: title_key(x['movie' if x['type'] == 'movie' else 'show'].get('title'), ignore_articles), reverse=reverse)
 		elif sort_key == 'released': return sorted(list_data, key=lambda x: released_key(x[x['type']]), reverse=reverse)
 		elif sort_key == 'runtime': return sorted(list_data, key=lambda x: x[x['type']].get('runtime', 0), reverse=reverse)

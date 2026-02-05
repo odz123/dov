@@ -65,7 +65,7 @@ def _make_alias_dict(meta, title):
 	meta_title = meta['title']
 	original_title = meta['original_title']
 	alternative_titles = meta.get('alternative_titles', [])
-	country_codes = set([i.replace('GB', 'UK') for i in meta.get('country_codes', [])])
+	country_codes = {i.replace('GB', 'UK') for i in meta.get('country_codes', [])}
 	if meta_title not in alternative_titles: alternative_titles.append(meta_title)
 	if original_title not in alternative_titles: alternative_titles.append(original_title)
 	if alternative_titles: aliases = [{'title': i, 'country': ''} for i in alternative_titles]
@@ -77,7 +77,6 @@ def _make_alias_dict(meta, title):
 def _get_search_year(meta):
 	if 'custom_year' in meta: return meta['custom_year']
 	year = meta.get('year') or '0'
-#	if active_external and get_setting('search.enable.yearcheck', 'false') == 'true':
 	if get_setting('search.enable.yearcheck', 'false') == 'true':
 		from indexers.imdb_api import imdb_movie_year
 		try: year = str(imdb_movie_year(meta.get('imdb_id')) or year)

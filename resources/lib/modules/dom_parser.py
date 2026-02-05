@@ -100,7 +100,7 @@ def parse_dom(html, name='', attrs=None, req=False, exclude_comments=False):
 		if not isinstance(attrs, dict): return ''
 		if req:
 			if not isinstance(req, list): req = [req]
-			req = set([key.lower() for key in req])
+			req = {key.lower() for key in req}
 		for item in html:
 			if isinstance(item, DomMatch): item = item.content
 			if exclude_comments: item = re.sub(re.compile(r'<!--.*?-->', re.S), '', item)

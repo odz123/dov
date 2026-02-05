@@ -97,8 +97,8 @@ class MetaCache(BaseCache):
 	def set_memory_cache(self, media_type, id_type, meta, expires, media_id):
 		try:
 			media_id = string(media_id)
-			if media_type in movie_show: cachedata, prop_string = (expires, meta), 'pov_%s_%s_%s' % (media_type, id_type, string(media_id))
-			else: cachedata, prop_string = (expires, meta), 'pov_meta_season_%s' % string(media_id)
+			if media_type in movie_show: cachedata, prop_string = (expires, meta), 'pov_%s_%s_%s' % (media_type, id_type, media_id)
+			else: cachedata, prop_string = (expires, meta), 'pov_meta_season_%s' % media_id
 			set_property(prop_string, repr(cachedata))
 		except (TypeError, ValueError): pass
 
