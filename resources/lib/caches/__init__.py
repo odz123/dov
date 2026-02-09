@@ -130,8 +130,12 @@ class BaseCache:
 			pass
 
 	def _set_PRAGMAS(self):
+		# Skip if PRAGMAs already set on this pooled connection
+		if getattr(self.dbcon, '_pragmas_set', False):
+			return
 		for stmt in _PRAGMA_STATEMENTS:
 			self.dbcur.execute(stmt)
+		self.dbcon._pragmas_set = True
 
 	def _get_timestamp(self, date_time):
 		return int(time.mktime(date_time.timetuple()))

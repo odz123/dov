@@ -216,15 +216,6 @@ def clean_title(title):
 	except Exception: pass
 	return title
 
-def byteify(data, ignore_dicts=False):
-	try:
-		if isinstance(data, bytes): return data.decode('utf-8')
-		if isinstance(data, list): return [byteify(item, ignore_dicts=True) for item in data]
-		if isinstance(data, dict) and not ignore_dicts:
-			return dict([(byteify(key, ignore_dicts=True), byteify(value, ignore_dicts=True)) for key, value in data.items()])
-	except Exception: pass
-	return data
-
 def normalize(txt):
 	txt = _RE_NON_ASCII.sub('', txt)
 	return txt

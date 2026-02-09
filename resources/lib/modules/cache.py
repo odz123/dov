@@ -67,6 +67,7 @@ def check_databases():
 					(db_type text not null, imdb_id text not null, meta text, expires integer, unique (db_type, imdb_id))""")
 	dbcon.execute("""CREATE INDEX IF NOT EXISTS pov_select_id_media ON metadata (tmdb_id, db_type)""")
 	dbcon.execute("""CREATE INDEX IF NOT EXISTS pov_stremio_imdb ON stremio_metadata (imdb_id, db_type)""")
+	dbcon.execute("""CREATE INDEX IF NOT EXISTS idx_function_cache_lookup ON function_cache (string_id)""")
 	dbcon.close()
 	dbcon = database_connect(debridcache_db) # Debrid Cache
 	dbcon.execute("""CREATE TABLE IF NOT EXISTS debrid_data (hash text not null, debrid text not null, cached text, expires integer, unique (hash, debrid))""")
@@ -145,8 +146,8 @@ def clean_databases(current_time=None, database_check=True, silent=False):
 				dbcur.execute(command_base % (table, expires_col), (current_time,))
 			dbcon.commit()
 			dbcur.execute("""VACUUM""")
-		except Exception:
-			pass
+		except Exception as e:
+			kodi_utils.logger('clean_databases', str(e))
 		finally:
 			if dbcon:
 				try: dbcon.close()
@@ -160,10 +161,17 @@ def limit_metacache_database(max_size=50):
 	if size < max_size: return
 	dbcon = None
 	try:
+		current_time = get_current_time()
 		dbcon = database_connect(metacache_db)
 		dbcur = dbcon.cursor()
 		dbcur.execute("""PRAGMA synchronous = OFF""")
 		dbcur.execute("""PRAGMA journal_mode = OFF""")
+		# Delete expired entries first (more valuable than arbitrary ROWID trimming)
+		dbcur.execute("""DELETE FROM metadata WHERE CAST(expires AS INT) <= ?""", (current_time,))
+		dbcur.execute("""DELETE FROM function_cache WHERE CAST(expires AS INT) <= ?""", (current_time,))
+		dbcur.execute("""DELETE FROM season_metadata WHERE CAST(expires AS INT) <= ?""", (current_time,))
+		dbcur.execute("""DELETE FROM stremio_metadata WHERE CAST(expires AS INT) <= ?""", (current_time,))
+		# Then trim oldest non-expired entries if still over limit
 		dbcur.execute("""DELETE FROM metadata WHERE ROWID IN (SELECT ROWID FROM metadata ORDER BY ROWID DESC LIMIT -1 OFFSET ?)""", (METADATA_ROW_LIMIT,))
 		dbcur.execute("""DELETE FROM function_cache WHERE ROWID IN (SELECT ROWID FROM function_cache ORDER BY ROWID DESC LIMIT -1 OFFSET ?)""", (FUNCTION_CACHE_ROW_LIMIT,))
 		dbcur.execute("""DELETE FROM season_metadata WHERE ROWID IN (SELECT ROWID FROM season_metadata ORDER BY ROWID DESC LIMIT -1 OFFSET ?)""", (SEASON_METADATA_ROW_LIMIT,))

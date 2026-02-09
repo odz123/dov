@@ -160,6 +160,15 @@ def filter_by_name(scraper):
 def filter_status(filter_type):
 	return int(get_setting('filter_%s' % filter_type, '0'))
 
+def get_all_filter_statuses():
+	"""Batch retrieve all filter statuses in a single call to avoid repeated settings lookups."""
+	return {
+		'av1': int(get_setting('filter_av1', '0')),
+		'hevc': int(get_setting('filter_hevc', '0')),
+		'hdr': int(get_setting('filter_hdr', '0')),
+		'dv': int(get_setting('filter_dv', '0'))
+	}
+
 def get_art_provider():
 	if not get_fanart_data(): return ('poster', 'poster2', 'fanart', 'fanart2')
 	return {

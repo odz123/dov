@@ -56,6 +56,8 @@ results_xml_style, results_xml_window_number = settings.results_xml_style, setti
 default_internal_scrapers, cloud_scrapers = settings.default_internal_scrapers, settings.cloud_scrapers
 folder_scrapers = ('folder1', 'folder2', 'folder3', 'folder4', 'folder5')
 quality_ranks = {'4K': 1, '1080p': 2, '720p': 3, 'SD': 4, 'SCR': 5, 'CAM': 5, 'TELE': 5}
+# Pre-built sort key for uncached/unchecked ordering - avoids lambda recreation per call
+_uncached_sort_key = lambda k: ('Uncached' in k.get('cache_provider', ''), 'Unchecked' in k.get('cache_provider', ''))
 av1_filter_key, hevc_filter_key, hdr_filter_key, dolby_vision_filter_key = '[B]AV1[/B]', '[B]HEVC[/B]', '[B]HDR[/B]', '[B]D/VISION[/B]'
 total_format, int_format, ext_format = '[COLOR %s][B]%s[/B][/COLOR]', '[COLOR %s][B]Int: [/B][/COLOR]%s', '[COLOR %s][B]Ext: [/B][/COLOR]%s'
 ext_scr_format, format_line = '[COLOR %s][B]%s[/B][/COLOR]', '%s[CR]%s[CR]%s'
@@ -104,10 +106,11 @@ class SourceSelect:
 		self.provider_sort_ranks = settings.provider_sort_ranks()
 		self.scraper_settings = settings.scraping_settings()
 		self.sort_function = settings.results_sort_order()
-		self.filter_av1 = settings.filter_status('av1')
-		self.filter_hevc = settings.filter_status('hevc')
-		self.filter_hdr = settings.filter_status('hdr')
-		self.filter_dv = settings.filter_status('dv')
+		_filters = settings.get_all_filter_statuses()
+		self.filter_av1 = _filters['av1']
+		self.filter_hevc = _filters['hevc']
+		self.filter_hdr = _filters['hdr']
+		self.filter_dv = _filters['dv']
 		self.hybrid_allowed = self.filter_hdr in (0, 2)
 		self.include_prerelease_results, self.include_3D_results = settings.include_prerelease_3d_results()
 		self.quality_filter = self._quality_filter()
@@ -235,19 +238,20 @@ class SourceSelect:
 
 		# Apply priority sorting filters (setting == 2 or 3) - these need separate passes
 		# as they reorder rather than filter
-		for key, setting in [
+		for key, setting in (
 			(hevc_filter_key, self.filter_hevc),
 			(hdr_filter_key, self.filter_hdr),
 			(dolby_vision_filter_key, self.filter_dv),
 			(av1_filter_key, self.filter_av1)
-		]:
+		):
 			if setting == 2 and self.autoplay:
-				priority_list = [i for i in results if key in i['extraInfo']]
-				priority_set = set(id(i) for i in priority_list)  # O(1) lookup using object id
-				remainder_list = [i for i in results if id(i) not in priority_set]
+				# Single-pass partition instead of two passes + id() set
+				priority_list, remainder_list = [], []
+				for i in results:
+					(priority_list if key in i['extraInfo'] else remainder_list).append(i)
 				results = priority_list + remainder_list
 			elif setting == 3:
-				results.sort(key=lambda k: key in k['extraInfo'] and 'Uncached' not in k.get('cache_provider', ''), reverse=True)
+				results.sort(key=lambda k, _key=key: _key in k['extraInfo'] and 'Uncached' not in k.get('cache_provider', ''), reverse=True)
 
 		return stremio_sources + results
 
@@ -572,9 +576,10 @@ class SourceSelect:
 				pattern = r'\b(%s)\b' % '|'.join(i for i in language if i)
 				self._language_pattern_cache[self.priority_language] = re.compile(pattern, re.I)
 			compiled_pattern = self._language_pattern_cache[self.priority_language]
-			sort_first = [i for i in results if compiled_pattern.search(i.get('name_info', ''))]
-			sort_first_ids = set(id(i) for i in sort_first)  # O(1) lookup using object id
-			sort_last = [i for i in results if id(i) not in sort_first_ids]
+			# Single-pass partition instead of two passes + id() set
+			sort_first, sort_last = [], []
+			for i in results:
+				(sort_first if compiled_pattern.search(i.get('name_info', '')) else sort_last).append(i)
 			results = sort_first + sort_last
 		except Exception: pass
 		return results
@@ -584,10 +589,7 @@ class SourceSelect:
 		if filterless_search:
 			# Filterless search - show all, just sort unchecked and uncached to bottom
 			# Combined sort: primary by Uncached, secondary by Unchecked
-			results.sort(key=lambda k: (
-				'Uncached' in k.get('cache_provider', ''),
-				'Unchecked' in k.get('cache_provider', '')
-			))
+			results.sort(key=_uncached_sort_key)
 			return results
 		# Filter uncached based on source type (Stremio vs other)
 		# Pre-compute display flags for efficiency
@@ -604,30 +606,24 @@ class SourceSelect:
 				if (is_stremio and display_stremio) or (not is_stremio and display_torrents):
 					filtered.append(item)
 		# Sort remaining: unchecked and uncached to bottom in single pass
-		filtered.sort(key=lambda k: (
-			'Uncached' in k.get('cache_provider', ''),
-			'Unchecked' in k.get('cache_provider', '')
-		))
+		filtered.sort(key=_uncached_sort_key)
 		return filtered
 
 	def _sort_first(self, results):
 		try:
 			sort_first_scrapers = []
 			if 'folders' in self.all_scrapers and sort_to_top('folders'): sort_first_scrapers.append('folders')
-			sort_first_scrapers.extend([i for i in self.all_scrapers if i in cloud_scrapers and sort_to_top(i)])
+			sort_first_scrapers.extend(i for i in self.all_scrapers if i in cloud_scrapers and sort_to_top(i))
 			if not sort_first_scrapers: return results
 			sort_first_scrapers_set = set(sort_first_scrapers)  # O(1) lookup
-			sort_first = [i for i in results if i['scrape_provider'] in sort_first_scrapers_set]
-			sort_first.sort(key=lambda k: (self._sort_folder_to_top(k['scrape_provider']), k['quality_rank']))
-			sort_first_ids = set(id(i) for i in sort_first)  # O(1) lookup using object id
-			sort_last = [i for i in results if id(i) not in sort_first_ids]
+			# Single-pass partition instead of two passes + id() set
+			sort_first, sort_last = [], []
+			for i in results:
+				(sort_first if i['scrape_provider'] in sort_first_scrapers_set else sort_last).append(i)
+			sort_first.sort(key=lambda k: (0 if k['scrape_provider'] == 'folders' else 1, k['quality_rank']))
 			results = sort_first + sort_last
 		except Exception: pass
 		return results
-
-	def _sort_folder_to_top(self, provider):
-		if provider == 'folders': return 0
-		else: return 1
 
 	nextep_params = []
 

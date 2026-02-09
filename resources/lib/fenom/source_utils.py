@@ -602,49 +602,11 @@ def convert_size(size_bytes, to='GB'):
 		log_utils.error()
 		return 0, ''
 
-def base32_to_hex(hash, caller):
-	from base64 import b32decode
-	from fenom import log_utils
-	hex = b32decode(hash).hex()
-	log_utils.log('%s: base32 hash  "%s"  converted to hex 40  "%s" ' % (caller, hash, hex), __name__, log_utils.LOGDEBUG)
-	return hex
-
 def scraper_error(provider):
 	import traceback
 	from fenom import log_utils
 	failure = traceback.format_exc()
 	log_utils.log(provider.upper() + ' - Exception: \n' + str(failure), caller='scraper_error', level=log_utils.LOGERROR)
-
-def is_host_valid(url, domains):
-	try:
-		url_lower = url.lower()
-		if any(x in url_lower for x in ('.rar.', '.zip.', '.part.', '.sample.')) or any(url_lower.endswith(x) for x in ('.bmp', '.gif', '.jpg', '.nfo', '.part', '.png', '.rar', '.sample.', '.srt', '.txt', '.zip')):
-			return False, ''
-		host = __top_domain(url)
-		hosts = [domain_lower for domain in domains if host and host in (domain_lower := domain.lower())]
-		if hosts and '.' not in host: host = hosts[0]
-		if hosts and any([h for h in ('google', 'picasa', 'blogspot') if h in host]): host = 'gvideo'
-		if hosts and any([h for h in ('akamaized', 'ocloud') if h in host]): host = 'CDN'
-		return any(hosts), host
-	except (AttributeError, TypeError):
-		from fenom import log_utils
-		log_utils.error()
-		return False, ''
-
-def __top_domain(url):
-	from urllib.parse import urlparse
-	try:
-		elements = urlparse(url)
-		domain = elements.netloc or elements.path
-		domain = domain.split('@')[-1].split(':')[0]
-		regex = r"(?:www\.)?([\w\-]*\.[\w\-]{2,3}(?:\.[\w\-]{2,3})?)$"
-		res = re.search(regex, domain)
-		if res: domain = res.group(1)
-		domain = domain.lower()
-		return domain
-	except (AttributeError, TypeError, ValueError):
-		from fenom import log_utils
-		log_utils.error()
 
 def copy2clip(txt):
 	from sys import platform as sys_platform
