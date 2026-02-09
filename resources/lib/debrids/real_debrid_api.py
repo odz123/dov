@@ -139,7 +139,7 @@ class RealDebridAPI:
 				 'torrent_id': torrent_id,
 				 'filename': item['path'].replace('/', '')}
 				for item, link in zip(torrent_files, torrent_info['links'])
-				if item['path'].lower().endswith(tuple(extensions))
+				if item['path'].lower().endswith(extensions)
 			]
 			return torrent_files
 		except Exception as e:

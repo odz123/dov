@@ -81,10 +81,12 @@ def external_sources(ret_all=False):
 		return list(cache.values())
 	source_list = []
 	append = source_list.append
-	enabled_set = {
-		k.split('.')[1] for k, v in kodi_utils.make_settings_dict().items()
-		if k.startswith('provider.') and v == 'true' and len(k.split('.')) > 1
-	}
+	enabled_set = set()
+	for k, v in kodi_utils.make_settings_dict().items():
+		if k.startswith('provider.') and v == 'true':
+			parts = k.split('.')
+			if len(parts) > 1:
+				enabled_set.add(parts[1])
 	dir_result = kodi_utils.list_dirs('special://home/addons/plugin.video.pov/resources/lib/magneto')
 	files = dir_result[1] if len(dir_result) > 1 else []
 	for item in files:
@@ -323,7 +325,7 @@ def get_filename_match(title, url, name=None):
 
 def supported_video_extensions():
 	extensions = kodi_utils.supported_media().split('|')
-	return [i for i in extensions if not i in ('','.iso','.zip')]
+	return tuple(i for i in extensions if i not in ('', '.iso', '.zip'))
 
 def seas_ep_query_list(season, episode):
 	season = int(season)

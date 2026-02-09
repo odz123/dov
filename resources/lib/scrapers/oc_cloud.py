@@ -27,7 +27,7 @@ class source(Debrid):
 			extras_filtering_list = tuple(i for i in extras_filter if not i in title.lower())
 			for item in self.scrape_results:
 				try:
-					if not item['filename'].lower().endswith(tuple(extensions)): continue
+					if not item['filename'].lower().endswith(extensions): continue
 					item.update({'filename': item['filename'].split('/')[-1], 'size': 0})
 					formalized = normalize(item['folder_name'])
 					foldername = clean_title(formalized)

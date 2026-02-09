@@ -22,15 +22,18 @@ class Router:
 
 		params_get = params.get
 		mode = params_get('mode', 'navigator.main')
+		# Pre-split mode once for reuse across routing branches
+		mode_parts = mode.split('.')
+		mode_action = mode_parts[-1] if len(mode_parts) > 1 else mode
 		if 'navigator.' in mode:
 			from indexers.navigator import Navigator
-			runmode(Navigator, params, mode.split('.')[1])
+			runmode(Navigator, params, mode_action)
 		elif 'menu_editor.' in mode:
 			from modules.menu_editor import MenuEditor
-			runmode(MenuEditor, params, mode.split('.')[1])
+			runmode(MenuEditor, params, mode_action)
 		elif 'discover.' in mode:
 			from indexers.discover import Discover
-			runmode(Discover, params, mode.split('.')[1])
+			runmode(Discover, params, mode_action)
 		elif mode == 'media_play':
 			from modules.kodi_utils import player, close_all_dialog
 			close_all_dialog()
@@ -85,7 +88,7 @@ class Router:
 				hide_unhide_trakt_items(params['action'], params['media_type'], params['media_id'], params['section'])
 			else:
 				from modules.utils import manual_function_import
-				function = manual_function_import('indexers.trakt_api', mode.split('.')[-1])
+				function = manual_function_import('indexers.trakt_api', mode_action)
 				function(params)
 		elif 'mdblist.' in mode:
 			if 'mdbl_account_info' in mode:
@@ -104,14 +107,14 @@ class Router:
 				update_tmdb_list(params)
 			else:
 				from modules.utils import manual_function_import
-				function = manual_function_import('indexers.tmdb_api', mode.split('.')[-1])
+				function = manual_function_import('indexers.tmdb_api', mode_action)
 				function(params)
 		elif 'build' in mode:
 			_build_list_map = {'build_trakt_list': 'indexers.trakt', 'build_mdb_list': 'indexers.mdblist', 'build_simkl_list': 'indexers.simkl', 'build_tmdb_list': 'indexers.tmdb'}
 			_build_match = next((v for k, v in _build_list_map.items() if k in mode), None)
 			if _build_match:
 				from modules.utils import manual_function_import
-				function = manual_function_import(_build_match, mode.split('.')[-1])
+				function = manual_function_import(_build_match, mode_action)
 				function(params)
 			elif mode == 'build_movie_list':
 				from indexers.movies import Indexer
@@ -175,7 +178,7 @@ class Router:
 				remove_all_history(params)
 		elif 'easynews.' in mode:
 			from modules.utils import manual_function_import
-			function = manual_function_import('debrids.easynews', mode.split('.')[-1])
+			function = manual_function_import('debrids.easynews', mode_action)
 			function(params)
 		elif 'alldebrid' in mode:
 			from debrids.alldebrid import Indexer, resolve_ad

@@ -1,18 +1,16 @@
-import sys
 from datetime import datetime
 from debrids.alldebrid_api import AllDebridAPI as Debrid
+from debrids._common import (
+	get_default_art, make_folder_listitem, make_file_listitem, finalize_directory,
+	file_str, delete_str, down_str, build_url, make_listitem, ls
+)
 from modules import kodi_utils
 from modules.source_utils import supported_video_extensions
 from modules.utils import clean_file_name, normalize
 
 get_setting, set_setting = kodi_utils.get_setting, kodi_utils.set_setting
-ls, build_url, make_listitem = kodi_utils.local_string, kodi_utils.build_url, kodi_utils.make_listitem
-folder_str, file_str, delete_str, down_str = ls(32742).upper(), ls(32743).upper(), ls(32785), ls(32747)
-fanart = kodi_utils.get_addoninfo('fanart')
-default_icon = kodi_utils.media_path(Debrid.icon)
-default_art = {'icon': default_icon, 'poster': default_icon, 'thumb': default_icon, 'fanart': fanart, 'banner': default_icon}
+default_icon, default_art = get_default_art(Debrid.icon)
 extensions = supported_video_extensions()
-KODI_VERSION = kodi_utils.get_kodi_version()
 
 class Indexer(Debrid):
 	def run(self, params):
@@ -32,60 +30,35 @@ class Indexer(Debrid):
 			items = downloads_data.get('links', []) if downloads_data else []
 			_builder = self.browse_downloads
 		else: return getattr(self, params['mode'].split('.')[-1])()
-		__handle__ = int(sys.argv[1])
-		kodi_utils.add_items(__handle__, list(_builder(items)))
-		kodi_utils.set_content(__handle__, 'files')
-		kodi_utils.end_directory(__handle__)
-		kodi_utils.set_view_mode('view.premium')
+		finalize_directory(_builder, items)
 
 	def torrent_cloud(self, items):
 		items.sort(key=lambda k: (k['uploadDate'], k['id']), reverse=True)
 		for count, item in enumerate(items, 1):
 			try:
-				cm = []
-				cm_append = cm.append
-				folder_name = item['filename']
-				display = '%02d | [B]%s[/B] | [I]%s [/I]' % (count, folder_str, clean_file_name(normalize(folder_name)).upper())
+				name = clean_file_name(normalize(item['filename'])).upper()
 				url_params = {'mode': 'alldebrid.ad_browse_cloud', 'id': item['id']}
 				delete_params = {'mode': 'alldebrid.ad_delete', 'id': item['id']}
-				cm_append(('[B]%s %s[/B]' % (delete_str, folder_str.capitalize()), 'RunPlugin(%s)' % build_url(delete_params)))
-				url = build_url(url_params)
-				listitem = make_listitem()
-				listitem.setLabel(display)
-				listitem.addContextMenuItems(cm)
-				listitem.setArt(default_art)
-				yield (url, listitem, True)
+				yield make_folder_listitem(count, name, url_params, delete_params, default_art)
 			except Exception: pass
 
 	def browse_cloud(self, items):
 		for count, item in enumerate(items, 1):
 			try:
-				if not item['n'].lower().endswith(tuple(extensions)): continue
-				cm = []
-				cm_append = cm.append
+				if not item['n'].lower().endswith(extensions): continue
 				name = clean_file_name(item['n']).upper()
 				size = float(int(item['s']))/1073741824
-				display = '%02d | [B]%s[/B] | %.2f GB | [I]%s [/I]' % (count, file_str, size, name)
 				params = {'name': name, 'url': item['l'], 'image': default_icon}
 				url_params = {**params, 'mode': 'alldebrid.resolve_ad', 'play': 'true'}
 				down_file_params = {**params, 'mode': 'downloader', 'action': 'cloud.alldebrid'}
-				cm_append((down_str, 'RunPlugin(%s)' % build_url(down_file_params)))
-				url = build_url(url_params)
-				listitem = make_listitem()
-				listitem.setLabel(display)
-				listitem.addContextMenuItems(cm)
-				listitem.setArt(default_art)
-				listitem.setInfo('video', {}) if KODI_VERSION < 20 else listitem.getVideoInfoTag()
-				yield (url, listitem, False)
+				yield make_file_listitem(count, name, size, url_params, down_file_params, default_art)
 			except Exception: pass
 
 	def browse_downloads(self, items):
 		items.sort(key=lambda k: k['date'], reverse=True)
 		for count, item in enumerate(items, 1):
 			try:
-				if not item['filename'].lower().endswith(tuple(extensions)): continue
-				cm = []
-				cm_append = cm.append
+				if not item['filename'].lower().endswith(extensions): continue
 				name = clean_file_name(item['filename']).upper()
 				size = float(int(item['size']))/1073741824
 				datetime_object = datetime.fromtimestamp(item['date']).strftime('%Y-%m-%d')
@@ -93,7 +66,7 @@ class Indexer(Debrid):
 				params = {'name': name, 'url': item['link_dl'], 'image': default_icon}
 				url_params = {**params, 'mode': 'media_play', 'media_type': 'video'}
 				down_file_params = {**params, 'mode': 'downloader', 'action': 'cloud.alldebrid_direct'}
-				cm_append((down_str, 'RunPlugin(%s)' % build_url(down_file_params)))
+				cm = [(down_str, 'RunPlugin(%s)' % build_url(down_file_params))]
 				url = build_url(url_params)
 				listitem = make_listitem()
 				listitem.setLabel(display)
@@ -134,4 +107,3 @@ def resolve_ad(params):
 	resolved_link = Debrid().unrestrict_link(url)
 	if params.get('play', 'false') != 'true' : return resolved_link
 	kodi_utils.player.play(resolved_link)
-

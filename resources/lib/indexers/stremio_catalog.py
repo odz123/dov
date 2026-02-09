@@ -1314,7 +1314,7 @@ class StremioIndexer:
 					video_files = []
 					for f in files:
 						fn = f.get('filename', '').lower()
-						if fn.endswith(tuple(extensions)):
+						if fn.endswith(extensions):
 							video_files.append(f)
 
 					if not video_files:

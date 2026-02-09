@@ -119,7 +119,7 @@ class AllDebridAPI:
 				 'torrent_id': torrent_id,
 				 'filename': item['n']}
 				for item in transfer_info['links']
-				if item['n'].lower().endswith(tuple(extensions))
+				if item['n'].lower().endswith(extensions)
 			]
 			return torrent_files
 		except Exception as e:

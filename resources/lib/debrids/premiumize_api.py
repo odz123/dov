@@ -104,7 +104,7 @@ class PremiumizeAPI:
 				 'size': item['size'],
 				 'filename': item['path'].split('/')[-1]}
 				for item in torrent_files
-				if item['path'].lower().endswith(tuple(extensions))
+				if item['path'].lower().endswith(extensions)
 			]
 			return torrent_files
 		except Exception: pass
