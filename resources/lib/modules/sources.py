@@ -188,7 +188,7 @@ class SourceSelect:
 
 	def process_results(self, results):
 		if self.prescrape: self.all_scrapers = self.active_internal_scrapers
-		else: self.all_scrapers = list(set(self.active_internal_scrapers + self.remove_scrapers))
+		else: self.all_scrapers = list(dict.fromkeys(self.active_internal_scrapers + self.remove_scrapers))
 		if self.ignore_scrape_filters:
 			self.filters_ignored = True
 			results = self.sort_results(results)

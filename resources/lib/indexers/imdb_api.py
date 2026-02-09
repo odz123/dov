@@ -393,7 +393,7 @@ def get_imdb(params):
 					if spo['title'] == imdb['title']:
 						imdb['listings'].extend(spo['listings'])
 		for item in imdb_list:
-			item['listings'] = list(set(item['listings']))
+			item['listings'] = list(dict.fromkeys(item['listings']))
 	elif action == 'imdb_keywords':
 		def _process():
 			for item in items:
@@ -425,13 +425,14 @@ def get_imdb(params):
 	return (imdb_list, next_page)
 
 def clear_imdb_cache(silent=False):
-	from modules.kodi_utils import path_exists, clear_property, database_connect, maincache_db
+	from modules.kodi_utils import path_exists, clear_property, maincache_db
+	from caches import ConnectionPool, _PRAGMA_STATEMENTS
 	if not path_exists(maincache_db): return True
-	dbcon = database_connect(maincache_db, isolation_level=None)
+	dbcon = ConnectionPool.get_connection(maincache_db, isolation_level=None)
 	try:
 		dbcur = dbcon.cursor()
-		dbcur.execute("""PRAGMA synchronous = OFF""")
-		dbcur.execute("""PRAGMA journal_mode = OFF""")
+		for stmt in _PRAGMA_STATEMENTS:
+			dbcur.execute(stmt)
 		dbcur.execute("""SELECT id FROM maincache WHERE id LIKE ?""", ('imdb_%',))
 		imdb_results = [str(i[0]) for i in dbcur.fetchall()]
 		if not imdb_results: return True
@@ -442,7 +443,7 @@ def clear_imdb_cache(silent=False):
 		logger('imdb_api.clear_imdb_cache', str(e))
 		return False
 	finally:
-		dbcon.close()
+		ConnectionPool.return_connection(maincache_db, dbcon)
 
 def imdb_build_user_lists(media_type):
 	def _builder():

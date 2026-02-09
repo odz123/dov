@@ -1,15 +1,16 @@
 import sys
 from debrids.premiumize_api import PremiumizeAPI as Debrid
+from debrids._common import (
+	get_default_art, finalize_directory,
+	folder_str, file_str, delete_str, down_str, build_url, make_listitem, ls, KODI_VERSION
+)
 from modules import kodi_utils
 from modules.source_utils import supported_video_extensions
 from modules.utils import clean_file_name, normalize
 
 get_setting, set_setting = kodi_utils.get_setting, kodi_utils.set_setting
-ls, build_url, make_listitem = kodi_utils.local_string, kodi_utils.build_url, kodi_utils.make_listitem
-folder_str, file_str, down_str, archive_str, rename_str, delete_str = ls(32742).upper(), ls(32743).upper(), ls(32747), ls(32982), ls(32748), ls(32785)
-fanart = kodi_utils.get_addoninfo('fanart')
-default_icon = kodi_utils.media_path(Debrid.icon)
-default_art = {'icon': default_icon, 'poster': default_icon, 'thumb': default_icon, 'fanart': fanart, 'banner': default_icon}
+archive_str, rename_str = ls(32982), ls(32748)
+default_icon, default_art = get_default_art(Debrid.icon)
 extensions = supported_video_extensions()
 
 class Indexer(Debrid):
@@ -34,12 +35,13 @@ class Indexer(Debrid):
 		kodi_utils.end_directory(__handle__)
 		kodi_utils.set_view_mode('view.premium')
 
+
 	def torrent_cloud(self, items, folder_id=None, folder_name=None):
 		items.sort(key=lambda k: k['name'])
 		items.sort(key=lambda k: k['type'], reverse=True)
 		for count, item in enumerate(items, 1):
 			try:
-				if not ('link' in item and item['link'].lower().endswith(tuple(extensions))) and not item['type'] == 'folder': continue
+				if not ('link' in item and item['link'].lower().endswith(extensions)) and not item['type'] == 'folder': continue
 				cm = []
 				cm_append = cm.append
 				file_type = item['type']
@@ -77,7 +79,6 @@ class Indexer(Debrid):
 			except Exception: pass
 
 	def browse_downloads(self, items):
-		KODI_VERSION = kodi_utils.get_kodi_version()
 		for count, item in enumerate(items, 1):
 			try:
 				cm = []

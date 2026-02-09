@@ -1,13 +1,19 @@
 import re
 from collections import namedtuple
+from functools import lru_cache
 
 DomMatch = namedtuple('DOMMatch', ['attrs', 'content'])
 re_type = type(re.compile(''))
 
+@lru_cache(maxsize=128)
+def _compile_attr_pattern(value):
+	"""Cache compiled regex patterns for attribute values to avoid recompilation."""
+	return re.compile(value + ('$' if value else ''))
+
 def parseDOM(html, name='', attrs=None, ret=False):
 	results = []
 	try:
-		if attrs: attrs = dict((key, re.compile(value + ('$' if value else ''))) for key, value in attrs.items())
+		if attrs: attrs = dict((key, _compile_attr_pattern(value)) for key, value in attrs.items())
 		results = parse_dom(html, name, attrs, ret)
 		if ret: results = [result.attrs[ret.lower()] for result in results]
 		else: results = [result.content for result in results]

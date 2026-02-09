@@ -124,8 +124,8 @@ def set_bookmark(media_type, tmdb_id, curr_time, total_time, title, season='', e
 		if settings.sync_kodi_library_watchstatus():
 			set_bookmark_kodi_library(media_type, tmdb_id, curr_time, total_time, season, episode)
 		kodi_utils.container_refresh()
-	except Exception:
-		pass
+	except Exception as e:
+		kodi_utils.logger('watched_cache.set_bookmark', str(e))
 	finally:
 		if dbcon and db_file:
 			_return_connection(db_file, dbcon)
@@ -149,8 +149,8 @@ def erase_bookmark(media_type, tmdb_id, season='', episode='', refresh='false'):
 		dbcur = set_PRAGMAS(dbcon)
 		dbcur.execute("""DELETE FROM progress where db_type = ? and media_id = ? and season = ? and episode = ?""", (media_type, tmdb_id, season, episode))
 		if refresh == 'true': kodi_utils.container_refresh()
-	except Exception:
-		pass
+	except Exception as e:
+		kodi_utils.logger('watched_cache.erase_bookmark', str(e))
 	finally:
 		if dbcon and db_file:
 			_return_connection(db_file, dbcon)
@@ -183,8 +183,8 @@ def batch_erase_bookmark(watched_indicators, insert_list, action):
 		dbcon = _database_connect(db_file)
 		dbcur = set_PRAGMAS(dbcon)
 		dbcur.executemany("""DELETE FROM progress where db_type = ? and media_id = ? and season = ? and episode = ?""", modified_list)
-	except Exception:
-		pass
+	except Exception as e:
+		kodi_utils.logger('watched_cache.batch_erase_bookmark', str(e))
 	finally:
 		if dbcon and db_file:
 			_return_connection(db_file, dbcon)
@@ -590,8 +590,8 @@ def clear_local_bookmarks():
 		for i in ('bookmark', 'streamdetails', 'files'):
 			if i in valid_tables:
 				dbcur.executemany("""DELETE FROM %s WHERE idFile = ?""" % i, file_ids)
-	except Exception:
-		pass
+	except Exception as e:
+		kodi_utils.logger('watched_cache.clear_local_bookmarks', str(e))
 	finally:
 		if dbcon:
 			_return_connection(db_file, dbcon)

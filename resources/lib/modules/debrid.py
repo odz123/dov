@@ -151,7 +151,7 @@ class Source:
 			for i in files or selected_files:
 				torrent_id, filename = i.get('torrent_id'), i['filename'].lower()
 				if filename.endswith('.m2ts'): raise Exception('_m2ts_check failed')
-				if not filename.endswith(tuple(extensions)): continue
+				if not filename.endswith(extensions): continue
 				if season and not seas_ep_filter(season, episode, filename): continue
 				elif any(x in filename for x in extras_filtering_list): continue
 				selected_files_append(i)
@@ -346,7 +346,7 @@ class DebridCheck:
 		)
 		for i in threads: i.start()
 		for i in threads: i.join()
-		return list(set(checked_hashes))
+		return list(dict.fromkeys(checked_hashes))
 
 	def cache_write(self, hashes):
 		cache = DebridCache()

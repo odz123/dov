@@ -87,7 +87,7 @@ class EasyDebridAPI:
 				 'size': item['size'],
 				 'filename': item['filename']}
 				for item in torrent_files
-				if item['filename'].lower().endswith(tuple(extensions))
+				if item['filename'].lower().endswith(extensions)
 			]
 			return torrent_files
 		except Exception: pass
