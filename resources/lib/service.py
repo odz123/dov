@@ -194,8 +194,9 @@ class POVMonitor(kodi_utils.xbmc_monitor):
 		set_property('pov_kodi_menu_cache', get_setting('kodi_menu_cache'))
 		set_property('pov_rli_fix', get_setting('rli_fix'))
 		try:
-			from modules.source_utils import clear_external_sources_cache
+			from modules.source_utils import clear_external_sources_cache, clear_stremio_addons_cache
 			clear_external_sources_cache()
+			clear_stremio_addons_cache()
 		except Exception: pass
 
 	def onNotification(self, sender, method, data):

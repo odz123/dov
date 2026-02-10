@@ -1,8 +1,8 @@
 <addon id="plugin.video.pov" version="6.01.02" name="POV" provider-name="kodifitzwell">
 	<requires>
 		<import addon="xbmc.python" version="3.0.1" />
-		<import addon="script.module.requests" version="2.31.0" />
-		<import addon="script.module.urllib3" version="2.2.3" />
+		<import addon="script.module.requests" version="2.32.0" />
+		<import addon="script.module.urllib3" version="2.3.0" />
 	</requires>
 	<extension point="xbmc.python.pluginsource" library="resources/lib/router.py">
 		<provides>video</provides>

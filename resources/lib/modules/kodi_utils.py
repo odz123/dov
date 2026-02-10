@@ -149,8 +149,13 @@ def sleep(time):
 def execute_builtin(command):
 	return xbmc.executebuiltin(command)
 
+_kodi_version = None
+
 def get_kodi_version():
-	return int(get_infolabel('System.BuildVersion')[0:2])
+	global _kodi_version
+	if _kodi_version is None:
+		_kodi_version = int(get_infolabel('System.BuildVersion')[0:2])
+	return _kodi_version
 
 def skin_location():
 	return 'vop.oediv.nigulp/snodda/emoh//:laiceps'[::-1]
@@ -287,9 +292,9 @@ def set_view_mode(view_type, content='files'):
 			if dbcon: dbcon.close()
 	try:
 		sleep(100)
-		while not container_content() == content:
+		while container_content() != content:
 			hold += 1
-			if hold < 50: sleep(100)
+			if hold < 25: sleep(200)
 			else: return
 		if view_id: execute_builtin('Container.SetViewMode(%s)' % view_id)
 	except Exception: return
@@ -418,7 +423,8 @@ def make_settings_dict():
 		}
 		set_property('pov_settings', json.dumps(settings_dict))
 		_settings_cache['dict'] = settings_dict
-	except Exception: pass
+	except Exception as e:
+		logger('make_settings_dict', str(e))
 	return settings_dict
 
 def open_settings(query, addon='plugin.video.pov'):
@@ -452,7 +458,9 @@ def clean_settings():
 		with open_file(profile_xml, 'w') as xml_file: xml_file.write(ET.tostring(root))
 		text = local_string(32813) % len(removed_settings) if removed_settings else 32576
 		notification(text, 1500)
-	except Exception: notification(32574, 1500)
+	except Exception as e:
+		logger('clean_settings', str(e))
+		notification(32574, 1500)
 
 def toggle_language_invoker():
 	import xml.etree.ElementTree as ET
@@ -485,7 +493,9 @@ def upload_logfile():
 		response = requests.post('%s%s' % (url, 'documents'), data=text, timeout=10.0).json()
 		if 'key' in response: ok_dialog(text=url + response['key'], top_space=True)
 		else: ok_dialog(text='Error. Log Upload Failed', top_space=True)
-	except Exception: notification(32574, 1500)
+	except Exception as e:
+		logger('upload_logfile', str(e))
+		notification(32574, 1500)
 	finally: hide_busy_dialog()
 
 def timeIt(func):

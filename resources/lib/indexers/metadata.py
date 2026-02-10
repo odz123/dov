@@ -8,8 +8,13 @@ movie_data, tvshow_data, tmdb_english_translation = tmdb.movie_details, tmdb.tvs
 movie_external_id, tvshow_external_id, season_episodes_details = tmdb.movie_external_id, tmdb.tvshow_external_id, tmdb.season_episodes_details
 default_fanarttv_data, fanarttv_get, fanarttv_add = fanarttv.default_fanart_nometa, fanarttv.get, fanarttv.add
 subtract_dates_function, jsondate_to_datetime_function = subtract_dates, jsondate_to_datetime
-backup_resolutions, writer_credits = {'poster': 'w780', 'fanart': 'w1280', 'still': 'original', 'profile': 'h632'}, ('Author', 'Writer', 'Screenplay', 'Characters')
-alt_titles_test, trailers_test, finished_show_check, empty_value_check = ('US', 'GB', 'UK', ''), ('Trailer', 'Teaser'), ('Ended', 'Canceled'), ('', 'None', None)
+backup_resolutions = {'poster': 'w780', 'fanart': 'w1280', 'still': 'original', 'profile': 'h632'}
+# Frozensets for O(1) membership tests in metadata building hot paths
+writer_credits = frozenset(('Author', 'Writer', 'Screenplay', 'Characters'))
+alt_titles_test = frozenset(('US', 'GB', 'UK', ''))
+trailers_test = frozenset(('Trailer', 'Teaser'))
+finished_show_check = frozenset(('Ended', 'Canceled'))
+empty_value_check = ('', 'None', None)  # Keep as tuple since it includes None
 tmdb_image_base, youtube_url, date_format = tmdb.tmdb_image_base, 'plugin://plugin.video.youtube/play/?video_id=%s', '%Y-%m-%d'
 EXPIRES_2_DAYS, EXPIRES_4_DAYS, EXPIRES_7_DAYS, EXPIRES_14_DAYS, EXPIRES_182_DAYS = 2, 4, 7, 14, 182
 # Cache duration multipliers: Short=0, Standard=1, Long=2, Extended=3

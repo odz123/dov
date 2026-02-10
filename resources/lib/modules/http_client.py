@@ -69,15 +69,25 @@ _session_lock = Lock()
 
 
 def _get_session():
-	"""Get or create a requests session with Chrome-like TLS fingerprint."""
+	"""Get or create a requests session with Chrome-like TLS fingerprint.
+	Limits connection pool size to prevent unbounded resource use."""
 	global _session
 	with _session_lock:
 		if _session is None:
 			_session = requests.Session()
 			adapter = _create_chrome_adapter()
 			if adapter:
+				# Set connection pool limits on adapter
+				adapter._pool_connections = 10
+				adapter._pool_maxsize = 20
 				_session.mount('https://', adapter)
 				_session.mount('http://', adapter)
+			else:
+				# Fallback: mount default adapter with pool limits
+				from requests.adapters import HTTPAdapter
+				limited_adapter = HTTPAdapter(pool_connections=10, pool_maxsize=20)
+				_session.mount('https://', limited_adapter)
+				_session.mount('http://', limited_adapter)
 		return _session
 
 
@@ -397,15 +407,23 @@ _api_session_lock = Lock()
 
 
 def get_api_session():
-	"""Get or create a reusable requests session for API calls."""
+	"""Get or create a reusable requests session for API calls.
+	Limits connection pool size to prevent unbounded resource use."""
 	global _api_session
 	with _api_session_lock:
 		if _api_session is None:
 			_api_session = requests.Session()
 			adapter = _create_chrome_adapter()
 			if adapter:
+				adapter._pool_connections = 10
+				adapter._pool_maxsize = 20
 				_api_session.mount('https://', adapter)
 				_api_session.mount('http://', adapter)
+			else:
+				from requests.adapters import HTTPAdapter
+				limited_adapter = HTTPAdapter(pool_connections=10, pool_maxsize=20)
+				_api_session.mount('https://', limited_adapter)
+				_api_session.mount('http://', limited_adapter)
 			_api_session.headers.update({
 				'User-Agent': BROWSER_HEADERS['User-Agent'],
 				'Accept': 'application/json'
