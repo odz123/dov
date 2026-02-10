@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
 from caches import BaseCache, maincache_db, get_property, set_property, clear_property, literal_eval
+from modules.kodi_utils import logger as _logger
 
 BASE_GET = 'SELECT expires, data FROM maincache WHERE id = ?'
 BASE_SET = 'INSERT OR REPLACE INTO maincache (id, data, expires) VALUES (?, ?, ?)'
@@ -26,7 +27,7 @@ class MainCache(BaseCache):
 						self.set_memory_cache(result, string, cache_data[0])
 					else:
 						self.delete(string, dbcon=None)
-		except Exception: pass
+		except Exception as e: _logger('MainCache.get', str(e))
 		return result
 
 	def set(self, string, data, expiration=timedelta(days=30)):
@@ -34,7 +35,7 @@ class MainCache(BaseCache):
 			expires = self._get_timestamp(datetime.now() + expiration)
 			self.dbcur.execute(BASE_SET, (string, repr(data), int(expires)))
 			self.set_memory_cache(data, string, int(expires))
-		except Exception: pass
+		except Exception as e: _logger('MainCache.set', str(e))
 
 	def get_memory_cache(self, string, current_time):
 		result = None

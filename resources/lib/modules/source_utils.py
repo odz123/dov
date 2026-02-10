@@ -110,6 +110,11 @@ def clear_external_sources_cache():
 	_external_sources_cache.clear()
 	_external_sources_cache_all.clear()
 
+def clear_stremio_addons_cache():
+	"""Clear the stremio addons cache. Call when stremio settings change."""
+	_stremio_addons_cache['str'] = None
+	_stremio_addons_cache['addons'] = None
+
 def _parse_stremio_addons(addons_str):
 	"""Parse Stremio addons string, trying JSON first then ast.literal_eval for backward compatibility"""
 	try:
@@ -125,23 +130,28 @@ def _parse_stremio_addons(addons_str):
 		pass
 	return []
 
+# Cached stremio addon parsing to avoid re-parsing on every call
+_stremio_addons_cache = {'str': None, 'addons': None}
+
+def _get_stremio_addons():
+	"""Get parsed stremio addons with caching to avoid repeated parsing."""
+	addons_str = kodi_utils.get_setting('stremio.addons', '')
+	if not addons_str:
+		return []
+	if _stremio_addons_cache['str'] == addons_str:
+		return _stremio_addons_cache['addons']
+	addons = _parse_stremio_addons(addons_str)
+	_stremio_addons_cache['str'] = addons_str
+	_stremio_addons_cache['addons'] = addons
+	return addons
 
 def stremio_is_configured():
 	"""Check if Stremio is enabled with at least one addon configured.
 	Returns True if Stremio can potentially provide streams."""
 	try:
-		# Check if stremio provider is enabled
 		if kodi_utils.get_setting('provider.stremio') != 'true':
 			return False
-		# Get configured Stremio addons
-		addons_str = kodi_utils.get_setting('stremio.addons', '')
-		if not addons_str:
-			return False
-		addons = _parse_stremio_addons(addons_str)
-		if not addons:
-			return False
-		# Stremio is enabled and has at least one addon configured
-		return True
+		return bool(_get_stremio_addons())
 	except Exception:
 		return False
 
@@ -153,17 +163,11 @@ def stremio_has_debrid_addons():
 	debrid configuration that cannot be detected. Use stremio_is_configured() for a
 	simpler check."""
 	try:
-		# Check if stremio provider is enabled
 		if kodi_utils.get_setting('provider.stremio') != 'true':
 			return False
-		# Get configured Stremio addons
-		addons_str = kodi_utils.get_setting('stremio.addons', '')
-		if not addons_str:
-			return False
-		addons = _parse_stremio_addons(addons_str)
+		addons = _get_stremio_addons()
 		if not addons:
 			return False
-		# Check if any addon has debrid configuration in url or config_url
 		debrid_patterns = (
 			'realdebrid=', 'rd=', 'debridkey=',
 			'premiumize=', 'pm=',
@@ -175,7 +179,6 @@ def stremio_has_debrid_addons():
 		)
 		for addon in addons:
 			if isinstance(addon, dict):
-				# Check both config_url and url fields for debrid patterns
 				config_url = addon.get('config_url', '')
 				addon_url = addon.get('url', '')
 				check_url = config_url or addon_url
