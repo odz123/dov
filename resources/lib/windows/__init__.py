@@ -8,14 +8,17 @@ def open_window(import_info, skin_xml, **kwargs):
 	'''
 	import_info: tuple with ('module', 'function')
 	'''
+	xml_window = None
 	try:
 		xml_window = create_window(import_info, skin_xml, **kwargs)
 		if xml_window is None: return None
 		choice = xml_window.run()
-		del xml_window
 		return choice
 	except Exception as e:
 		kodi_utils.logger('error in open_window', str(e))
+	finally:
+		try: del xml_window
+		except Exception: pass
 
 def create_window(import_info, skin_xml, **kwargs):
 	'''

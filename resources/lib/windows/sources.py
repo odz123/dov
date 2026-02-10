@@ -234,13 +234,14 @@ class SourceResults(BaseDialog):
 				choice_sorter = [upper(i) for i in choice_sorter]
 			filter_property = 'tikiskins.%s' % main_choice
 			duplicates = set()
-			provider_choices = [
-				i.getProperty(filter_property)
-				for i in self.item_list
-				if not (i.getProperty(filter_property) in duplicates or duplicates.add(i.getProperty(filter_property)))
-				and not i.getProperty(filter_property) == ''
-			]
-			provider_choices.sort(key=choice_sorter.index)
+			provider_choices = []
+			for i in self.item_list:
+				val = i.getProperty(filter_property)
+				if val and val not in duplicates:
+					duplicates.add(val)
+					provider_choices.append(val)
+			sorter_map = {v: idx for idx, v in enumerate(choice_sorter)}
+			provider_choices.sort(key=lambda x: sorter_map.get(x, len(sorter_map)))
 			list_items = [{'line1': item} for item in provider_choices]
 			kwargs = {'items': json.dumps(list_items), 'heading': heading, 'enumerate': 'false', 'multi_choice': 'true', 'multi_line': 'false'}
 			choice = select_dialog(provider_choices, **kwargs)

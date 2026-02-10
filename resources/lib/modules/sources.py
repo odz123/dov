@@ -79,13 +79,13 @@ class SourceSelect:
 		self.language = settings.get_language()
 
 	def playback_prep(self, params=None):
-		if self.clear_properties: self._clear_properties()
 		if params: self.params = params
 		params_get = self.params.get
-		self.prescrape = params_get('prescrape', self.prescrape) == 'true'
 		self.background = params_get('background', 'false') == 'true'
 		if self.background: hide_busy_dialog()
 		else: show_busy_dialog()
+		if self.clear_properties: self._clear_properties()
+		self.prescrape = params_get('prescrape', self.prescrape) == 'true'
 		if 'autoplay' in self.params: self.autoplay = params_get('autoplay', 'false') == 'true'
 		else: self.autoplay = settings.auto_play(params_get('media_type'))
 		self.disabled_ignored = params_get('disabled_ignored', self.disabled_ignored) == 'true'
@@ -149,7 +149,7 @@ class SourceSelect:
 			# Use list comprehension instead of generator for clearer thread management
 			threads = [Thread(target=self.activate_providers, args=(i[0], i[1], False), name=i[2]) for i in self.providers]
 			self.threads.extend(threads)
-			for i in self.threads: i.start()
+			for i in threads: i.start()
 		if self.active_external or self.background:
 			if self.active_external:
 				self.meta.update({'full_screen': self.full_screen, 'scrape_timeout': self.timeout})
