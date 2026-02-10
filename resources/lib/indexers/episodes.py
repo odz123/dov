@@ -1,4 +1,5 @@
 import sys
+import json
 from threading import Thread
 from indexers.metadata import tvshow_meta_with_stremio, season_episodes_meta_with_stremio, tmdb_image_base
 from indexers.trakt_api import trakt_get_hidden_items, trakt_get_my_calendar, trakt_my_anime_calendar, trakt_anime_calendar
@@ -63,6 +64,8 @@ class Episodes:
 			cm = []
 			cm_append = cm.append
 			tmdb_id, tvdb_id, imdb_id = meta_get('tmdb_id'), meta_get('tvdb_id'), meta_get('imdb_id')
+			try: kodi_utils.set_property('pov_play_meta.tvshow.%s' % tmdb_id, json.dumps(meta))
+			except Exception: pass
 			title, year, rootname, show_status = meta_get('title'), meta_get('year'), meta_get('rootname'), meta_get('status')
 			show_poster = meta_get(self.poster_main) or meta_get(self.poster_backup) or poster_empty
 			show_fanart = meta_get(self.fanart_main) or meta_get(self.fanart_backup) or fanart_empty
@@ -85,6 +88,8 @@ class Episodes:
 			if not item: return
 			item_get = item.get
 			season, episode, ep_name = item_get('season'), item_get('episode'), item_get('title')
+			try: kodi_utils.set_property('pov_play_meta.ep.%s.%s.%s' % (tmdb_id, season, episode), json.dumps({'season': season, 'episode': episode, 'premiered': item_get('premiered'), 'ep_name': ep_name, 'plot': item_get('plot')}))
+			except Exception: pass
 			str_season_zfill2, str_episode_zfill2 = string(season).zfill(1), string(episode).zfill(2)
 			orig_premiered = item_get('premiered')
 			episode_date, premiered = adjust_premiered_date_function(orig_premiered, self.adjust_hours)
