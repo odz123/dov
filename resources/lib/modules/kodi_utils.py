@@ -391,8 +391,10 @@ def get_setting(setting_id, fallback=None):
 	if settings_dict is None:
 		try: settings_dict = json.loads(get_property('pov_settings'))
 		except Exception: settings_dict = make_settings_dict()
-		if settings_dict is None: settings_dict = get_setting_fallback(setting_id)
-		else: _settings_cache['dict'] = settings_dict
+		if settings_dict is not None:
+			_settings_cache['dict'] = settings_dict
+		else:
+			return _addon_instance.getSetting(setting_id) or (fallback if fallback is not None else '')
 	value = settings_dict.get(setting_id, '')
 	if fallback is None: return value
 	if value == '': return fallback
