@@ -1,4 +1,5 @@
 import sys
+import json
 from threading import Thread
 from indexers.metadata import tvshow_meta_with_stremio, season_episodes_meta_with_stremio, all_episodes_meta_with_stremio, tmdb_image_base
 from caches.watched_cache import get_watched_info_tv, get_watched_status_season, get_bookmarks, get_resumetime, get_watched_status_episode
@@ -146,6 +147,8 @@ class Seasons:
 					cm_append = cm.append
 					item_get = item.get
 					season, episode, ep_name = item_get('season'), item_get('episode'), item_get('title')
+					try: kodi_utils.set_property('pov_play_meta.ep.%s.%s.%s' % (tmdb_id, season, episode), json.dumps({'season': season, 'episode': episode, 'premiered': item_get('premiered'), 'ep_name': ep_name, 'plot': item_get('plot')}))
+					except Exception: pass
 					premiered, cast = item_get('premiered'), show_cast + item_get('guest_stars', [])
 					episode_date, premiered = adjust_premiered_date_function(premiered, adjust_hours)
 					playcount, overlay = get_watched_status_episode(self.watched_info, string(tmdb_id), season, episode)
@@ -228,6 +231,8 @@ class Seasons:
 				except Exception: pass
 		meta = tv_meta_function('tmdb_id', params['tmdb_id'], self.meta_user_info, self.current_date)
 		if not meta: return self.items
+		try: kodi_utils.set_property('pov_play_meta.tvshow.%s' % meta.get('tmdb_id'), json.dumps(meta))
+		except Exception: pass
 		meta_get = meta.get
 		tmdb_id, tvdb_id, imdb_id = meta_get('tmdb_id'), meta_get('tvdb_id'), meta_get('imdb_id')
 		rootname, show_status = meta_get('rootname'), meta_get('status')

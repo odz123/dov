@@ -2,13 +2,36 @@ import json
 from threading import Lock
 from caches.providers_cache import ExternalProvidersCache
 from indexers.metadata import movie_meta, tvshow_meta, season_episodes_meta, get_title
-from modules.kodi_utils import local_string as ls, get_setting
+from modules.kodi_utils import local_string as ls, get_setting, get_property
 from modules.settings import metadata_user_info, date_offset
 from modules.source_utils import get_cache_expiry, get_filename_match, get_file_info, normalize
 from modules.utils import clean_file_name, safe_string, remove_accents, get_datetime, adjust_premiered_date
 
 season_display, show_display, resolutions = ls(32537), ls(32089), '4K 1080p 720p SD total'
 pack_check = (season_display, show_display)
+
+def _get_play_meta_cache(media_type, tmdb_id, season='', episode=''):
+	"""Fast path: retrieve pre-cached metadata from JSON window property.
+	Avoids MetaCache instantiation (SQLite open) and literal_eval parsing."""
+	try:
+		if media_type == 'episode':
+			tvshow_cached = get_property('pov_play_meta.tvshow.%s' % tmdb_id)
+			if not tvshow_cached: return None
+			ep_cached = get_property('pov_play_meta.ep.%s.%s.%s' % (tmdb_id, season, episode))
+			if not ep_cached: return None
+			meta = json.loads(tvshow_cached)
+			ep_data = json.loads(ep_cached)
+			meta.update({
+				'mediatype': 'episode', 'season': ep_data['season'], 'episode': ep_data['episode'],
+				'premiered': ep_data['premiered'], 'ep_name': ep_data['ep_name'], 'plot': ep_data['plot']
+			})
+			return meta
+		else:
+			cached = get_property('pov_play_meta.movie.%s' % tmdb_id)
+			if not cached: return None
+			return json.loads(cached)
+	except Exception:
+		return None
 
 def get_source_meta(params):
 	params_get = params.get
@@ -21,19 +44,21 @@ def get_source_meta(params):
 	background = params_get('background', 'false') == 'true'
 	if 'meta' in params: meta = json.loads(params['meta'])
 	else:
-		meta_user_info, adjust_hours, current_date = metadata_user_info(), date_offset(), get_datetime()
-		if media_type == 'episode':
-			meta = tvshow_meta('tmdb_id', tmdb_id, meta_user_info, current_date)
-			try:
-				episodes_data = season_episodes_meta(season, meta, meta_user_info)
-				ep_data = next((i for i in episodes_data if i['episode'] == int(episode)), None)
-				if not ep_data: raise StopIteration
-				meta.update({
-					'mediatype': 'episode', 'season': ep_data['season'], 'episode': ep_data['episode'],
-					'premiered': ep_data['premiered'], 'ep_name': ep_data['title'], 'plot': ep_data['plot']
-				})
-			except Exception: pass
-		else: meta = movie_meta('tmdb_id', tmdb_id, meta_user_info, current_date)
+		meta = _get_play_meta_cache(media_type, tmdb_id, season, episode)
+		if meta is None:
+			meta_user_info, adjust_hours, current_date = metadata_user_info(), date_offset(), get_datetime()
+			if media_type == 'episode':
+				meta = tvshow_meta('tmdb_id', tmdb_id, meta_user_info, current_date)
+				try:
+					episodes_data = season_episodes_meta(season, meta, meta_user_info)
+					ep_data = next((i for i in episodes_data if i['episode'] == int(episode)), None)
+					if not ep_data: raise StopIteration
+					meta.update({
+						'mediatype': 'episode', 'season': ep_data['season'], 'episode': ep_data['episode'],
+						'premiered': ep_data['premiered'], 'ep_name': ep_data['title'], 'plot': ep_data['plot']
+					})
+				except Exception: pass
+			else: meta = movie_meta('tmdb_id', tmdb_id, meta_user_info, current_date)
 	meta.update({'background': background, 'media_type': media_type, 'season': season, 'episode': episode})
 	if custom_title: meta['custom_title'] = custom_title
 	if custom_year: meta['custom_year'] = custom_year

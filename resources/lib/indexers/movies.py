@@ -1,4 +1,5 @@
 import sys
+import json
 from threading import Thread
 from indexers.metadata import movie_meta_with_stremio, rpdb_get, tmdb_image_base
 from caches.watched_cache import get_watched_info_movie, get_watched_status_movie, get_resumetime, get_bookmarks
@@ -57,6 +58,8 @@ class Movies:
 			meta = movie_meta_function(self.id_type, _id, self.meta_user_info, self.current_date)
 			meta_get = meta.get
 			if not meta or meta_get('blank_entry', False): return
+			try: kodi_utils.set_property('pov_play_meta.movie.%s' % meta_get('tmdb_id'), json.dumps(meta))
+			except Exception: pass
 			playcount, overlay = get_watched_function(self.watched_info, string(meta['tmdb_id']))
 			if self.widget_hide_watched and playcount: return
 			meta.update({'playcount': playcount, 'overlay': overlay})
