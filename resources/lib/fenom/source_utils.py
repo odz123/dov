@@ -197,12 +197,26 @@ def aliases_to_array(aliases, filter=None):
 		log_utils.error()
 		return []
 
+# Cache for compiled hdlr patterns used in check_title() - avoids re-compilation per result
+_hdlr_pattern_cache = {}
+
+def _get_hdlr_pattern(hdlr):
+	"""Get or compile and cache the regex pattern for a given hdlr string."""
+	if hdlr in _hdlr_pattern_cache:
+		return _hdlr_pattern_cache[hdlr]
+	pattern = re.compile(r'%s' % hdlr, re.I)
+	if len(_hdlr_pattern_cache) > 200:
+		_hdlr_pattern_cache.clear()
+	_hdlr_pattern_cache[hdlr] = pattern
+	return pattern
+
 def check_title(title, aliases, release_title, hdlr, year, years=None): # non pack file title check, single eps and movies
 	if len(release_title) > MAX_RELEASE_TITLE_LEN: return False
+	hdlr_pattern = _get_hdlr_pattern(hdlr)
 	if years: # for movies only, scraper to pass None for episodes
 		if not any(value in release_title for value in years): return False
 	else:
-		if not re.search(r'%s' % hdlr, release_title, re.I): return False
+		if not hdlr_pattern.search(release_title): return False
 	aliases = aliases_to_array(aliases)
 	title_list = []
 	title_list_append = title_list.append
@@ -222,7 +236,7 @@ def check_title(title, aliases, release_title, hdlr, year, years=None): # non pa
 		if title not in title_list: title_list_append(title)
 
 		release_title = RE_YEAR_PARENS.sub('\\2', release_title) #remove parenthesis only if surrounding a 4 digit date
-		t = re.split(r'%s' % hdlr, release_title, 1, re.I)[0].replace(year, '').replace('&', 'and')
+		t = hdlr_pattern.split(release_title, 1)[0].replace(year, '').replace('&', 'and')
 		if years:
 			for i in years: t = t.split(i)[0]
 		t = RE_RESOLUTION.split(t, 1)[0]

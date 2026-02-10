@@ -133,12 +133,18 @@ def list_dirs(location):
 def make_listitem():
 	return xbmcgui.ListItem(offscreen=True)
 
+_local_string_cache = {}
+
 def local_string(string):
+	cached = _local_string_cache.get(string)
+	if cached is not None: return cached
 	try: _string = int(string)
 	except Exception: return string
-	try: _string = str(_addon_instance.getLocalizedString(_string))
-	except Exception: _string = _addon_instance.getLocalizedString(_string)
-	return _string or string
+	try: result = str(_addon_instance.getLocalizedString(_string))
+	except Exception: result = _addon_instance.getLocalizedString(_string)
+	result = result or string
+	_local_string_cache[string] = result
+	return result
 
 def translate_path(path):
 	return xbmcvfs.translatePath(path)
@@ -268,8 +274,7 @@ def set_view_properties():
 	dbcon = database_connect(views_db, isolation_level=None)
 	try:
 		dbcur = dbcon.cursor()
-		dbcur.execute("""SELECT * FROM views""")
-		view_ids = dbcur.fetchall()
+		view_ids = dbcur.execute("""SELECT * FROM views""").fetchall()
 	finally:
 		dbcon.close()
 	for item in view_ids: set_property('pov_%s' % item[0], item[1])
@@ -367,20 +372,14 @@ def clean_settings_window_properties():
 	notification(32576, 1500)
 
 def fetch_kodi_imagecache(image):
-	result = None
-	dbcon = None
 	try:
 		dbcon = database_connect('special://profile/Database/Textures13.db')
-		dbcur = dbcon.cursor()
-		dbcur.execute("""SELECT cachedurl FROM texture WHERE url = ?""", (image,))
-		row = dbcur.fetchone()
-		if row: result = row[0]
-	except Exception: pass
-	finally:
-		if dbcon:
-			try: dbcon.close()
-			except Exception: pass
-	return result
+		try:
+			row = dbcon.cursor().execute("""SELECT cachedurl FROM texture WHERE url = ?""", (image,)).fetchone()
+			return row[0] if row else None
+		finally:
+			dbcon.close()
+	except Exception: return None
 
 def set_setting(setting_id, value):
 	_addon_instance.setSetting(setting_id, value)
