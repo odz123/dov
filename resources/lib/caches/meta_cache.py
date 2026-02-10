@@ -82,30 +82,34 @@ class MetaCache(BaseCache):
 				self.delete_memory_cache(media_type, id_type, media_id)
 		except (KeyError, TypeError, sqlite3.ProgrammingError, sqlite3.OperationalError): return
 
-	def get_memory_cache(self, media_type, id_type, media_id, current_time):
-		result = None
+	def _make_prop_string(self, media_type, id_type, media_id, prefix='pov'):
+		"""Build cache property string. Shared by regular and Stremio memory cache."""
+		if media_type in movie_show: return '%s_%s_%s_%s' % (prefix, media_type, id_type, media_id)
+		return '%s_meta_season_%s' % (prefix, media_id)
+
+	def _get_mem_cache(self, prop_string, current_time):
+		"""Generic memory cache getter by property string."""
 		try:
-			if media_type in movie_show: prop_string = 'pov_%s_%s_%s' % (media_type, id_type, media_id)
-			else: prop_string = 'pov_meta_season_%s' % media_id
 			cachedata = get_property(prop_string)
 			if cachedata:
 				cachedata = safe_eval(cachedata)
-				if cachedata[0] > current_time: result = cachedata[1]
+				if cachedata[0] > current_time: return cachedata[1]
 		except (ValueError, SyntaxError, TypeError, IndexError): pass
-		return result
+		return None
 
-	def set_memory_cache(self, media_type, id_type, meta, expires, media_id):
-		try:
-			media_id = string(media_id)
-			if media_type in movie_show: cachedata, prop_string = (expires, meta), 'pov_%s_%s_%s' % (media_type, id_type, media_id)
-			else: cachedata, prop_string = (expires, meta), 'pov_meta_season_%s' % media_id
-			set_property(prop_string, repr(cachedata))
+	def _set_mem_cache(self, prop_string, meta, expires):
+		"""Generic memory cache setter by property string."""
+		try: set_property(prop_string, repr((expires, meta)))
 		except (TypeError, ValueError): pass
 
+	def get_memory_cache(self, media_type, id_type, media_id, current_time):
+		return self._get_mem_cache(self._make_prop_string(media_type, id_type, media_id), current_time)
+
+	def set_memory_cache(self, media_type, id_type, meta, expires, media_id):
+		self._set_mem_cache(self._make_prop_string(media_type, id_type, string(media_id)), meta, expires)
+
 	def delete_memory_cache(self, media_type, id_type, media_id):
-		try:
-			if media_type in movie_show: clear_property('pov_%s_%s_%s' % (media_type, id_type, media_id))
-			else: clear_property('pov_meta_season_%s' % media_id)
+		try: clear_property(self._make_prop_string(media_type, id_type, media_id))
 		except (TypeError, ValueError): pass
 
 	def get_function(self, prop_string):
@@ -125,8 +129,9 @@ class MetaCache(BaseCache):
 			self.dbcur.execute(SET_FUNCTION, (prop_string, repr(result), expires))
 		except (TypeError, ValueError, sqlite3.ProgrammingError, sqlite3.OperationalError): return
 
-	def delete_all_seasons_memory_cache(self, media_id, max_seasons=100):
-		for item in range(1, max_seasons + 1): clear_property('pov_meta_season_%s_%s' % (string(media_id), string(item)))
+	def delete_all_seasons_memory_cache(self, media_id, max_seasons=50):
+		media_id_str = string(media_id)
+		for item in range(1, max_seasons + 1): clear_property('pov_meta_season_%s_%s' % (media_id_str, string(item)))
 
 	def delete_all(self):
 		try:
@@ -193,35 +198,18 @@ class MetaCache(BaseCache):
 		except (KeyError, TypeError, sqlite3.ProgrammingError, sqlite3.OperationalError):
 			return
 
+	def _stremio_prop(self, media_type, imdb_id):
+		return 'pov_stremio_%s_%s' % (media_type, imdb_id)
+
 	def get_stremio_memory_cache(self, media_type, imdb_id, current_time):
-		"""Get Stremio metadata from memory cache"""
-		result = None
-		try:
-			prop_string = 'pov_stremio_%s_%s' % (media_type, imdb_id)
-			cachedata = get_property(prop_string)
-			if cachedata:
-				cachedata = safe_eval(cachedata)
-				if cachedata[0] > current_time:
-					result = cachedata[1]
-		except (ValueError, SyntaxError, TypeError, IndexError):
-			pass
-		return result
+		return self._get_mem_cache(self._stremio_prop(media_type, imdb_id), current_time)
 
 	def set_stremio_memory_cache(self, media_type, imdb_id, meta, expires):
-		"""Set Stremio metadata in memory cache"""
-		try:
-			prop_string = 'pov_stremio_%s_%s' % (media_type, imdb_id)
-			cachedata = (expires, meta)
-			set_property(prop_string, repr(cachedata))
-		except (TypeError, ValueError):
-			pass
+		self._set_mem_cache(self._stremio_prop(media_type, imdb_id), meta, expires)
 
 	def delete_stremio_memory_cache(self, media_type, imdb_id):
-		"""Delete Stremio metadata from memory cache"""
-		try:
-			clear_property('pov_stremio_%s_%s' % (media_type, imdb_id))
-		except (TypeError, ValueError):
-			pass
+		try: clear_property(self._stremio_prop(media_type, imdb_id))
+		except (TypeError, ValueError): pass
 
 	def delete_all_stremio(self):
 		"""Delete all Stremio metadata from cache"""

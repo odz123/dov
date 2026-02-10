@@ -307,7 +307,10 @@ def sort_list(sort_key, sort_direction, list_data, ignore_articles):
 		elif sort_key == 'popularity': return sorted(list_data, key=lambda x: x[x['type']].get('votes', 0), reverse=reverse)
 		elif sort_key == 'percentage': return sorted(list_data, key=lambda x: x[x['type']].get('rating', 0), reverse=reverse)
 		elif sort_key == 'votes': return sorted(list_data, key=lambda x: x[x['type']].get('votes', 0), reverse=reverse)
-		elif sort_key == 'random': return sorted(list_data, key=lambda k: random.random())
+		elif sort_key == 'random':
+			result = list(list_data)
+			random.shuffle(result)
+			return result
 		else: return list_data
 	except Exception: return list_data
 

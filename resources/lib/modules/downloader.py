@@ -68,10 +68,14 @@ class Downloader:
 		if self.url in (None, 'None', ''): return self.return_notification(notification=32692)
 		self.get_filename()
 		self.get_extension()
-		self.download_check()
-		if not self.confirm_download(): return self.return_notification(notification=32736)
+		if not self.download_check(): return
+		if not self.confirm_download():
+			self._close_response()
+			return self.return_notification(notification=32736)
 		self.get_download_folder()
-		if not self.get_destination_folder(): return self.return_notification(notification=32736)
+		if not self.get_destination_folder():
+			self._close_response()
+			return self.return_notification(notification=32736)
 		self.download_runner(self.url, self.final_destination, self.extension)
 
 	def download_prep(self):
@@ -206,7 +210,9 @@ class Downloader:
 
 	def download_check(self):
 		self.resp = self.get_response(self.url, self.headers, 0)
-		if not self.resp: self.return_notification(ok_dialog=32575)
+		if not self.resp:
+			self.return_notification(ok_dialog=32575)
+			return False
 		try: self.content = int(self.resp.headers['Content-Length'])
 		except (KeyError, ValueError, TypeError): self.content = 0
 		try: self.resumable = 'bytes' in self.resp.headers['Accept-Ranges'].lower()
@@ -214,10 +220,12 @@ class Downloader:
 		if self.content < 1:
 			self._close_response()
 			self.return_notification(ok_dialog=32575)
+			return False
 		self.size = 1024 * 1024
 		self.mb = self.content / (1024 * 1024)
 		if self.content < self.size: self.size = self.content
 		kodi_utils.hide_busy_dialog()
+		return True
 
 	def _close_response(self):
 		"""Safely close the HTTP response to prevent resource leaks."""

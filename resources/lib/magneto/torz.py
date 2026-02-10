@@ -49,7 +49,7 @@ class source:
 				hdlr = year
 				url = '%s%s' % (self.base_link, self.movieSearch_link)
 				params = {'sid': imdb}
-			if 'timeout' in data: self.timeout = int(data['timeout'])
+			if 'timeout' in data: self.timeout = max(1, min(int(data['timeout']), 60))
 			from urllib.parse import urlencode
 			full_url = '%s?%s' % (url, urlencode(params))
 			response_json = http_client.fetch_json(full_url, timeout=self.timeout)

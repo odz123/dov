@@ -1,7 +1,7 @@
 import json
 import time
 import requests
-from threading import Thread
+from threading import Thread, Lock
 from caches import trakt_cache
 from caches.main_cache import cache_object
 from indexers.metadata import movie_external_id, tvshow_external_id
@@ -12,7 +12,8 @@ from modules.utils import sort_list, sort_for_article, make_thread_list, jsondat
 ls, logger, js2date = kodi_utils.local_string, kodi_utils.logger, jsondate_to_datetime
 get_setting, set_setting, notification = kodi_utils.get_setting, kodi_utils.set_setting, kodi_utils.notification
 EXPIRES_2_DAYS = 48
-# Rate limit tracking
+# Rate limit tracking (thread-safe)
+_rate_limit_lock = Lock()
 _rate_limit_remaining = {'get': 1000, 'post': 1}
 _rate_limit_reset = {'get': 0, 'post': 0}
 V2_API_KEY = get_setting('trakt.client_id')
@@ -27,10 +28,11 @@ session.mount('https://api.trakt.tv', requests.adapters.HTTPAdapter(pool_maxsize
 def _update_rate_limits(response, request_type):
 	"""Parse and store rate limit headers from Trakt API response."""
 	try:
-		if 'X-Ratelimit-Remaining' in response.headers:
-			_rate_limit_remaining[request_type] = int(response.headers['X-Ratelimit-Remaining'])
-		if 'X-Ratelimit-Reset' in response.headers:
-			_rate_limit_reset[request_type] = int(response.headers['X-Ratelimit-Reset'])
+		with _rate_limit_lock:
+			if 'X-Ratelimit-Remaining' in response.headers:
+				_rate_limit_remaining[request_type] = int(response.headers['X-Ratelimit-Remaining'])
+			if 'X-Ratelimit-Reset' in response.headers:
+				_rate_limit_reset[request_type] = int(response.headers['X-Ratelimit-Reset'])
 	except (ValueError, KeyError):
 		pass
 
@@ -51,12 +53,13 @@ def _handle_rate_limit_error(response):
 
 def get_rate_limit_status():
 	"""Return current rate limit status for debugging/monitoring."""
-	return {
-		'get_remaining': _rate_limit_remaining.get('get', 1000),
-		'get_reset': _rate_limit_reset.get('get', 0),
-		'post_remaining': _rate_limit_remaining.get('post', 1),
-		'post_reset': _rate_limit_reset.get('post', 0)
-	}
+	with _rate_limit_lock:
+		return {
+			'get_remaining': _rate_limit_remaining.get('get', 1000),
+			'get_reset': _rate_limit_reset.get('get', 0),
+			'post_remaining': _rate_limit_remaining.get('post', 1),
+			'post_reset': _rate_limit_reset.get('post', 0)
+		}
 
 def call_trakt(path, params=None, data=None, with_auth=True, method=None, pagination=False, page=1):
 	headers = {'trakt-api-key': V2_API_KEY, 'trakt-api-version': '2', 'Content-Type': 'application/json'}

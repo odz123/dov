@@ -40,7 +40,7 @@ class source:
 			self.hdlr = 'S%02dE%02d' % (int(data['season']), int(data['episode'])) if 'tvshowtitle' in data else self.year
 			self.season_x = data['season'] if 'tvshowtitle' in data else None
 			self.season_xx = data['season'].zfill(2) if 'tvshowtitle' in data else None
-			if 'timeout' in data: self.timeout = int(data['timeout'])
+			if 'timeout' in data: self.timeout = max(1, min(int(data['timeout']), 60))
 			self.undesirables = source_utils.get_undesirables()
 			self.check_foreign_audio = source_utils.check_foreign_audio()
 

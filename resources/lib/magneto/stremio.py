@@ -613,7 +613,7 @@ class source:
 				media_id = default_video_id
 
 			if 'timeout' in data:
-				self.timeout = int(data['timeout'])
+				self.timeout = max(1, min(int(data['timeout']), 60))
 
 			undesirables = source_utils.get_undesirables()
 			check_foreign_audio = source_utils.check_foreign_audio()

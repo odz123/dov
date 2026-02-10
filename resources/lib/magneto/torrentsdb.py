@@ -49,7 +49,7 @@ class source:
 			else:
 				hdlr = year
 				url = '%s%s' % (self.base_link, self.movieSearch_link % imdb)
-			if 'timeout' in data: self.timeout = int(data['timeout'])
+			if 'timeout' in data: self.timeout = max(1, min(int(data['timeout']), 60))
 			results = session.get(url, timeout=self.timeout)
 			response_json = results.json()
 			files = response_json.get('streams', [])

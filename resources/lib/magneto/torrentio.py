@@ -76,7 +76,7 @@ class source:
 				hdlr = year
 				media_type = 'movie'
 				media_id = imdb
-			if 'timeout' in data: self.timeout = int(data['timeout'])
+			if 'timeout' in data: self.timeout = max(1, min(int(data['timeout']), 60))
 
 			def error_callback(msg):
 				source_utils.scraper_error('TORRENTIO: %s - %s' % (self.base_link, msg))
