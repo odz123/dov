@@ -1,4 +1,5 @@
 import json
+import os
 from threading import Thread
 from caches import watched_cache as ws
 from windows import open_window
@@ -167,7 +168,7 @@ class POVPlayer(kodi_utils.xbmc_player):
 
 	def bookmarkPOV(self):
 		bookmark = 0
-		watched_indicators = settings.watched_indicators()
+		watched_indicators = self.watched_indicators
 		try: resume_point, curr_time, resume_id = ws.detect_bookmark(ws.get_bookmarks(watched_indicators, self.media_type), self.tmdb_id, self.season, self.episode)
 		except (IndexError, TypeError, KeyError): resume_point, curr_time = 0, 0
 		resume_check = float(resume_point)
@@ -481,7 +482,6 @@ class Subtitles(kodi_utils.xbmc_player):
 			kodi_utils.sleep(1000)
 			return final_path
 		if not self.subs_action in ('auto', 'select'): return
-		import os
 		from indexers import subtitles
 		kodi_utils.sleep(2500)
 		subtitle_path = 'special://temp/'

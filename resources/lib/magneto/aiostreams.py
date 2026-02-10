@@ -148,7 +148,7 @@ class source:
 				hdlr = year
 				url = '%s%s' % (self.base_link, self.movieSearch_link)
 				params = {'type': 'movie', 'id': '%s' % imdb}
-			if 'timeout' in data: self.timeout = int(data['timeout'])
+			if 'timeout' in data: self.timeout = max(1, min(int(data['timeout']), 60))
 
 			base_headers = self._headers()
 			has_valid_tvdb = tvdb and str(tvdb) not in ('', '0', '0000000', 'None')

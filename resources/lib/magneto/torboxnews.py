@@ -46,7 +46,7 @@ class source:
 				params.update({'season': int(season), 'episode': int(episode)})
 			else:
 				hdlr = year
-			if 'timeout' in data: self.timeout = int(data['timeout'])
+			if 'timeout' in data: self.timeout = max(1, min(int(data['timeout']), 60))
 			headers = {'User-Agent': self.user_agent, 'Authorization': 'Bearer %s' % self.token}
 			results = session.get(url, params=params, headers=headers, timeout=self.timeout)
 			response_json = results.json()

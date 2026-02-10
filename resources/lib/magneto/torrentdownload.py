@@ -32,7 +32,7 @@ class source:
 			self.episode_title = data['title'] if 'tvshowtitle' in data else None
 			self.year = data['year']
 			self.hdlr = 'S%02dE%02d' % (int(data['season']), int(data['episode'])) if 'tvshowtitle' in data else self.year
-			if 'timeout' in data: self.timeout = int(data['timeout'])
+			if 'timeout' in data: self.timeout = max(1, min(int(data['timeout']), 60))
 			self.undesirables = source_utils.get_undesirables()
 			self.check_foreign_audio = source_utils.check_foreign_audio()
 
@@ -118,7 +118,7 @@ class source:
 			self.year = data['year']
 			self.season_x = data['season']
 			self.season_xx = self.season_x.zfill(2)
-			if 'timeout' in data: self.timeout = int(data['timeout'])
+			if 'timeout' in data: self.timeout = max(1, min(int(data['timeout']), 60))
 			self.undesirables = source_utils.get_undesirables()
 			self.check_foreign_audio = source_utils.check_foreign_audio()
 
