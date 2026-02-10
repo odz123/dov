@@ -4,6 +4,7 @@ import random
 import hashlib
 import unicodedata
 import _strptime  # fix bug in python import
+from functools import lru_cache
 from queue import SimpleQueue
 from html import unescape
 from importlib import import_module
@@ -236,17 +237,24 @@ def remove_accents(obj):
 	except Exception: pass
 	return obj
 
+@lru_cache(maxsize=64)
+def _compile_regex(pattern):
+	return re.compile(pattern)
+
 def regex_from_to(text, from_string, to_string, excluding=True):
 	if excluding:
-		match = re.search(r"(?i)" + from_string + r"([\S\s]+?)" + to_string, text)
+		pattern = r"(?i)" + from_string + r"([\S\s]+?)" + to_string
+		match = _compile_regex(pattern).search(text)
 		r = match.group(1) if match else ''
 	else:
-		match = re.search(r"(?i)(" + from_string + r"[\S\s]+?" + to_string + ")", text)
+		pattern = r"(?i)(" + from_string + r"[\S\s]+?" + to_string + ")"
+		match = _compile_regex(pattern).search(text)
 		r = match.group(1) if match else ''
 	return r
 
 def regex_get_all(text, start_with, end_with):
-	r = re.findall(r"(?i)(" + start_with + r"[\S\s]+?" + end_with + ")", text)
+	pattern = r"(?i)(" + start_with + r"[\S\s]+?" + end_with + ")"
+	r = _compile_regex(pattern).findall(text)
 	return r
 
 def replace_html_codes(txt):
@@ -281,13 +289,14 @@ def released_key(item):
 	if 'first_aired' in item: return item['first_aired'] or '2050-01-01'
 	return '2050-01-01'
 
+_ARTICLES = frozenset(('the', 'a', 'an'))
+
 def title_key(title, ignore_articles):
 	if not ignore_articles: return title
 	try:
 		if title is None: title = ''
-		articles = ('the', 'a', 'an')
 		match = _RE_ARTICLE.match(title.lower())
-		if match and match.group(2) in articles: offset = len(match.group(1))
+		if match and match.group(2) in _ARTICLES: offset = len(match.group(1))
 		else: offset = 0
 		return title[offset:]
 	except Exception: return title
@@ -304,13 +313,19 @@ def _media_key(x):
 def sort_list(sort_key, sort_direction, list_data, ignore_articles):
 	try:
 		reverse = sort_direction != 'asc'
-		if sort_key == 'rank': return sorted(list_data, key=lambda x: x['rank'], reverse=reverse)
-		if sort_key == 'added': return sorted(list_data, key=lambda x: x['listed_at'], reverse=reverse)
-		if sort_key == 'title': return sorted(list_data, key=lambda x: title_key(_media_key(x).get('title'), ignore_articles), reverse=reverse)
-		if sort_key == 'released': return sorted(list_data, key=lambda x: released_key(x[x['type']]), reverse=reverse)
-		if sort_key == 'runtime': return sorted(list_data, key=lambda x: _media_key(x).get('runtime', 0), reverse=reverse)
-		if sort_key in ('popularity', 'votes'): return sorted(list_data, key=lambda x: _media_key(x).get('votes', 0), reverse=reverse)
-		if sort_key == 'percentage': return sorted(list_data, key=lambda x: _media_key(x).get('rating', 0), reverse=reverse)
+		_sort_key_funcs = {
+			'rank': lambda x: x['rank'],
+			'added': lambda x: x['listed_at'],
+			'title': lambda x: title_key(_media_key(x).get('title'), ignore_articles),
+			'released': lambda x: released_key(x[x['type']]),
+			'runtime': lambda x: _media_key(x).get('runtime', 0),
+			'popularity': lambda x: _media_key(x).get('votes', 0),
+			'votes': lambda x: _media_key(x).get('votes', 0),
+			'percentage': lambda x: _media_key(x).get('rating', 0),
+		}
+		key_func = _sort_key_funcs.get(sort_key)
+		if key_func:
+			return sorted(list_data, key=key_func, reverse=reverse)
 		if sort_key == 'random':
 			result = list(list_data)
 			random.shuffle(result)

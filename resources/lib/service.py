@@ -69,14 +69,15 @@ def autoRun():
 	if settings.auto_start_pov(): kodi_utils.execute_builtin('RunAddon(plugin.video.pov)')
 	return logger('POV', 'AutoRun Service Finished')
 
+_SUB_FORMATS = ('.srt', '.ssa', '.smi', '.sub', '.idx')
+
 def clearSubs():
 	logger('POV', 'Clear Subtitles Service Starting')
-	sub_formats = ('.srt', '.ssa', '.smi', '.sub', '.idx')
 	subtitle_path = 'special://temp/'
 	dir_result = kodi_utils.list_dirs(subtitle_path)
 	files = dir_result[1] if len(dir_result) > 1 else []
 	for i in files:
-		if i.startswith('POVSubs_') or i.endswith(sub_formats):
+		if i.startswith('POVSubs_') or i.endswith(_SUB_FORMATS):
 			kodi_utils.delete_file(subtitle_path + i)
 	return logger('POV', 'Clear Subtitles Service Finished')
 

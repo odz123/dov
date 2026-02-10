@@ -1,5 +1,6 @@
 import time
 from ast import literal_eval
+from contextlib import contextmanager
 from datetime import datetime
 from threading import Lock
 from modules import kodi_utils
@@ -94,6 +95,29 @@ class ConnectionPool:
 						except Exception:
 							pass
 				cls._pools.clear()
+
+
+@contextmanager
+def pooled_connection(db_file):
+	"""Context manager for pooled database connections with PRAGMA setup.
+	Usage:
+		with pooled_connection(db_file) as (dbcon, dbcur):
+			dbcur.execute(...)
+	"""
+	dbcon = None
+	try:
+		dbcon = ConnectionPool.get_connection(db_file, isolation_level=None)
+		if not getattr(dbcon, '_pragmas_set', False):
+			dbcur = dbcon.cursor()
+			for stmt in _PRAGMA_STATEMENTS:
+				dbcur.execute(stmt)
+			dbcon._pragmas_set = True
+		else:
+			dbcur = dbcon.cursor()
+		yield dbcon, dbcur
+	finally:
+		if dbcon:
+			ConnectionPool.return_connection(db_file, dbcon)
 
 
 class BaseCache:
