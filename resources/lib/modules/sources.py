@@ -79,13 +79,13 @@ class SourceSelect:
 		self.language = settings.get_language()
 
 	def playback_prep(self, params=None):
-		if self.clear_properties: self._clear_properties()
 		if params: self.params = params
 		params_get = self.params.get
-		self.prescrape = params_get('prescrape', self.prescrape) == 'true'
 		self.background = params_get('background', 'false') == 'true'
 		if self.background: hide_busy_dialog()
 		else: show_busy_dialog()
+		if self.clear_properties: self._clear_properties()
+		self.prescrape = params_get('prescrape', self.prescrape) == 'true'
 		if 'autoplay' in self.params: self.autoplay = params_get('autoplay', 'false') == 'true'
 		else: self.autoplay = settings.auto_play(params_get('media_type'))
 		self.disabled_ignored = params_get('disabled_ignored', self.disabled_ignored) == 'true'
