@@ -407,9 +407,11 @@ def seas_ep_filter(season, episode, release_title, split=False, return_match=Fal
 		return match.group() if match else ''
 	else: return bool(match)
 
-def extras_filter():
-	return ('sample', 'extra', 'extras', 'deleted', 'unused', 'footage', 'inside', 'blooper', 'bloopers', 'making.of', 'feature',
+_EXTRAS_FILTER = ('sample', 'extra', 'extras', 'deleted', 'unused', 'footage', 'inside', 'blooper', 'bloopers', 'making.of', 'feature',
 			'featurette', 'behind.the.scenes', 'trailer')
+
+def extras_filter():
+	return _EXTRAS_FILTER
 
 def find_season_in_release_title(release_title):
 	release_title = _RE_NON_ALNUM_DASH.sub('.', unquote(release_title).replace('\'', '')).lower()

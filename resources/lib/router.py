@@ -1,6 +1,8 @@
 import sys
 from modules.kodi_utils import parse_qsl, logger, get_property, get_infolabel, external_browse
 
+_episode_build_modes = frozenset(('build_in_progress_episode', 'build_next_episode', 'build_my_calendar', 'build_my_anime_calendar', 'build_anime_calendar'))
+
 def runmode(cls, params, mode):
 	call = getattr(cls(params), mode, None)
 	return call() if callable(call) else None
@@ -98,7 +100,7 @@ class Router:
 				function(params)
 		elif 'build' in mode:
 			_build_list_map = {'build_trakt_list': 'indexers.trakt', 'build_mdb_list': 'indexers.mdblist', 'build_simkl_list': 'indexers.simkl', 'build_tmdb_list': 'indexers.tmdb'}
-			_build_match = next((v for k, v in _build_list_map.items() if k in mode), None)
+			_build_match = _build_list_map.get(mode)
 			if _build_match:
 				from modules.utils import manual_function_import
 				function = manual_function_import(_build_match, mode_action)
@@ -112,7 +114,7 @@ class Router:
 			elif mode in ('build_season_list', 'build_episode_list'):
 				from indexers.seasons import Seasons
 				Seasons(params).run()
-			elif mode in ('build_in_progress_episode', 'build_next_episode', 'build_my_calendar', 'build_my_anime_calendar', 'build_anime_calendar'):
+			elif mode in _episode_build_modes:
 				from indexers.episodes import Indexer
 				Indexer(params).run()
 			elif mode == 'build_navigate_to_page':
@@ -128,21 +130,16 @@ class Router:
 				from indexers.imdb_api import imdb_build_keyword_results
 				imdb_build_keyword_results(params['media_type'], params['query'])
 		elif 'watched_unwatched' in mode:
-			if mode == 'mark_as_watched_unwatched_episode':
-				from caches.watched_cache import mark_as_watched_unwatched_episode
-				mark_as_watched_unwatched_episode(params)
-			elif mode == 'mark_as_watched_unwatched_season':
-				from caches.watched_cache import mark_as_watched_unwatched_season
-				mark_as_watched_unwatched_season(params)
-			elif mode == 'mark_as_watched_unwatched_tvshow':
-				from caches.watched_cache import mark_as_watched_unwatched_tvshow
-				mark_as_watched_unwatched_tvshow(params)
-			elif mode == 'mark_as_watched_unwatched_movie':
-				from caches.watched_cache import mark_as_watched_unwatched_movie
-				mark_as_watched_unwatched_movie(params)
-			elif mode == 'watched_unwatched_erase_bookmark':
-				from caches.watched_cache import erase_bookmark
-				erase_bookmark(params_get('media_type'), params_get('tmdb_id'), params_get('season', ''), params_get('episode', ''), params_get('refresh', 'false'))
+			from caches import watched_cache as wc
+			_watched_dispatch = {
+				'mark_as_watched_unwatched_episode': lambda: wc.mark_as_watched_unwatched_episode(params),
+				'mark_as_watched_unwatched_season': lambda: wc.mark_as_watched_unwatched_season(params),
+				'mark_as_watched_unwatched_tvshow': lambda: wc.mark_as_watched_unwatched_tvshow(params),
+				'mark_as_watched_unwatched_movie': lambda: wc.mark_as_watched_unwatched_movie(params),
+				'watched_unwatched_erase_bookmark': lambda: wc.erase_bookmark(params_get('media_type'), params_get('tmdb_id'), params_get('season', ''), params_get('episode', ''), params_get('refresh', 'false')),
+			}
+			handler = _watched_dispatch.get(mode)
+			if handler: handler()
 		elif 'toggle' in mode:
 			if mode == 'toggle_language_invoker':
 				from modules.kodi_utils import toggle_language_invoker
@@ -189,15 +186,14 @@ class Router:
 			from debrids.easydebrid import Indexer
 			Indexer().run(params)
 		elif '_settings' in mode:
-			if mode == 'open_settings':
-				from modules.kodi_utils import open_settings
-				open_settings(params_get('query'))
-			elif mode == 'clean_settings':
-				from modules.kodi_utils import clean_settings
-				clean_settings()
-			elif mode == 'clean_settings_window_properties':
-				from modules.kodi_utils import clean_settings_window_properties
-				clean_settings_window_properties()
+			from modules import kodi_utils as ku
+			_settings_dispatch = {
+				'open_settings': lambda: ku.open_settings(params_get('query')),
+				'clean_settings': lambda: ku.clean_settings(),
+				'clean_settings_window_properties': lambda: ku.clean_settings_window_properties(),
+			}
+			handler = _settings_dispatch.get(mode)
+			if handler: handler()
 		elif '_cache' in mode:
 			from modules.cache import clear_all_cache, clear_cache
 			if mode == 'clear_all_cache': clear_all_cache()
@@ -209,15 +205,14 @@ class Router:
 			from modules.kodi_utils import show_text
 			show_text(params_get('heading'), params_get('text'), params_get('file'), params_get('font_size', 'small'), params_get('kodi_log', 'false') == 'true')
 		elif '_view' in mode:
-			if mode == 'choose_view':
-				from modules.kodi_utils import choose_view
-				choose_view(params['view_type'], params_get('content', ''))
-			elif mode == 'set_view':
-				from modules.kodi_utils import set_view
-				set_view(params['view_type'])
-			elif mode == 'clear_view':
-				from modules.kodi_utils import clear_view
-				clear_view(params['view_type'])
+			from modules import kodi_utils as kv
+			_view_dispatch = {
+				'choose_view': lambda: kv.choose_view(params['view_type'], params_get('content', '')),
+				'set_view': lambda: kv.set_view(params['view_type']),
+				'clear_view': lambda: kv.clear_view(params['view_type']),
+			}
+			handler = _view_dispatch.get(mode)
+			if handler: handler()
 		##EXTRA modes##
 		elif mode == 'get_search_term':
 			from indexers.history import get_search_term

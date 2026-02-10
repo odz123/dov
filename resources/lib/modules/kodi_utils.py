@@ -31,14 +31,12 @@ packages_path  = 'special://home/addons/packages/'
 
 current_dbs           = ('settings.xml', 'debridcache.db', 'favourites.db', 'maincache.db', 'metacache.db', 'fenomundesirables.db',
 						'navigator.db', 'providerscache.db', 'traktcache4.db', 'mdblcache.db', 'simklcache.db', 'views.db', 'watched.db', 'fenomcache.db')
-movie_dict_removals   = ('tmdblogo', 'fanart_added', 'cast', 'poster', 'rootname', 'imdb_id', 'tmdb_id', 'tvdb_id', 'all_trailers',
+_base_dict_removals    = frozenset(('tmdblogo', 'fanart_added', 'cast', 'poster', 'rootname', 'imdb_id', 'tmdb_id', 'tvdb_id', 'all_trailers',
 						'fanart', 'banner', 'clearlogo', 'clearart', 'landscape', 'discart', 'original_title', 'english_title', 'extra_info',
-						'alternative_titles', 'country_codes', 'fanarttv_fanart', 'fanarttv_poster', 'fanart2', 'poster2', 'meta_language')
-tvshow_dict_removals  = ('tmdblogo', 'fanart_added', 'cast', 'poster', 'rootname', 'imdb_id', 'tmdb_id', 'tvdb_id', 'all_trailers',
-						'fanart', 'banner', 'clearlogo', 'clearart', 'landscape', 'discart', 'original_title', 'english_title', 'extra_info',
-						'alternative_titles', 'country_codes', 'fanarttv_fanart', 'fanarttv_poster', 'fanart2', 'poster2', 'meta_language',
-						'total_episodes', 'total_seasons', 'total_aired_eps', 'season_summary', 'season_data')
-episode_dict_removals = ('thumb', 'guest_stars', 'episode_type', 'meta_language')
+						'alternative_titles', 'country_codes', 'fanarttv_fanart', 'fanarttv_poster', 'fanart2', 'poster2', 'meta_language'))
+movie_dict_removals   = _base_dict_removals
+tvshow_dict_removals  = _base_dict_removals | frozenset(('total_episodes', 'total_seasons', 'total_aired_eps', 'season_summary', 'season_data'))
+episode_dict_removals = frozenset(('thumb', 'guest_stars', 'episode_type', 'meta_language'))
 myvideos_db_paths     = {19: '119', 20: '121', 21: '131', 22: '139'}
 
 def logger(heading, function):
@@ -79,12 +77,14 @@ def set_content(handle, content):
 def set_category(handle, category):
 	xbmcplugin.setPluginCategory(handle, category)
 
+_sort_method_map = {
+	'episodes': xbmcplugin.SORT_METHOD_EPISODE,
+	'files': xbmcplugin.SORT_METHOD_FILE,
+	'label': xbmcplugin.SORT_METHOD_LABEL_IGNORE_THE,
+}
+
 def set_sort_method(handle, method):
-	if method == 'episodes': sort_method = xbmcplugin.SORT_METHOD_EPISODE
-	elif method == 'files': sort_method = xbmcplugin.SORT_METHOD_FILE
-	elif method == 'label': sort_method = xbmcplugin.SORT_METHOD_LABEL_IGNORE_THE#label
-	else: sort_method = xbmcplugin.SORT_METHOD_UNSORTED
-	xbmcplugin.addSortMethod(handle, sort_method)
+	xbmcplugin.addSortMethod(handle, _sort_method_map.get(method, xbmcplugin.SORT_METHOD_UNSORTED))
 
 def end_directory(handle, cacheToDisc=None):
 	if cacheToDisc is None: cacheToDisc = get_property('pov_kodi_menu_cache') == 'true'
@@ -448,7 +448,7 @@ def clean_settings():
 		removed_settings = []
 		removed_append = removed_settings.append
 		root = ET.parse(translate_path(default_xml)).getroot()
-		active_settings = [item.get('id') for item in root.iter(tag='setting') if item.get('id')]
+		active_settings = {item.get('id') for item in root.iter(tag='setting') if item.get('id')}
 		root = ET.parse(translate_path(profile_xml)).getroot()
 		for item in root.iter(tag='setting'):
 			if item.get('id') in active_settings: continue

@@ -6,7 +6,7 @@ from modules.settings import get_art_provider, get_fanart_data, info_icons, prov
 
 fanart_empty = BaseDialog.fanart
 poster_empty = media_path('box_office.png')
-info_icons_dict = {k: media_path(v) for k, v in info_icons()}
+info_icons_dict = {k: media_path(v) for k, v in info_icons().items()}
 extra_info_choices = (
 	('PACK', '[B]PACK[/B]'), ('DOLBY VISION', '[B]D/VISION[/B]'), ('HIGH DYNAMIC RANGE (HDR)', '[B]HDR[/B]'), ('HYBRID', '[B]HYBRID[/B]'), ('AV1', '[B]AV1[/B]'),
 	('HEVC (X265)', '[B]HEVC[/B]'), ('REMUX', 'REMUX'), ('BLURAY', 'BLURAY'), ('SDR', 'SDR'), ('3D', '3D'), ('DOLBY ATMOS', 'ATMOS'), ('DOLBY TRUEHD', 'TRUEHD'),

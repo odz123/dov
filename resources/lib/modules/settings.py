@@ -88,13 +88,18 @@ def display_uncached_torrents():
 def display_uncached_stremio():
 	return get_setting('stremio.display.uncached', 'false') == 'true'
 
+_DOWNLOAD_DIR_MAP = {
+	'movie': 'movie_download_directory',
+	'episode': 'tvshow_download_directory',
+	'thumb_url': 'image_download_directory',
+	'image_url': 'image_download_directory',
+	'image': 'image_download_directory',
+}
+
 def download_directory(media_type):
-	if media_type == 'movie': setting = 'movie_download_directory'
-	elif media_type == 'episode': setting = 'tvshow_download_directory'
-	elif media_type in ('thumb_url', 'image_url', 'image'): setting = 'image_download_directory'
-	else: setting = 'premium_download_directory'
-	if get_setting(setting) != '': return translate_path(get_setting(setting))
-	else: return False
+	setting = _DOWNLOAD_DIR_MAP.get(media_type, 'premium_download_directory')
+	value = get_setting(setting)
+	return translate_path(value) if value != '' else False
 
 def easynews_active():
 	if get_setting('provider.easynews', 'false') == 'true':
@@ -304,8 +309,10 @@ def show_unaired_watchlist():
 def single_ep_display_title():
 	return int(get_setting('single_ep_display', '0'))
 
+_EP_DATE_FORMATS = ('%d-%m-%Y', '%Y-%m-%d', '%m-%d-%Y')
+
 def single_ep_format():
-	return {0: '%d-%m-%Y', 1: '%Y-%m-%d', 2: '%m-%d-%Y'}[int(get_setting('single_ep_format', '1'))]
+	return _EP_DATE_FORMATS[int(get_setting('single_ep_format', '1'))]
 
 def source_folders_directory(media_type, source):
 	setting = '%s.movies_directory' % source if media_type == 'movie' else '%s.tv_shows_directory' % source
@@ -435,15 +442,17 @@ def scraping_settings():
 		'sd': highlight_SD, 'cam': highlight_SD, 'tele': highlight_SD, 'scr': highlight_SD,
 	}
 
+_INFO_ICONS = {
+	'alldebrid': 'alldebrid.png', 'ad_cloud': 'alldebrid.png',
+	'premiumize': 'premiumize.png', 'pm_cloud': 'premiumize.png',
+	'real-debrid': 'realdebrid.png', 'rd_cloud': 'realdebrid.png',
+	'torbox': 'torbox.png', 'tb_cloud': 'torbox.png',
+	'offcloud': 'offcloud.png', 'oc_cloud': 'offcloud.png',
+	'easydebrid': 'easydebrid.png', 'easynews': 'easynews.png', 'folders': 'folder.png',
+	'4k': 'flag4k.png', '1080p': 'flag1080p.png', '720p': 'flag720p.png',
+	'sd': 'flagSD.png', 'cam': 'flagSD.png', 'tele': 'flagSD.png', 'scr': 'flagSD.png',
+}
+
 def info_icons():
-	return (
-		('alldebrid', 'alldebrid.png'), ('ad_cloud', 'alldebrid.png'),
-		('premiumize', 'premiumize.png'), ('pm_cloud', 'premiumize.png'),
-		('real-debrid', 'realdebrid.png'), ('rd_cloud', 'realdebrid.png'),
-		('torbox', 'torbox.png'), ('tb_cloud', 'torbox.png'),
-		('offcloud', 'offcloud.png'), ('oc_cloud', 'offcloud.png'),
-		('easydebrid', 'easydebrid.png'), ('easynews', 'easynews.png'), ('folders', 'folder.png'),
-		('4k', 'flag4k.png'), ('1080p', 'flag1080p.png'), ('720p', 'flag720p.png'),
-		('sd', 'flagSD.png'), ('cam', 'flagSD.png'), ('tele', 'flagSD.png'), ('scr', 'flagSD.png')
-	)
+	return _INFO_ICONS
 
