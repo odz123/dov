@@ -32,6 +32,7 @@ class ConnectionPool:
 	_pools = {}
 	_pool_lock = Lock()
 	_max_pool_size = 5
+	_pragmas_set_ids = set()
 
 	@classmethod
 	def get_connection(cls, db_file, isolation_level=None):
@@ -52,6 +53,7 @@ class ConnectionPool:
 					conn.isolation_level = isolation_level
 				return conn
 			except Exception:
+				cls._pragmas_set_ids.discard(id(conn))
 				try: conn.close()
 				except Exception: pass
 		# Create new connection outside lock
@@ -70,10 +72,21 @@ class ConnectionPool:
 				pool.append(conn)
 			else:
 				# Pool full, close connection
+				cls._pragmas_set_ids.discard(id(conn))
 				try:
 					conn.close()
 				except Exception:
 					pass
+
+	@classmethod
+	def has_pragmas(cls, conn):
+		"""Check if pragmas have been set on this connection."""
+		return id(conn) in cls._pragmas_set_ids
+
+	@classmethod
+	def mark_pragmas(cls, conn):
+		"""Mark that pragmas have been set on this connection."""
+		cls._pragmas_set_ids.add(id(conn))
 
 	@classmethod
 	def clear_pool(cls, db_file=None):
@@ -82,6 +95,7 @@ class ConnectionPool:
 			if db_file:
 				if db_file in cls._pools:
 					for conn in cls._pools[db_file]:
+						cls._pragmas_set_ids.discard(id(conn))
 						try:
 							conn.close()
 						except Exception:
@@ -90,11 +104,13 @@ class ConnectionPool:
 			else:
 				for pool in cls._pools.values():
 					for conn in pool:
+						cls._pragmas_set_ids.discard(id(conn))
 						try:
 							conn.close()
 						except Exception:
 							pass
 				cls._pools.clear()
+				cls._pragmas_set_ids.clear()
 
 
 @contextmanager
@@ -107,13 +123,11 @@ def pooled_connection(db_file):
 	dbcon = None
 	try:
 		dbcon = ConnectionPool.get_connection(db_file, isolation_level=None)
-		if not getattr(dbcon, '_pragmas_set', False):
-			dbcur = dbcon.cursor()
+		dbcur = dbcon.cursor()
+		if not ConnectionPool.has_pragmas(dbcon):
 			for stmt in _PRAGMA_STATEMENTS:
 				dbcur.execute(stmt)
-			dbcon._pragmas_set = True
-		else:
-			dbcur = dbcon.cursor()
+			ConnectionPool.mark_pragmas(dbcon)
 		yield dbcon, dbcur
 	finally:
 		if dbcon:
@@ -148,6 +162,7 @@ class BaseCache:
 				if self._use_pooling and self.db_file != ':memory:':
 					ConnectionPool.return_connection(self.db_file, self.dbcon)
 				else:
+					ConnectionPool._pragmas_set_ids.discard(id(self.dbcon))
 					self.dbcon.close()
 				self.dbcon = None
 		except Exception:
@@ -155,11 +170,11 @@ class BaseCache:
 
 	def _set_PRAGMAS(self):
 		# Skip if PRAGMAs already set on this pooled connection
-		if getattr(self.dbcon, '_pragmas_set', False):
+		if ConnectionPool.has_pragmas(self.dbcon):
 			return
 		for stmt in _PRAGMA_STATEMENTS:
 			self.dbcur.execute(stmt)
-		self.dbcon._pragmas_set = True
+		ConnectionPool.mark_pragmas(self.dbcon)
 
 	def _get_timestamp(self, date_time):
 		return int(time.mktime(date_time.timetuple()))

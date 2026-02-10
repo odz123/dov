@@ -29,12 +29,12 @@ def _return_connection(database_file, dbcon):
 
 def set_PRAGMAS(dbcon):
 	# Skip if PRAGMAs already set on this connection (pooled connections persist settings)
-	if getattr(dbcon, '_pragmas_set', False):
+	if ConnectionPool.has_pragmas(dbcon):
 		return dbcon.cursor()
 	dbcur = dbcon.cursor()
 	for stmt in _PRAGMA_STATEMENTS:
 		dbcur.execute(stmt)
-	dbcon._pragmas_set = True
+	ConnectionPool.mark_pragmas(dbcon)
 	return dbcur
 
 def get_database(watched_indicators):
