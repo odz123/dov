@@ -149,7 +149,7 @@ class SourceSelect:
 			# Use list comprehension instead of generator for clearer thread management
 			threads = [Thread(target=self.activate_providers, args=(i[0], i[1], False), name=i[2]) for i in self.providers]
 			self.threads.extend(threads)
-			for i in self.threads: i.start()
+			for i in threads: i.start()
 		if self.active_external or self.background:
 			if self.active_external:
 				self.meta.update({'full_screen': self.full_screen, 'scrape_timeout': self.timeout})
