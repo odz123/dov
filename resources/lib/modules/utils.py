@@ -192,8 +192,9 @@ def calculate_age(born, str_format, died=None):
 	return today.year - born.year - ((today.month, today.day) < (born.month, born.day))
 
 def batch_replace(s, replace_info):
-	for r in replace_info:
-		s = str(s).replace(r[0], r[1])
+	s = str(s)
+	for old, new in replace_info:
+		s = s.replace(old, new)
 	return s
 
 def clean_file_name(s, use_encoding=False, use_blanks=True):
@@ -296,22 +297,25 @@ def sort_for_article(_list, _key, ignore_articles):
 	else: _list.sort(key=lambda k: _RE_SORT_ARTICLE.sub('', k[_key].lower()))
 	return _list
 
+def _media_key(x):
+	"""Get the media dict from a trakt list item (movie or show)."""
+	return x['movie'] if x['type'] == 'movie' else x['show']
+
 def sort_list(sort_key, sort_direction, list_data, ignore_articles):
 	try:
 		reverse = sort_direction != 'asc'
 		if sort_key == 'rank': return sorted(list_data, key=lambda x: x['rank'], reverse=reverse)
-		elif sort_key == 'added': return sorted(list_data, key=lambda x: x['listed_at'], reverse=reverse)
-		elif sort_key == 'title': return sorted(list_data, key=lambda x: title_key(x['movie' if x['type'] == 'movie' else 'show'].get('title'), ignore_articles), reverse=reverse)
-		elif sort_key == 'released': return sorted(list_data, key=lambda x: released_key(x[x['type']]), reverse=reverse)
-		elif sort_key == 'runtime': return sorted(list_data, key=lambda x: x[x['type']].get('runtime', 0), reverse=reverse)
-		elif sort_key == 'popularity': return sorted(list_data, key=lambda x: x[x['type']].get('votes', 0), reverse=reverse)
-		elif sort_key == 'percentage': return sorted(list_data, key=lambda x: x[x['type']].get('rating', 0), reverse=reverse)
-		elif sort_key == 'votes': return sorted(list_data, key=lambda x: x[x['type']].get('votes', 0), reverse=reverse)
-		elif sort_key == 'random':
+		if sort_key == 'added': return sorted(list_data, key=lambda x: x['listed_at'], reverse=reverse)
+		if sort_key == 'title': return sorted(list_data, key=lambda x: title_key(_media_key(x).get('title'), ignore_articles), reverse=reverse)
+		if sort_key == 'released': return sorted(list_data, key=lambda x: released_key(x[x['type']]), reverse=reverse)
+		if sort_key == 'runtime': return sorted(list_data, key=lambda x: _media_key(x).get('runtime', 0), reverse=reverse)
+		if sort_key in ('popularity', 'votes'): return sorted(list_data, key=lambda x: _media_key(x).get('votes', 0), reverse=reverse)
+		if sort_key == 'percentage': return sorted(list_data, key=lambda x: _media_key(x).get('rating', 0), reverse=reverse)
+		if sort_key == 'random':
 			result = list(list_data)
 			random.shuffle(result)
 			return result
-		else: return list_data
+		return list_data
 	except Exception: return list_data
 
 def paginate_list(item_list, page, letter, limit=20):

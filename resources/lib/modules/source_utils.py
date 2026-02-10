@@ -69,6 +69,14 @@ UNWANTED_TAGS = ('tamilrockers.com', 'www.tamilrockers.com', 'www.tamilrockers.w
 				'ramin.djawadi', 'extramovies.casa', 'extramovies.wiki', '13+', '18+', 'taht.oyunlar', 'crazy4tv.com', 'karibu', '989pa.com', 'best-torrents-net', '1-3-3-8.com',
 				'ssrmovies.club', 'va:', 'zgxybbs-fdns-uk', 'www.tamilblasters.mx', 'www.1tamilmv.work', 'www.xbay.me', 'crazy4tv-com', '(es)')
 
+# Pre-compiled regex patterns for UNWANTED_TAGS to avoid re-compilation in check_title()
+_UNWANTED_TAG_PATTERNS = {}
+for _tag in UNWANTED_TAGS:
+	if _tag.startswith('[') or _tag.startswith('+'):
+		_UNWANTED_TAG_PATTERNS[_tag] = re.compile(r'^\\%s' % _tag, re.I)
+	else:
+		_UNWANTED_TAG_PATTERNS[_tag] = re.compile(r'^%s' % re.escape(_tag), re.I)
+
 # Module-level cache for external sources to avoid repeated directory scans and imports
 _external_sources_cache = {}
 _external_sources_cache_all = {}
@@ -219,12 +227,17 @@ def internal_sources(active_sources, media_type, prescrape=False):
 	except Exception: sourceDict = []
 	return sourceDict
 
+# Cache the folders module to avoid repeated imports
+_folders_module_cache = None
+
 def internal_folders_import(folders):
+	global _folders_module_cache
+	if _folders_module_cache is None:
+		_folders_module_cache = manual_function_import('scrapers.folders', 'source')
+	module = _folders_module_cache
 	def import_info():
 		for item in folders:
-			scraper_name = item[0]
-			module = manual_function_import('scrapers.folders', 'source')
-			yield ('folders', (module, (item[1], scraper_name)), scraper_name)
+			yield ('folders', (module, (item[1], item[0])), item[0])
 	try: sourceDict = list(import_info())
 	except Exception: sourceDict = []
 	return sourceDict
@@ -238,16 +251,14 @@ def internal_results(provider, sources):
 	quality_count = sources_quality_count(sources)
 	kodi_utils.set_property('%s.internal_results' % provider, json.dumps(quality_count))
 
+_quality_bucket = {'4K': '4K', '1440p': '1080p', '1080p': '1080p', '720p': '720p', 'HD': '720p'}
+
 def sources_quality_count(sources):
-	sourcesTotal = sources4K = sources1080p = sources720p = sourcesSD = 0
+	counts = {'4K': 0, '1080p': 0, '720p': 0, 'SD': 0, 'total': 0}
 	for i in sources:
-		quality = i['quality']
-		if quality == '4K': sources4K += 1
-		elif quality in ('1440p', '1080p'): sources1080p += 1
-		elif quality in ('720p', 'HD'): sources720p += 1
-		else: sourcesSD += 1
-		sourcesTotal += 1
-	return {'4K': sources4K, '1080p': sources1080p, '720p': sources720p, 'SD': sourcesSD, 'total': sourcesTotal}
+		counts[_quality_bucket.get(i['quality'], 'SD')] += 1
+		counts['total'] += 1
+	return counts
 
 def normalize(title):
 	try:
@@ -423,12 +434,10 @@ def check_title(title, release_title, aliases, year, season, episode):
 			cleaned_titles_append(
 				i.lower().replace('\'', '').replace(':', '').replace('!', '').replace('(', '').replace(')', '').replace('&', 'and').replace(' ', '.').replace(year, ''))
 		release_title = strip_non_ascii_and_unprintable(release_title).lstrip('/ ').replace(' ', '.').replace(':', '.').lower()
-		releasetitle_startswith = release_title.lower().startswith
-		for i in UNWANTED_TAGS:
-			if releasetitle_startswith(i):
-				i_startswith = i.startswith
-				pattern = r'\%s' % i if i_startswith('[') or i_startswith('+') else r'%s' % i
-				release_title = re.sub(r'^%s' % pattern, '', release_title, 1, re.I)
+		releasetitle_startswith = release_title.startswith
+		for tag in UNWANTED_TAGS:
+			if releasetitle_startswith(tag):
+				release_title = _UNWANTED_TAG_PATTERNS[tag].sub('', release_title, count=1)
 		release_title = release_title.lstrip('.-:/')
 		release_title = _RE_BRACKET_PREFIX.sub('', release_title, count=1)
 		release_title = release_title.lstrip('.-[](){}:/')
@@ -448,9 +457,11 @@ def check_title(title, release_title, aliases, year, season, episode):
 		return True
 	except Exception: return True
 
+_printable_set = frozenset(printable)
+
 def strip_non_ascii_and_unprintable(text):
 	try:
-		result = ''.join(char for char in text if char in printable)
+		result = ''.join(char for char in text if char in _printable_set)
 		return result.encode('ascii', errors='ignore').decode('ascii', errors='ignore')
 	except Exception: pass
 	return text
@@ -476,12 +487,20 @@ def clean_title(title):
 	return title
 
 def get_release_quality(release_info):
-	if any(i in release_info for i in SCR): return 'SCR'
-	if any(i in release_info for i in CAM): return 'CAM'
-	if any(i in release_info for i in TELE): return 'TELE'
-	if any(i in release_info for i in RES_4K): return '4K'
-	if any(i in release_info for i in RES_1080): return '1080p'
-	if any(i in release_info for i in RES_720): return '720p'
+	# Check pre-release qualities first (SCR/CAM/TELE take priority)
+	for token in SCR:
+		if token in release_info: return 'SCR'
+	for token in CAM:
+		if token in release_info: return 'CAM'
+	for token in TELE:
+		if token in release_info: return 'TELE'
+	# Resolution detection - ordered by priority
+	for token in RES_4K:
+		if token in release_info: return '4K'
+	for token in RES_1080:
+		if token in release_info: return '1080p'
+	for token in RES_720:
+		if token in release_info: return '720p'
 	return 'SD'
 
 def url_strip(url):
@@ -497,59 +516,82 @@ def url_strip(url):
 		return fmt
 	except Exception: return None
 
+def _any_match(fmt, tokens):
+	"""Check if any token exists in fmt. Uses direct iteration instead of any() generator."""
+	for token in tokens:
+		if token in fmt: return True
+	return False
+
 def get_file_info(name_info=None, url=None):
 	# thanks 123Venom, whom I knicked most of this code from. :)
 	info = []
-	info_append = info.append
+	_append = info.append
 	if name_info: fmt = name_info
 	elif url: fmt = url_strip(url)
 	else: fmt = None
 	if not fmt: return ''
 	quality = get_release_quality(fmt)
-	if any(i in fmt for i in VIDEO_3D):  info_append('[B]3D[/B]')
-	if '.sdr' in fmt: info_append('SDR')
-	elif any(i in fmt for i in DOLBY_VISION): info_append('[B]D/VISION[/B]')
-	elif any(i in fmt for i in HDR): info_append('[B]HDR[/B]')
-	elif all(i in fmt for i in ('2160p', 'remux')): info_append('[B]HDR[/B]')
-	if '[B]D/VISION[/B]' in info:
-		if any(i in fmt for i in HDR_TRUE): info_append('[B]HDR[/B]')
-		if '[B]HDR[/B]' in info: info_append('[B]HYBRID[/B]')
-	if any(i in fmt for i in CODEC_H264): info_append('AVC')
-	elif '.av1.' in fmt: info_append('[B]AV1[/B]')
-	elif any(i in fmt for i in CODEC_H265): info_append('[B]HEVC[/B]')
-	elif any(i in info for i in ('[B]HDR[/B]', '[B]D/VISION[/B]')): info_append('[B]HEVC[/B]')
-	elif any(i in fmt for i in CODEC_XVID): info_append('XVID')
-	elif any(i in fmt for i in CODEC_DIVX): info_append('DIVX')
-	if any(i in fmt for i in REMUX): info_append('REMUX')
-	if any(i in fmt for i in BLURAY): info_append('BLURAY')
-	elif any(i in fmt for i in DVD): info_append('DVD')
-	elif any(i in fmt for i in WEB): info_append('WEB')
-	elif 'hdtv' in fmt: info_append('HDTV')
-	elif 'pdtv' in fmt: info_append('PDTV')
-	elif any(i in fmt for i in HDRIP): info_append('HDRIP')
-	if 'atmos' in fmt: info_append('ATMOS')
-	if any(i in fmt for i in DOLBY_TRUEHD): info_append('TRUEHD')
-	if any(i in fmt for i in DOLBY_DIGITALPLUS): info_append('DD+')
-	elif any(i in fmt for i in DOLBY_DIGITALEX): info_append('DD-EX')
-	elif any(i in fmt for i in DOLBYDIGITAL): info_append('DD')
-	if 'aac' in fmt: info_append('AAC')
-	elif 'mp3' in fmt: info_append('MP3')
-	if any(i in fmt for i in DTSX): info_append('DTS-X')
-	elif any(i in fmt for i in DTS_HDMA): info_append('DTS-HD MA')
-	elif any(i in fmt for i in DTS_HD): info_append('DTS-HD')
-	elif '.dts' in fmt: info_append('DTS')
-	if any(i in fmt for i in AUDIO_8CH): info_append('8CH')
-	elif any(i in fmt for i in AUDIO_7CH): info_append('7CH')
-	elif any(i in fmt for i in AUDIO_6CH): info_append('6CH')
-	elif any(i in fmt for i in AUDIO_2CH): info_append('2CH')
-	if '.wmv' in fmt: info_append('WMV')
-	elif any(i in fmt for i in CODEC_MPEG): info_append('MPEG')
-	elif '.avi' in fmt: info_append('AVI')
-	elif any(i in fmt for i in CODEC_MKV): info_append('MKV')
-	if any(i in fmt for i in MULTI_LANG): info_append('MULTI-LANG')
-	if any(i in fmt for i in ADS): info_append('ADS')
-	if any(i in fmt for i in SUBS): info_append('SUBS')
-	info = ' | '.join(filter(None, info))
+	# Video type detection
+	if _any_match(fmt, VIDEO_3D): _append('[B]3D[/B]')
+	# HDR/DV detection
+	has_dv = has_hdr = False
+	if '.sdr' in fmt: _append('SDR')
+	elif _any_match(fmt, DOLBY_VISION):
+		_append('[B]D/VISION[/B]')
+		has_dv = True
+	elif _any_match(fmt, HDR):
+		_append('[B]HDR[/B]')
+		has_hdr = True
+	elif '2160p' in fmt and 'remux' in fmt:
+		_append('[B]HDR[/B]')
+		has_hdr = True
+	if has_dv:
+		if _any_match(fmt, HDR_TRUE):
+			_append('[B]HDR[/B]')
+			_append('[B]HYBRID[/B]')
+			has_hdr = True
+	# Codec detection
+	if _any_match(fmt, CODEC_H264): _append('AVC')
+	elif '.av1.' in fmt: _append('[B]AV1[/B]')
+	elif _any_match(fmt, CODEC_H265): _append('[B]HEVC[/B]')
+	elif has_hdr or has_dv: _append('[B]HEVC[/B]')
+	elif _any_match(fmt, CODEC_XVID): _append('XVID')
+	elif _any_match(fmt, CODEC_DIVX): _append('DIVX')
+	# Source detection
+	if _any_match(fmt, REMUX): _append('REMUX')
+	if _any_match(fmt, BLURAY): _append('BLURAY')
+	elif _any_match(fmt, DVD): _append('DVD')
+	elif _any_match(fmt, WEB): _append('WEB')
+	elif 'hdtv' in fmt: _append('HDTV')
+	elif 'pdtv' in fmt: _append('PDTV')
+	elif _any_match(fmt, HDRIP): _append('HDRIP')
+	# Audio detection
+	if 'atmos' in fmt: _append('ATMOS')
+	if _any_match(fmt, DOLBY_TRUEHD): _append('TRUEHD')
+	if _any_match(fmt, DOLBY_DIGITALPLUS): _append('DD+')
+	elif _any_match(fmt, DOLBY_DIGITALEX): _append('DD-EX')
+	elif _any_match(fmt, DOLBYDIGITAL): _append('DD')
+	if 'aac' in fmt: _append('AAC')
+	elif 'mp3' in fmt: _append('MP3')
+	if _any_match(fmt, DTSX): _append('DTS-X')
+	elif _any_match(fmt, DTS_HDMA): _append('DTS-HD MA')
+	elif _any_match(fmt, DTS_HD): _append('DTS-HD')
+	elif '.dts' in fmt: _append('DTS')
+	# Channel detection
+	if _any_match(fmt, AUDIO_8CH): _append('8CH')
+	elif _any_match(fmt, AUDIO_7CH): _append('7CH')
+	elif _any_match(fmt, AUDIO_6CH): _append('6CH')
+	elif _any_match(fmt, AUDIO_2CH): _append('2CH')
+	# Container detection
+	if '.wmv' in fmt: _append('WMV')
+	elif _any_match(fmt, CODEC_MPEG): _append('MPEG')
+	elif '.avi' in fmt: _append('AVI')
+	elif _any_match(fmt, CODEC_MKV): _append('MKV')
+	# Misc flags
+	if _any_match(fmt, MULTI_LANG): _append('MULTI-LANG')
+	if _any_match(fmt, ADS): _append('ADS')
+	if _any_match(fmt, SUBS): _append('SUBS')
+	info = ' | '.join(info)
 	return quality, info
 
 def get_cache_expiry(media_type, meta, season):

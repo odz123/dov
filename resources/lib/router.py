@@ -43,42 +43,29 @@ class Router:
 			SourceSelect.factory(params)
 		elif 'choice' in mode:
 			from modules import dialogs
-			if mode == 'scraper_color_choice':
-				dialogs.scraper_color_choice(params['setting'])
-			elif mode == 'scraper_dialog_color_choice':
-				dialogs.scraper_dialog_color_choice(params['setting'])
-			elif mode == 'scraper_quality_color_choice':
-				dialogs.scraper_quality_color_choice(params['setting'])
-			elif mode == 'imdb_images_choice':
-				dialogs.imdb_images_choice(params['imdb_id'], params['rootname'])
-			elif mode == 'set_quality_choice':
-				dialogs.set_quality_choice(params['quality_setting'])
-			elif mode == 'results_sorting_choice':
-				dialogs.results_sorting_choice()
-			elif mode == 'results_layout_choice':
-				dialogs.results_layout_choice()
-			elif mode == 'options_menu_choice':
-				dialogs.options_menu(params)
-			elif mode == 'meta_language_choice':
-				dialogs.meta_language_choice()
-			elif mode == 'extras_menu_choice':
-				dialogs.extras_menu(params)
-			elif mode == 'favourites_choice':
-				dialogs.favourites_choice(params)
-			elif mode == 'trakt_manager_choice':
-				dialogs.trakt_manager_choice(params)
-			elif mode == 'tmdb_manager_choice':
-				dialogs.tmdb_manager_choice(params)
-			elif mode == 'mdbl_manager_choice':
-				dialogs.mdbl_manager_choice(params)
-			elif mode == 'folder_scraper_manager_choice':
-				dialogs.folder_scraper_manager_choice()
-			elif mode == 'set_language_filter_choice':
-				dialogs.set_language_filter_choice(params['filter_setting'])
-			elif mode == 'extras_lists_choice':
-				dialogs.extras_lists_choice()
-			elif mode == 'random_choice':
-				dialogs.random_choice(params['mode'], params)
+			# Dict dispatch for O(1) choice routing instead of O(n) elif chain
+			_choice_dispatch = {
+				'scraper_color_choice': lambda: dialogs.scraper_color_choice(params['setting']),
+				'scraper_dialog_color_choice': lambda: dialogs.scraper_dialog_color_choice(params['setting']),
+				'scraper_quality_color_choice': lambda: dialogs.scraper_quality_color_choice(params['setting']),
+				'imdb_images_choice': lambda: dialogs.imdb_images_choice(params['imdb_id'], params['rootname']),
+				'set_quality_choice': lambda: dialogs.set_quality_choice(params['quality_setting']),
+				'results_sorting_choice': lambda: dialogs.results_sorting_choice(),
+				'results_layout_choice': lambda: dialogs.results_layout_choice(),
+				'options_menu_choice': lambda: dialogs.options_menu(params),
+				'meta_language_choice': lambda: dialogs.meta_language_choice(),
+				'extras_menu_choice': lambda: dialogs.extras_menu(params),
+				'favourites_choice': lambda: dialogs.favourites_choice(params),
+				'trakt_manager_choice': lambda: dialogs.trakt_manager_choice(params),
+				'tmdb_manager_choice': lambda: dialogs.tmdb_manager_choice(params),
+				'mdbl_manager_choice': lambda: dialogs.mdbl_manager_choice(params),
+				'folder_scraper_manager_choice': lambda: dialogs.folder_scraper_manager_choice(),
+				'set_language_filter_choice': lambda: dialogs.set_language_filter_choice(params['filter_setting']),
+				'extras_lists_choice': lambda: dialogs.extras_lists_choice(),
+				'random_choice': lambda: dialogs.random_choice(params['mode'], params),
+			}
+			handler = _choice_dispatch.get(mode)
+			if handler: handler()
 		elif 'trakt.' in mode:
 			if 'trakt_account_info' in mode:
 				from indexers.trakt import trakt_account_info
