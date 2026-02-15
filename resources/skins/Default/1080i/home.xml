@@ -1,0 +1,582 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<window>
+	<controls>
+		<!-- Background -->
+		<control type="image">
+			<width>1920</width>
+			<height>1080</height>
+			<texture colordiffuse="FF0A0A0F">white.png</texture>
+		</control>
+		<!-- Hero Backdrop Image with left gradient fade -->
+		<control type="group" id="100">
+			<animation type="WindowOpen" reversible="false">
+				<effect type="fade" start="0" end="100" time="800" tween="sine" />
+			</animation>
+			<control type="image" id="101">
+				<width>1920</width>
+				<height>650</height>
+				<aspectratio>scale</aspectratio>
+				<texture background="true" diffuse="gradient-diffuse-horizontal.png">$INFO[Window.Property(tikiskins.home.hero.fanart)]</texture>
+			</control>
+			<!-- Extra dark overlay for text readability on left side -->
+			<control type="image">
+				<width>800</width>
+				<height>650</height>
+				<texture colordiffuse="E0000000">white.png</texture>
+			</control>
+			<!-- Bottom fade to black for content row area -->
+			<control type="image">
+				<top>450</top>
+				<width>1920</width>
+				<height>200</height>
+				<texture diffuse="gradient-diffuse-horizontal.png" colordiffuse="FF0A0A0F" flipy="true">white.png</texture>
+			</control>
+			<control type="image">
+				<top>600</top>
+				<width>1920</width>
+				<height>480</height>
+				<texture colordiffuse="FF0A0A0F">white.png</texture>
+			</control>
+		</control>
+		<!-- Top Bar: POV Logo -->
+		<control type="group">
+			<animation effect="fade" start="0" end="100" delay="300" time="400">WindowOpen</animation>
+			<control type="image">
+				<left>40</left>
+				<top>15</top>
+				<width>45</width>
+				<height>45</height>
+				<aspectratio>keep</aspectratio>
+				<texture>$INFO[Window.Property(tikiskins.pov.icon)]</texture>
+			</control>
+			<!-- Top Right Buttons -->
+			<control type="button" id="9001">
+				<left>1680</left>
+				<top>15</top>
+				<width>100</width>
+				<height>40</height>
+				<font>font12</font>
+				<textcolor>FFCCCCCC</textcolor>
+				<focusedcolor>FFFFFFFF</focusedcolor>
+				<align>center</align>
+				<aligny>center</aligny>
+				<label>Anime</label>
+				<texturefocus colordiffuse="FF333340">white.png</texturefocus>
+				<texturenofocus colordiffuse="FF1A1A24">white.png</texturenofocus>
+				<ondown>3000</ondown>
+			</control>
+			<control type="button" id="9002">
+				<left>1790</left>
+				<top>15</top>
+				<width>100</width>
+				<height>40</height>
+				<font>font12</font>
+				<textcolor>FFCCCCCC</textcolor>
+				<focusedcolor>FFFFFFFF</focusedcolor>
+				<align>center</align>
+				<aligny>center</aligny>
+				<label>Settings</label>
+				<texturefocus colordiffuse="FF333340">white.png</texturefocus>
+				<texturenofocus colordiffuse="FF1A1A24">white.png</texturenofocus>
+				<ondown>3000</ondown>
+				<onleft>9001</onleft>
+			</control>
+		</control>
+		<!-- Hero Content Area -->
+		<control type="group">
+			<animation type="WindowOpen" reversible="false">
+				<effect type="fade" start="0" end="100" time="600" tween="sine" delay="200" />
+				<effect type="slide" start="0,30" end="0" time="500" delay="200" tween="quadratic" easing="out" />
+			</animation>
+			<left>80</left>
+			<top>90</top>
+			<!-- Clearlogo -->
+			<control type="image">
+				<width max="480">auto</width>
+				<height>140</height>
+				<aspectratio aligny="bottom">keep</aspectratio>
+				<texture background="true">$INFO[Window.Property(tikiskins.home.hero.clearlogo)]</texture>
+				<visible>!String.IsEmpty(Window.Property(tikiskins.home.hero.clearlogo))</visible>
+			</control>
+			<!-- Title (fallback when no clearlogo) -->
+			<control type="label">
+				<top>20</top>
+				<width max="800">auto</width>
+				<height>120</height>
+				<font>font60</font>
+				<textcolor>FFFFFFFF</textcolor>
+				<align>left</align>
+				<aligny>bottom</aligny>
+				<wrapmultiline>true</wrapmultiline>
+				<label>[B]$INFO[Window.Property(tikiskins.home.hero.title)][/B]</label>
+				<visible>String.IsEmpty(Window.Property(tikiskins.home.hero.clearlogo))</visible>
+			</control>
+			<!-- Tagline -->
+			<control type="label">
+				<top>155</top>
+				<width max="700">auto</width>
+				<height>25</height>
+				<font>font12</font>
+				<textcolor>FF999999</textcolor>
+				<align>left</align>
+				<label>[I]$INFO[Window.Property(tikiskins.home.hero.tagline)][/I]</label>
+				<visible>!String.IsEmpty(Window.Property(tikiskins.home.hero.tagline))</visible>
+			</control>
+			<!-- Ratings Row -->
+			<control type="grouplist">
+				<top>190</top>
+				<width max="800">auto</width>
+				<height>40</height>
+				<itemgap>4</itemgap>
+				<orientation>horizontal</orientation>
+				<!-- IMDb -->
+				<control type="image">
+					<height>35</height>
+					<width>50</width>
+					<aspectratio>keep</aspectratio>
+					<texture>imdb_small.png</texture>
+					<visible>!String.IsEmpty(Window.Property(tikiskins.home.hero.rating.imdb))</visible>
+				</control>
+				<control type="label">
+					<height>40</height>
+					<width>55</width>
+					<font>font12</font>
+					<textcolor>FFFFFFFF</textcolor>
+					<align>left</align>
+					<aligny>center</aligny>
+					<label>[B]$INFO[Window.Property(tikiskins.home.hero.rating.imdb)][/B]</label>
+					<visible>!String.IsEmpty(Window.Property(tikiskins.home.hero.rating.imdb))</visible>
+				</control>
+				<!-- Metacritic -->
+				<control type="image">
+					<height>30</height>
+					<width>40</width>
+					<aspectratio>keep</aspectratio>
+					<texture>metacritic.png</texture>
+					<visible>!String.IsEmpty(Window.Property(tikiskins.home.hero.rating.metacritic))</visible>
+				</control>
+				<control type="label">
+					<height>40</height>
+					<width>45</width>
+					<font>font12</font>
+					<textcolor>FFFFFFFF</textcolor>
+					<align>left</align>
+					<aligny>center</aligny>
+					<label>[B]$INFO[Window.Property(tikiskins.home.hero.rating.metacritic)][/B]</label>
+					<visible>!String.IsEmpty(Window.Property(tikiskins.home.hero.rating.metacritic))</visible>
+				</control>
+				<!-- Rotten Tomatoes -->
+				<control type="image">
+					<height>30</height>
+					<width>40</width>
+					<aspectratio>keep</aspectratio>
+					<texture>tomatoes.png</texture>
+					<visible>!String.IsEmpty(Window.Property(tikiskins.home.hero.rating.tomatoes))</visible>
+				</control>
+				<control type="label">
+					<height>40</height>
+					<width>55</width>
+					<font>font12</font>
+					<textcolor>FFFFFFFF</textcolor>
+					<align>left</align>
+					<aligny>center</aligny>
+					<label>[B]$INFO[Window.Property(tikiskins.home.hero.rating.tomatoes)][/B]</label>
+					<visible>!String.IsEmpty(Window.Property(tikiskins.home.hero.rating.tomatoes))</visible>
+				</control>
+				<!-- Trakt -->
+				<control type="image">
+					<height>30</height>
+					<width>40</width>
+					<aspectratio>keep</aspectratio>
+					<texture>trakt.png</texture>
+					<visible>!String.IsEmpty(Window.Property(tikiskins.home.hero.rating.trakt))</visible>
+				</control>
+				<control type="label">
+					<height>40</height>
+					<width>55</width>
+					<font>font12</font>
+					<textcolor>FFFFFFFF</textcolor>
+					<align>left</align>
+					<aligny>center</aligny>
+					<label>[B]$INFO[Window.Property(tikiskins.home.hero.rating.trakt)][/B]</label>
+					<visible>!String.IsEmpty(Window.Property(tikiskins.home.hero.rating.trakt))</visible>
+				</control>
+				<!-- TMDB -->
+				<control type="image">
+					<height>30</height>
+					<width>40</width>
+					<aspectratio>keep</aspectratio>
+					<texture>tmdb_small.png</texture>
+					<visible>!String.IsEmpty(Window.Property(tikiskins.home.hero.rating.tmdb))</visible>
+				</control>
+				<control type="label">
+					<height>40</height>
+					<width>55</width>
+					<font>font12</font>
+					<textcolor>FFFFFFFF</textcolor>
+					<align>left</align>
+					<aligny>center</aligny>
+					<label>[B]$INFO[Window.Property(tikiskins.home.hero.rating.tmdb)][/B]</label>
+					<visible>!String.IsEmpty(Window.Property(tikiskins.home.hero.rating.tmdb))</visible>
+				</control>
+			</control>
+			<!-- Info Line: Year, Seasons, Episodes, Runtime, Network -->
+			<control type="grouplist">
+				<top>240</top>
+				<width max="800">auto</width>
+				<height>25</height>
+				<itemgap>0</itemgap>
+				<orientation>horizontal</orientation>
+				<control type="label">
+					<width min="30" max="80">auto</width>
+					<height>25</height>
+					<font>font12</font>
+					<textcolor>FFAAAAAA</textcolor>
+					<label>$INFO[Window.Property(tikiskins.home.hero.year)]</label>
+					<visible>!String.IsEmpty(Window.Property(tikiskins.home.hero.year))</visible>
+				</control>
+				<control type="label">
+					<width min="10" max="200">auto</width>
+					<height>25</height>
+					<font>font12</font>
+					<textcolor>FFAAAAAA</textcolor>
+					<label>$INFO[Window.Property(tikiskins.home.hero.seasons),  ·  ]</label>
+					<visible>!String.IsEmpty(Window.Property(tikiskins.home.hero.seasons))</visible>
+				</control>
+				<control type="label">
+					<width min="10" max="200">auto</width>
+					<height>25</height>
+					<font>font12</font>
+					<textcolor>FFAAAAAA</textcolor>
+					<label>$INFO[Window.Property(tikiskins.home.hero.episodes),  ·  ]</label>
+					<visible>!String.IsEmpty(Window.Property(tikiskins.home.hero.episodes))</visible>
+				</control>
+				<control type="label">
+					<width min="10" max="200">auto</width>
+					<height>25</height>
+					<font>font12</font>
+					<textcolor>FFAAAAAA</textcolor>
+					<label>$INFO[Window.Property(tikiskins.home.hero.duration),  ·  ]</label>
+					<visible>!String.IsEmpty(Window.Property(tikiskins.home.hero.duration))</visible>
+				</control>
+				<control type="label">
+					<width min="10" max="300">auto</width>
+					<height>25</height>
+					<font>font12</font>
+					<textcolor>FFAAAAAA</textcolor>
+					<label>$INFO[Window.Property(tikiskins.home.hero.network),  ·  ]</label>
+					<visible>!String.IsEmpty(Window.Property(tikiskins.home.hero.network))</visible>
+				</control>
+			</control>
+			<!-- Genre -->
+			<control type="label">
+				<top>275</top>
+				<width max="700">auto</width>
+				<height>25</height>
+				<font>font12</font>
+				<textcolor>FFCCCCCC</textcolor>
+				<label>$INFO[Window.Property(tikiskins.home.hero.genre)]</label>
+				<visible>!String.IsEmpty(Window.Property(tikiskins.home.hero.genre))</visible>
+			</control>
+			<!-- Plot -->
+			<control type="textbox">
+				<top>310</top>
+				<width>650</width>
+				<height>100</height>
+				<font>font12</font>
+				<textcolor>FF888888</textcolor>
+				<align>left</align>
+				<label>$INFO[Window.Property(tikiskins.home.hero.plot)]</label>
+				<autoscroll delay="6000" time="2000" repeat="8000">true</autoscroll>
+			</control>
+			<!-- Watch Now Button -->
+			<control type="button" id="3000">
+				<top>425</top>
+				<width>200</width>
+				<height>50</height>
+				<font>font14</font>
+				<textcolor>FFFFFFFF</textcolor>
+				<focusedcolor>FFFFFFFF</focusedcolor>
+				<align>center</align>
+				<aligny>center</aligny>
+				<label>[B]Watch Now[/B]</label>
+				<texturefocus colordiffuse="FF00BFA5">white.png</texturefocus>
+				<texturenofocus colordiffuse="FF008C7A">white.png</texturenofocus>
+				<ondown>3001</ondown>
+				<onup>9001</onup>
+				<onright>3010</onright>
+			</control>
+			<!-- Extras Button -->
+			<control type="button" id="3010">
+				<top>425</top>
+				<left>220</left>
+				<width>130</width>
+				<height>50</height>
+				<font>font12</font>
+				<textcolor>FFCCCCCC</textcolor>
+				<focusedcolor>FFFFFFFF</focusedcolor>
+				<align>center</align>
+				<aligny>center</aligny>
+				<label>Extras</label>
+				<texturefocus colordiffuse="FF333340">white.png</texturefocus>
+				<texturenofocus colordiffuse="FF1A1A24">white.png</texturenofocus>
+				<ondown>3001</ondown>
+				<onup>9001</onup>
+				<onleft>3000</onleft>
+				<onright>3011</onright>
+			</control>
+			<!-- Trailer Button -->
+			<control type="button" id="3011">
+				<top>425</top>
+				<left>365</left>
+				<width>130</width>
+				<height>50</height>
+				<font>font12</font>
+				<textcolor>FFCCCCCC</textcolor>
+				<focusedcolor>FFFFFFFF</focusedcolor>
+				<align>center</align>
+				<aligny>center</aligny>
+				<label>Trailer</label>
+				<texturefocus colordiffuse="FF333340">white.png</texturefocus>
+				<texturenofocus colordiffuse="FF1A1A24">white.png</texturenofocus>
+				<ondown>3001</ondown>
+				<onup>9001</onup>
+				<onleft>3010</onleft>
+			</control>
+		</control>
+		<!-- Hero Navigation Arrows -->
+		<control type="group">
+			<animation effect="fade" start="0" end="100" delay="400" time="400">WindowOpen</animation>
+			<!-- Left Arrow -->
+			<control type="image">
+				<left>20</left>
+				<top>300</top>
+				<width>30</width>
+				<height>30</height>
+				<texture colordiffuse="FFFFFFFF">arrow_left.png</texture>
+				<visible>!String.IsEmpty(Window.Property(tikiskins.home.hero.has_prev))</visible>
+			</control>
+			<!-- Right Arrow -->
+			<control type="image">
+				<left>1870</left>
+				<top>300</top>
+				<width>30</width>
+				<height>30</height>
+				<texture colordiffuse="FFFFFFFF">arrow_right.png</texture>
+				<visible>!String.IsEmpty(Window.Property(tikiskins.home.hero.has_next))</visible>
+			</control>
+			<!-- Hero position indicator -->
+			<control type="label">
+				<left>900</left>
+				<top>610</top>
+				<width>120</width>
+				<height>20</height>
+				<font>font10</font>
+				<textcolor>FF666666</textcolor>
+				<align>center</align>
+				<label>$INFO[Window.Property(tikiskins.home.hero.position)]</label>
+			</control>
+		</control>
+		<!-- Content Row 1 -->
+		<control type="group">
+			<animation type="WindowOpen" reversible="false">
+				<effect type="fade" start="0" end="100" time="500" tween="sine" delay="400" />
+				<effect type="slide" start="0,50" end="0" time="400" delay="400" tween="quadratic" easing="out" />
+			</animation>
+			<top>640</top>
+			<left>80</left>
+			<!-- Row Header -->
+			<control type="label">
+				<width max="600">auto</width>
+				<height>25</height>
+				<font>font14</font>
+				<textcolor>FFFFFFFF</textcolor>
+				<label>[B]$INFO[Window.Property(tikiskins.home.row1.title)][/B]</label>
+			</control>
+			<control type="label">
+				<left>1680</left>
+				<width>100</width>
+				<height>25</height>
+				<font>font10</font>
+				<textcolor>FF00BFA5</textcolor>
+				<align>right</align>
+				<label>See All  ></label>
+			</control>
+			<!-- Row 1 Panel -->
+			<control type="panel" id="3001">
+				<top>35</top>
+				<width>1760</width>
+				<height>310</height>
+				<onup>3000</onup>
+				<ondown>3002</ondown>
+				<scrolltime>300</scrolltime>
+				<orientation>horizontal</orientation>
+				<itemlayout height="310" width="195">
+					<control type="group">
+						<left>5</left>
+						<control type="image">
+							<width>185</width>
+							<height>278</height>
+							<aspectratio>scale</aspectratio>
+							<texture background="true">$INFO[ListItem.Property(tikiskins.home.row.poster)]</texture>
+						</control>
+						<!-- Title below poster -->
+						<control type="label">
+							<top>282</top>
+							<width>185</width>
+							<height>20</height>
+							<font>font10</font>
+							<textcolor>FF999999</textcolor>
+							<align>left</align>
+							<label>$INFO[ListItem.Property(tikiskins.home.row.title)]</label>
+						</control>
+					</control>
+				</itemlayout>
+				<focusedlayout height="310" width="195">
+					<control type="group">
+						<left>5</left>
+						<animation effect="zoom" start="100" end="105" time="150" tween="sine" easing="inout" center="97,155">Focus</animation>
+						<animation effect="zoom" start="105" end="100" time="150" tween="sine" easing="inout" center="97,155">Unfocus</animation>
+						<control type="image">
+							<width>185</width>
+							<height>278</height>
+							<aspectratio>scale</aspectratio>
+							<texture background="true">$INFO[ListItem.Property(tikiskins.home.row.poster)]</texture>
+						</control>
+						<!-- Watched badge -->
+						<control type="image">
+							<left>145</left>
+							<top>10</top>
+							<width>30</width>
+							<height>30</height>
+							<texture>watched.png</texture>
+							<visible>!String.IsEmpty(ListItem.Property(tikiskins.home.row.watched))</visible>
+						</control>
+						<!-- Focus border glow -->
+						<control type="image">
+							<left>-3</left>
+							<top>-3</top>
+							<width>191</width>
+							<height>284</height>
+							<texture colordiffuse="FF00BFA5" border="3">white.png</texture>
+						</control>
+						<!-- Title below poster -->
+						<control type="label">
+							<top>282</top>
+							<width>185</width>
+							<height>20</height>
+							<font>font10</font>
+							<textcolor>FFFFFFFF</textcolor>
+							<align>left</align>
+							<label>$INFO[ListItem.Property(tikiskins.home.row.title)]</label>
+						</control>
+					</control>
+				</focusedlayout>
+			</control>
+		</control>
+		<!-- Content Row 2 -->
+		<control type="group">
+			<animation type="WindowOpen" reversible="false">
+				<effect type="fade" start="0" end="100" time="500" tween="sine" delay="500" />
+				<effect type="slide" start="0,50" end="0" time="400" delay="500" tween="quadratic" easing="out" />
+			</animation>
+			<top>980</top>
+			<left>80</left>
+			<!-- Row Header -->
+			<control type="label">
+				<width max="600">auto</width>
+				<height>25</height>
+				<font>font14</font>
+				<textcolor>FFFFFFFF</textcolor>
+				<label>[B]$INFO[Window.Property(tikiskins.home.row2.title)][/B]</label>
+			</control>
+			<control type="label">
+				<left>1680</left>
+				<width>100</width>
+				<height>25</height>
+				<font>font10</font>
+				<textcolor>FF00BFA5</textcolor>
+				<align>right</align>
+				<label>See All  ></label>
+			</control>
+			<!-- Row 2 Panel -->
+			<control type="panel" id="3002">
+				<top>35</top>
+				<width>1760</width>
+				<height>310</height>
+				<onup>3001</onup>
+				<ondown>3001</ondown>
+				<scrolltime>300</scrolltime>
+				<orientation>horizontal</orientation>
+				<itemlayout height="310" width="195">
+					<control type="group">
+						<left>5</left>
+						<control type="image">
+							<width>185</width>
+							<height>278</height>
+							<aspectratio>scale</aspectratio>
+							<texture background="true">$INFO[ListItem.Property(tikiskins.home.row.poster)]</texture>
+						</control>
+						<control type="label">
+							<top>282</top>
+							<width>185</width>
+							<height>20</height>
+							<font>font10</font>
+							<textcolor>FF999999</textcolor>
+							<align>left</align>
+							<label>$INFO[ListItem.Property(tikiskins.home.row.title)]</label>
+						</control>
+					</control>
+				</itemlayout>
+				<focusedlayout height="310" width="195">
+					<control type="group">
+						<left>5</left>
+						<animation effect="zoom" start="100" end="105" time="150" tween="sine" easing="inout" center="97,155">Focus</animation>
+						<animation effect="zoom" start="105" end="100" time="150" tween="sine" easing="inout" center="97,155">Unfocus</animation>
+						<control type="image">
+							<width>185</width>
+							<height>278</height>
+							<aspectratio>scale</aspectratio>
+							<texture background="true">$INFO[ListItem.Property(tikiskins.home.row.poster)]</texture>
+						</control>
+						<control type="image">
+							<left>145</left>
+							<top>10</top>
+							<width>30</width>
+							<height>30</height>
+							<texture>watched.png</texture>
+							<visible>!String.IsEmpty(ListItem.Property(tikiskins.home.row.watched))</visible>
+						</control>
+						<control type="image">
+							<left>-3</left>
+							<top>-3</top>
+							<width>191</width>
+							<height>284</height>
+							<texture colordiffuse="FF00BFA5" border="3">white.png</texture>
+						</control>
+						<control type="label">
+							<top>282</top>
+							<width>185</width>
+							<height>20</height>
+							<font>font10</font>
+							<textcolor>FFFFFFFF</textcolor>
+							<align>left</align>
+							<label>$INFO[ListItem.Property(tikiskins.home.row.title)]</label>
+						</control>
+					</control>
+				</focusedlayout>
+			</control>
+		</control>
+		<!-- Loading Spinner (shown while data is loading) -->
+		<control type="image">
+			<centerleft>50%</centerleft>
+			<centertop>50%</centertop>
+			<width>80</width>
+			<height>80</height>
+			<aspectratio>keep</aspectratio>
+			<texture>loading-spinner.png</texture>
+			<visible>String.IsEmpty(Window.Property(tikiskins.home.hero.title))</visible>
+			<animation effect="rotate" start="0" end="360" time="1500" loop="true" center="auto">Visible</animation>
+		</control>
+	</controls>
+</window>

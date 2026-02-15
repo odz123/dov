@@ -254,6 +254,30 @@ class Router:
 		elif mode == 'speedTest':
 			from fenom.speedtest import magneto
 			magneto()
+		elif mode == 'pov_home':
+			from windows import open_window
+			result = open_window(('windows.home', 'Home'), 'home.xml')
+			if result:
+				from modules.kodi_utils import execute_builtin
+				execute_builtin(result)
+		elif mode == 'pov_detail':
+			from windows import open_window
+			import json as _json
+			meta = _json.loads(params_get('meta'))
+			kwargs = {'meta': meta, 'is_home': params_get('is_home', 'false')}
+			result = open_window(('windows.detail', 'Detail'), 'detail.xml', **kwargs)
+			if result:
+				if isinstance(result, dict):
+					mode_action = result.get('mode')
+					if mode_action == 'play_media':
+						from modules.sources import SourceSelect
+						SourceSelect.factory(result)
+					elif mode_action:
+						from modules.kodi_utils import execute_builtin
+						execute_builtin('ActivateWindow(Videos,plugin://plugin.video.pov/?%s,return)' % '&'.join('%s=%s' % (k, v) for k, v in result.items()))
+				elif isinstance(result, tuple) and result[0] == 'play_source':
+					from modules.sources import SourceSelect
+					SourceSelect.play_source(result[1], _json.loads(params_get('meta')))
 		elif mode == 'stremio_addon_manager':
 			from modules.stremio_manager import stremio_addon_manager
 			stremio_addon_manager()
