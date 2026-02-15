@@ -537,6 +537,13 @@ class Navigator:
 		add_items(handle, list(_process()))
 		self._end_directory()
 
+	def home(self):
+		"""Open the POV Home screen with hero carousel and content rows."""
+		from windows import open_window
+		result = open_window(('windows.home', 'Home'), 'home.xml')
+		if result:
+			ku.execute_builtin(result)
+
 	def main(self):
 		def build_main_lists():
 			for item_position, item in enumerate(contents):
@@ -558,6 +565,12 @@ class Navigator:
 					yield (build_url(item), listitem, isFolder)
 				except Exception: pass
 		handle, fanart, icon_path = self.params_get('handle'), self.params_get('fanart'), media_path()
+		# Add POV Home as the first item
+		home_icon = ku.get_addoninfo('icon')
+		home_listitem = make_listitem()
+		home_listitem.setLabel('[B]POV Home[/B]')
+		home_listitem.setArt({'icon': home_icon, 'poster': home_icon, 'thumb': home_icon, 'fanart': self.params_get('fanart'), 'banner': home_icon})
+		add_item(handle, build_url({'mode': 'pov_home', 'name': 'POV Home'}), home_listitem, False)
 		contents = nc.currently_used_list(self.list_name)
 		add_items(handle, list(build_main_lists()))
 		self._end_directory()
