@@ -1,9 +1,9 @@
-﻿<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0" encoding="UTF-8"?>
 <window>
 	<controls>
 		<!-- Background -->
 		<control type="group">
-			<animation effect="zoom" start="0" end="100" time="200" center="auto" tween="quadratic" easing="out">WindowOpen</animation>
+			<animation effect="fade" start="0" end="100" time="300">WindowOpen</animation>
 			<control type="image">
 				<left>0</left>
 				<top>0</top>
@@ -17,40 +17,46 @@
 				<width>1920</width>
 				<height>1080</height>
 				<texture>$INFO[Window.Property(tikiskins.source_progress.fanart)]</texture>
-				<animation effect="fade" start="0" end="25" time="0" tween="sine">WindowOpen</animation>
+				<animation effect="fade" start="0" end="20" time="0" tween="sine">WindowOpen</animation>
+			</control>
+			<!-- Dark gradient overlay -->
+			<control type="image">
+				<texture colordiffuse="88000000">white.png</texture>
 			</control>
 		</control>
-		<!-- POV Logo and Total Results -->
+		<!-- POV Logo -->
 		<control type="group">
-			<animation effect="fade" start="0" end="100" delay="400" time="500">WindowOpen</animation>
+			<animation effect="fade" start="0" end="100" delay="200" time="400">WindowOpen</animation>
 			<control type="image">
 				<left>35</left>
 				<top>20</top>
-				<width>60</width>
-				<height>60</height>
+				<width>50</width>
+				<height>50</height>
 				<aspectratio aligny="top">keep</aspectratio>
 				<texture>$INFO[Window.Property(tikiskins.pov.icon)]</texture>
 			</control>
 			<control type="label">
-				<left>100</left>
-				<top>37</top>
+				<left>95</left>
+				<top>28</top>
 				<width>auto</width>
-				<height>20</height>
+				<height>30</height>
 				<font>font10</font>
-				<textcolor>FFFFFFFF</textcolor>
+				<textcolor>88FFFFFF</textcolor>
 				<align>left</align>
 				<aligny>center</aligny>
 				<label>[UPPERCASE]Press BACK to Exit[/UPPERCASE]</label>
 			</control>
 		</control>
+		<!-- Center content -->
 		<control type="group">
 			<animation type="WindowOpen" reversible="false">
-				<effect type="fade" start="0" end="100" time="150" tween="sine" easing="in" />
-				<effect type="slide" start="0,1860" end="0" time="350" center="auto" tween="quadratic" easing="out" />
+				<effect type="fade" start="0" end="100" time="400" tween="sine" delay="150" />
+				<effect type="slide" start="0,60" end="0" time="400" delay="150" tween="quadratic" easing="out" />
 			</animation>
 			<top>630</top>
 			<width>776</width>
 			<centerleft>50%</centerleft>
+			<!-- Clearlogo -->
 			<control type="image">
 				<top>5</top>
 				<height max="160">auto</height>
@@ -60,6 +66,7 @@
 				<visible>!String.IsEmpty(Window.Property(tikiskins.source_progress.clearlogo))</visible>
 				<centerleft>50%</centerleft>
 			</control>
+			<!-- Poster fallback -->
 			<control type="image">
 				<top>-110</top>
 				<height>256</height>
@@ -69,13 +76,15 @@
 				<visible>String.IsEmpty(Window.Property(tikiskins.source_progress.clearlogo))</visible>
 				<centerleft>50%</centerleft>
 			</control>
+			<!-- Status text -->
 			<control type="textbox" id="2000">
 				<top>235</top>
 				<height>180</height>
 				<font>font12</font>
 				<align>center</align>
-				<textcolor>FFB7B4BB</textcolor>
+				<textcolor>BBFFFFFF</textcolor>
 			</control>
+			<!-- Buttons -->
 			<control type="group">
 				<visible>String.IsEqual(Window.Property(tikiskins.source_progress.buttons),true)</visible>
 				<top>335</top>
@@ -83,43 +92,43 @@
 					<description>True Button</description>
 					<left>35</left>
 					<width>340</width>
-					<height>70</height>
+					<height>60</height>
 					<onleft>11</onleft>
 					<onright>11</onright>
 					<label>[B]$INFO[Window.Property(tikiskins.source_progress.true_button)][/B]</label>
 					<font>font12</font>
-					<textcolor>FFB7B4BB</textcolor>
-					<focusedcolor>dodgerblue</focusedcolor>
-					<texturefocus colordiffuse="FFCCCCCC">white.png</texturefocus>
-					<texturenofocus colordiffuse="FF302F2F">white.png</texturenofocus>
+					<textcolor>BBFFFFFF</textcolor>
+					<focusedcolor>FF1A1A2E</focusedcolor>
+					<texturefocus colordiffuse="EEFFFFFF">rounded_button.png</texturefocus>
+					<texturenofocus colordiffuse="40FFFFFF">rounded_button.png</texturenofocus>
 					<align>center</align>
 				</control>
 				<control type="button" id="11">
 					<description>False Button</description>
 					<left>400</left>
 					<width>340</width>
-					<height>70</height>
+					<height>60</height>
 					<onleft>10</onleft>
 					<onright>10</onright>
 					<label>[B]$INFO[Window.Property(tikiskins.source_progress.false_button)][/B]</label>
 					<font>font12</font>
-					<textcolor>FFB7B4BB</textcolor>
-					<focusedcolor>dodgerblue</focusedcolor>
-					<texturefocus colordiffuse="FFCCCCCC">white.png</texturefocus>
-					<texturenofocus colordiffuse="FF302F2F">white.png</texturenofocus>
+					<textcolor>BBFFFFFF</textcolor>
+					<focusedcolor>FF1A1A2E</focusedcolor>
+					<texturefocus colordiffuse="EEFFFFFF">rounded_button.png</texturefocus>
+					<texturenofocus colordiffuse="40FFFFFF">rounded_button.png</texturenofocus>
 					<align>center</align>
 				</control>
 			</control>
+			<!-- Progress bar -->
 			<control type="progress" id="5000">
 				<description>Progressbar</description>
 				<top>190</top>
 				<centerleft>50%</centerleft>
 				<width>480</width>
-				<height>25</height>
+				<height>20</height>
 				<reveal>true</reveal>
 				<visible>!String.IsEqual(Window.Property(tikiskins.source_progress.buttons),true)</visible>
 			</control>
 		</control>
 	</controls>
 </window>
-

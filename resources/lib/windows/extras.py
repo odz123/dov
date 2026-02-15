@@ -47,6 +47,7 @@ class Extras(BaseDialog):
 			pass  # Silently handle thread exceptions to prevent UI crashes
 
 	def onInit(self):
+		self.make_genre_pills()
 		# Create and track threads with exception handling
 		thread_targets = [
 			(self.set_poster,), (self.make_cast,), (self.make_recommended,),
@@ -208,6 +209,18 @@ class Extras(BaseDialog):
 			item_list = list(builder())
 #			self.setProperty('tikiskins.extras.actions.number', '(x%02d)' % len(item_list))
 			self.add_items(actions_id, item_list)
+		except Exception: pass
+
+	def make_genre_pills(self):
+		try:
+			genre_pills_id = 2070
+			item_list = []
+			for genre_name in self.genre_list:
+				listitem = self.make_listitem()
+				listitem.setProperty('tikiskins.extras.genre_name', genre_name)
+				item_list.append(listitem)
+			if item_list:
+				self.add_items(genre_pills_id, item_list)
 		except Exception: pass
 
 	def make_cast(self):
@@ -584,16 +597,18 @@ class Extras(BaseDialog):
 		self.getControl(_id).addItems(items)
 
 	def set_poster(self):
-		if self.current_poster:
-			self.getControl(200).setImage(self.current_poster)
-			self.getControl(201).setImage(self.poster)
-			total_time = 0
-			while not self.check_poster_cached(self.poster):
-				if total_time >= 200: break
-				total_time += 1
-				self.sleep(50)
-			self.getControl(200).setImage(self.poster)
-		else: self.setProperty('tikiskins.extras.active_poster', 'false')
+		try:
+			if self.current_poster:
+				self.getControl(200).setImage(self.current_poster)
+				self.getControl(201).setImage(self.poster)
+				total_time = 0
+				while not self.check_poster_cached(self.poster):
+					if total_time >= 200: break
+					total_time += 1
+					self.sleep(50)
+				self.getControl(200).setImage(self.poster)
+			else: self.setProperty('tikiskins.extras.active_poster', 'false')
+		except Exception: pass
 
 	def check_poster_cached(self, poster):
 		try:
@@ -627,10 +642,12 @@ class Extras(BaseDialog):
 		self.clearlogo = self.meta['clearlogo'] if settings.get_fanart_data() else self.meta['tmdblogo'] or ''
 		self.plot = self.meta['tvshow_plot'] if 'tvshow_plot' in self.meta else self.meta['plot']
 		if not self.plot: self.plot = ''
+		self.tagline = self.meta.get('tagline', '')
 		self.rating = '%.2f' % self.meta['rating']
 		self.mpaa = self.meta['mpaa']
 		self.status = self.meta['extra_info'].get('status', '').replace('Series', '')
 		self.genre = self.meta['genre']
+		self.genre_list = [g.strip() for g in self.genre.split(',') if g.strip()] if self.genre else []
 		self.network = self.meta['studio'] or 'N/A'
 		if not self.network: self.network = ''
 		self.duration_data = int(float(self.meta['duration'])/60)
@@ -654,6 +671,7 @@ class Extras(BaseDialog):
 		self.setProperty('tikiskins.extras.clearlogo', self.clearlogo)
 		self.setProperty('tikiskins.extras.title', self.title)
 		self.setProperty('tikiskins.extras.plot', self.plot)
+		self.setProperty('tikiskins.extras.tagline', self.tagline)
 		self.setProperty('tikiskins.extras.year', self.year)
 		self.setProperty('tikiskins.extras.rating', self.rating)
 		self.setProperty('tikiskins.extras.mpaa', self.mpaa)
