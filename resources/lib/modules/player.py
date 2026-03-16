@@ -64,7 +64,10 @@ class POVPlayer(kodi_utils.xbmc_player):
 			self.season, self.episode = self.meta_get('season', ''), self.meta_get('episode', '')
 			if any(i in self.meta for i in ('random', 'random_continual')): bookmark = 0
 			else: bookmark = self.bookmarkPOV()
-			if bookmark == 'cancel': return
+			if bookmark == 'cancel':
+				if callable(progress_media): progress_media()
+				kodi_utils.close_all_dialog()
+				return
 			self.meta.update({'url': url, 'bookmark': bookmark})
 			listitem = self._make_listitem()
 			listitem.setProperty('StartPercent', str(bookmark))
