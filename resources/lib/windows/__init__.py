@@ -44,7 +44,10 @@ def videoplayer(url, close_action=None, callback=None):
 		kodi_utils.sleep(200)
 		if player.playback_event: break
 	if callable(close_action): close_action()
-	while player.isPlayingVideo(): kodi_utils.sleep(200)
+	if not player.playback_event: return
+	for _wait in range(10800):
+		if not player.isPlayingVideo(): break
+		kodi_utils.sleep(200)
 	if player.playback_event and callable(callback): callback()
 
 class BaseDialog(kodi_utils.window_xml_dialog):

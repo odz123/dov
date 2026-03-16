@@ -24,7 +24,12 @@ class VideoPlayer(BaseDialog):
 			self.execute_code('Seek(10.0)')
 
 	def monitor(self):
-		while not self.player.isPlayingVideo(): self.sleep(1000)
+		for _wait in range(30):
+			if self.player.isPlayingVideo(): break
+			self.sleep(1000)
+		else:
+			self.exit()
+			return
 		while self.player.isPlayingVideo(): self.sleep(1000)
 		self.exit()
 

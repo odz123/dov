@@ -166,7 +166,8 @@ class SourceSelect:
 				)
 				self.activate_providers('external', Manager, False)
 			if self.providers:
-				for t in self.threads: t.join()
+				for t in self.threads:
+					t.join(timeout=self.timeout + 5)
 		else: self.scrapers_dialog('internal')
 		self._kill_progress_dialog()
 		return self.sources
@@ -184,7 +185,8 @@ class SourceSelect:
 		for i in self.prescrape_threads: i.start()
 		self.remove_scrapers.extend(i[2] for i in self.prescrape_scrapers)
 		if self.background:
-			for t in self.prescrape_threads: t.join()
+			for t in self.prescrape_threads:
+				t.join(timeout=self.timeout + 5)
 		else: self.scrapers_dialog('pre_scrape')
 		self._kill_progress_dialog()
 		return self.prescrape_sources
@@ -336,6 +338,7 @@ class SourceSelect:
 			if not remaining_threads: break
 			if monitor.abortRequested() or time.monotonic() > end_time: break
 			try:
+				if self.progress_dialog and self.progress_dialog.iscanceled(): break
 				self._process_internal_results()
 				int_totals = [_total_format % v for v in self.internal_resolutions.values()]
 				current_progress = time.monotonic() - start_time
@@ -421,7 +424,15 @@ class SourceSelect:
 		else: return self.display_results(results)
 
 	def play_file(self, results, source=None, autoplay=False, background=False):
+		resolve_timeout = 30
 		resolved_source_item = [None]  # Mutable container to capture resolved source item
+		def _resolve_with_timeout(item):
+			"""Resolve a source with a timeout to prevent indefinite hangs."""
+			from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeout
+			with ThreadPoolExecutor(1) as executor:
+				future = executor.submit(Source(item, self.meta).resolve_sources)
+				try: return future.result(timeout=resolve_timeout)
+				except (FuturesTimeout, Exception): return None
 		def _process():
 			for count, item in enumerate(items, 1):
 				if not background:
@@ -440,7 +451,7 @@ class SourceSelect:
 				if 'unrestricted_link' in item:
 					link = item['unrestricted_link']
 					sleep(500)
-				else: link = Source(item, self.meta).resolve_sources()
+				else: link = _resolve_with_timeout(item)
 				if link is not None:
 					resolved_source_item[0] = item
 					yield link
