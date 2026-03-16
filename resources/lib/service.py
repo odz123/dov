@@ -168,7 +168,7 @@ class POVMonitor(kodi_utils.xbmc_monitor):
 		return self
 
 	def __exit__(self, exc_type, exc_value, traceback):
-		for i in self.threads: i.join()
+		for i in self.threads: i.join(timeout=10)
 
 	def _safe_run(self, func):
 		try: func()

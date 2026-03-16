@@ -69,7 +69,7 @@ class source(Debrid):
 				else:
 					url = self.build_url(item['server'], item['requestId'], item['fileName'])
 					results_append({'filename': item['fileName'], 'folder_name': item['fileName'], 'link': url})
-			for i in threads: i.join()
+			for i in threads: i.join(timeout=20)
 		except Exception: pass
 
 	def _scrape_folders(self, folder_info):

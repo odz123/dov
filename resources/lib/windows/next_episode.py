@@ -60,13 +60,14 @@ class NextEpisode(BaseDialog):
 		return self.fanart
 
 	def monitor(self):
+		from modules.kodi_utils import monitor as kodi_monitor
 		progress_bar = self.getControl(5000)
 		if self.function == 'next_ep':
 			total_time = self.player.getTotalTime()
 			total_remaining = total_time - self.player.getTime()
 			while self.player.isPlaying():
 				try:
-					if self.closed: break
+					if self.closed or kodi_monitor.abortRequested(): break
 					current_time = self.player.getTime()
 					remaining = round(total_time - current_time)
 					current_point = (remaining / float(total_remaining)) * 100 if total_remaining > 0 else 0
@@ -76,7 +77,7 @@ class NextEpisode(BaseDialog):
 		else:
 			for current_point in range(100, 0, -5):
 				try:
-					if self.closed: break
+					if self.closed or kodi_monitor.abortRequested(): break
 					progress_bar.setPercent(current_point)
 					self.sleep(1000)
 				except Exception: pass

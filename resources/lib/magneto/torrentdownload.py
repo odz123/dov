@@ -48,7 +48,7 @@ class source:
 			for url in urls:
 				append(source_utils.Thread(self.get_sources, url))
 			for i in threads: i.start()
-			for i in threads: i.join()
+			for i in threads: i.join(timeout=20)
 			return self.sources
 		except Exception:
 			source_utils.scraper_error('TORRENTDOWNLOAD')
@@ -137,7 +137,7 @@ class source:
 				link = '%s%s' % (self.base_link, url)
 				append(source_utils.Thread(self.get_sources_packs, link))
 			for i in threads: i.start()
-			for i in threads: i.join()
+			for i in threads: i.join(timeout=20)
 			return self.sources
 		except Exception:
 			source_utils.scraper_error('TORRENTDOWNLOAD')

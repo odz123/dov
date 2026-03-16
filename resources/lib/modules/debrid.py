@@ -234,12 +234,14 @@ class Source:
 		ok_dialog(text='Cached at [B]%s[/B]' % self.debrid.upper(), top_space=True)
 
 	def nzb_cache_and_play(self):
+		import time as _time
 		line, status_str = '%s[CR]%s[CR]STATUS: %s', '[B]%s[/B] (%2d%%)'
 		title, season, episode = self.meta['title'], self.meta['season'], self.meta['episode']
 		if season and episode: line1 = '%s (%02dx%02d)' % (title, season, episode)
 		else: line1 = '%s (%s)' % (title, self.meta['year'])
 		kodi_utils.progressDialog.create('POV', '')
 		kodi_utils.progressDialog.update(0, line % (line1, '', '[B]GRAB...[/B]'))
+		nzb_timeout = 120
 		try:
 			store_to_cloud = get_setting('store_usenet.torbox') == 'true'
 			api = import_debrid(self.debrid)
@@ -248,8 +250,10 @@ class Source:
 			if not nzb_id: return kodi_utils.notification(32574)
 			resolved_link = None
 			data = {'files': []}
+			deadline = _time.monotonic() + nzb_timeout
 			while not data['files']:
 				if kodi_utils.progressDialog.iscanceled(): return kodi_utils.notification(32736)
+				if _time.monotonic() > deadline: return kodi_utils.notification(32574)
 				line2 = 'ETA: %s' % data.get('eta', 'NA')
 				progress = int(float(data.get('progress', '0')) * 100)
 				status = status_str % (data.get('download_state', '...').upper(), progress)
@@ -345,7 +349,7 @@ class DebridCheck:
 			Thread(target=dmm_check_cache, args=(unchecked_hashes, self.imdb, checked_hashes, lock))
 		)
 		for i in threads: i.start()
-		for i in threads: i.join()
+		for i in threads: i.join(timeout=15)
 		return list(dict.fromkeys(checked_hashes))
 
 	def cache_write(self, hashes):

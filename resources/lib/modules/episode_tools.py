@@ -143,6 +143,7 @@ def execute_nextep(meta, nextep_settings):
 		final_action = 'cancel'
 		while player.isPlayingVideo():
 			try:
+				if kodi_utils.monitor.abortRequested(): break
 				total_time = player.getTotalTime()
 				curr_time = player.getTime()
 				remaining_time = round(total_time - curr_time)

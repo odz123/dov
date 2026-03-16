@@ -1,4 +1,5 @@
 from windows import BaseDialog
+from modules.kodi_utils import monitor as kodi_monitor
 # from modules.kodi_utils import logger
 
 class VideoPlayer(BaseDialog):
@@ -24,8 +25,18 @@ class VideoPlayer(BaseDialog):
 			self.execute_code('Seek(10.0)')
 
 	def monitor(self):
-		while not self.player.isPlayingVideo(): self.sleep(1000)
-		while self.player.isPlayingVideo(): self.sleep(1000)
+		for _wait in range(30):
+			if self.player.isPlayingVideo(): break
+			if kodi_monitor.abortRequested():
+				self.exit()
+				return
+			self.sleep(1000)
+		else:
+			self.exit()
+			return
+		while self.player.isPlayingVideo():
+			if kodi_monitor.abortRequested(): break
+			self.sleep(1000)
 		self.exit()
 
 	def exit(self):
