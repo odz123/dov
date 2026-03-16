@@ -123,7 +123,11 @@ class SourceSelect:
 		if get_setting('results.language_filter') == 'true': self.priority_language = get_setting('results.language')
 		else: self.priority_language = None
 		if not hasattr(self, 'meta'): self.meta = get_source_meta(self.params)
-		self.get_sources()
+		try: self.get_sources()
+		except Exception as e:
+			from modules.kodi_utils import logger
+			logger('playback_prep error', str(e))
+		finally: hide_busy_dialog()
 
 	def get_sources(self):
 		results = []
@@ -505,6 +509,10 @@ class SourceSelect:
 		except Exception as e:
 			from modules.kodi_utils import logger
 			logger('play_file error', str(e))
+			self._kill_progress_dialog()
+			try: progressDialogBG.close()
+			except Exception: pass
+			close_all_dialog()
 
 	def filter_results(self, results):
 		# Combine all filtering into a single pass for performance
