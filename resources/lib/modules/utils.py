@@ -57,8 +57,10 @@ class TaskPool:
 		self._queue = SimpleQueue()
 
 	def _thread_target(self, queue, target):
-		while not queue.empty():
-			try: target(*queue.get())
+		while True:
+			try: args = queue.get_nowait()
+			except Exception: break
+			try: target(*args)
 			except Exception as e: logger('queue error', f"{e}")
 
 	def tasks(self, _target, _list, _thread):
@@ -112,7 +114,7 @@ def make_thread_list(_target, _list, _thread, max_threads=100):
 			# Join current batch before starting next if not the last batch
 			if i + max_threads < len(_list):
 				for t in batch_threads:
-					t.join()
+					t.join(timeout=30)
 		for t in all_threads:
 			yield t
 

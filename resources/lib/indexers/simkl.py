@@ -52,7 +52,7 @@ def get_simkl_watchlist(params):
 		max_threads = min(_queue.qsize(), max_threads)
 		threads = (Thread(target=_thread_target, args=(_queue,)) for i in range(max_threads))
 		threads = list(TaskPool.process(threads))
-		for i in threads: i.join()
+		for i in threads: i.join(timeout=30)
 	items = movies.items + tvshows.items
 	items.sort(key=lambda k: int(k[1].getProperty('pov_sort_order') or '0'))
 	content, total = max(

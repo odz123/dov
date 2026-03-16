@@ -43,10 +43,12 @@ def videoplayer(url, close_action=None, callback=None):
 	for i in range(50):
 		kodi_utils.sleep(200)
 		if player.playback_event: break
+		if kodi_utils.monitor.abortRequested(): return
 	if callable(close_action): close_action()
 	if not player.playback_event: return
 	for _wait in range(10800):
 		if not player.isPlayingVideo(): break
+		if kodi_utils.monitor.abortRequested(): break
 		kodi_utils.sleep(200)
 	if player.playback_event and callable(callback): callback()
 

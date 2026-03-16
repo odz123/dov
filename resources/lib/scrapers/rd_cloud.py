@@ -67,7 +67,7 @@ class source(Debrid):
 				append(i := Thread(target=self._scrape_folders, args=(item['id'],)))
 				i.start()
 			self._scrape_downloads()
-			for i in threads: i.join()
+			for i in threads: i.join(timeout=20)
 		except Exception: pass
 
 	def _scrape_folders(self, folder_id):

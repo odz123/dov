@@ -248,6 +248,11 @@ class Downloader:
 		chunk  = None
 		chunks = []
 		while True:
+			if kodi_utils.monitor.abortRequested():
+				try: f.close()
+				except Exception: pass
+				self._close_response()
+				return self.finish_download(self.final_name, self.media_type, False, self.image)
 			downloaded = total
 			for c in chunks: downloaded += len(c)
 			percent = min(round(float(downloaded)*100 / self.content), 100)
