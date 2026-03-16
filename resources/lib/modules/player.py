@@ -52,7 +52,10 @@ class POVPlayer(kodi_utils.xbmc_player):
 		return t
 
 	def run(self, url=None, meta=None, progress_media=None):
-		if not url: return
+		if not url:
+			if callable(progress_media): progress_media()
+			kodi_utils.close_all_dialog()
+			return
 		try:
 			self.meta = meta or {}
 			self.meta_get = self.meta.get
@@ -81,10 +84,12 @@ class POVPlayer(kodi_utils.xbmc_player):
 				if not self.play_random_continual and self.autoplay_nextep and self.autoscrape_nextep: self.autoscrape_next_episode = False
 			for _wait in range(300):
 				if self.playback_event: break
-				if kodi_utils.monitor.abortRequested(): return
+				if kodi_utils.monitor.abortRequested(): break
 				kodi_utils.sleep(100)
-			if not self.playback_event: return
-			if self.playback_event == 'stop': return
+			if not self.playback_event or self.playback_event == 'stop':
+				if callable(progress_media): progress_media()
+				kodi_utils.close_all_dialog()
+				return
 			if callable(progress_media): progress_media()
 			kodi_utils.close_all_dialog()
 			if self.volume_check: kodi_utils.volume_checker(get_setting('volumecheck.percent', '100'))
@@ -128,7 +133,10 @@ class POVPlayer(kodi_utils.xbmc_player):
 			try: self.run_trakt_scrobble_stop()
 			except Exception: pass
 			ws.clear_local_bookmarks()
-		except Exception as e: kodi_utils.logger('POVPlayer.run', str(e))
+		except Exception as e:
+			kodi_utils.logger('POVPlayer.run', str(e))
+			if callable(progress_media): progress_media()
+			kodi_utils.close_all_dialog()
 
 	def _make_listitem(self):
 		listitem = kodi_utils.make_listitem()
