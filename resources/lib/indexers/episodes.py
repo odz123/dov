@@ -90,7 +90,7 @@ class Episodes:
 			season, episode, ep_name = item_get('season'), item_get('episode'), item_get('title')
 			try: kodi_utils.set_property('pov_play_meta.ep.%s.%s.%s' % (tmdb_id, season, episode), json.dumps({'season': season, 'episode': episode, 'premiered': item_get('premiered'), 'ep_name': ep_name, 'plot': item_get('plot')}))
 			except Exception: pass
-			str_season_zfill2, str_episode_zfill2 = string(season).zfill(1), string(episode).zfill(2)
+			str_season_zfill2, str_episode_zfill2 = string(season).zfill(2), string(episode).zfill(2)
 			orig_premiered = item_get('premiered')
 			episode_date, premiered = adjust_premiered_date_function(orig_premiered, self.adjust_hours)
 			if not episode_date or self.current_date < episode_date:
