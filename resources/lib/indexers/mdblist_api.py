@@ -275,7 +275,10 @@ def mdbl_progress(action, media, media_id, percent, season=None, episode=None, r
 	try: media_id = int(media_id)
 	except Exception: pass
 	if media in ('movie', 'movies'): data = {'movie': {'ids': {'tmdb': media_id}}, 'progress': float(percent)}
-	else: data = {'show': {'ids': {'tmdb': media_id}, 'season': {'episode': {'number': int(episode)}, 'number': int(season)}}, 'progress': float(percent)}
+	else:
+		try: season, episode = int(season), int(episode)
+		except (ValueError, TypeError): return
+		data = {'show': {'ids': {'tmdb': media_id}, 'season': {'episode': {'number': episode}, 'number': season}}, 'progress': float(percent)}
 	call_mdblist(url, json=data, method='post')
 	if refresh_mdb: mdbl_sync_activities()
 
@@ -287,7 +290,9 @@ def mdbl_scrobble(action, media, media_id, percent, season=None, episode=None):
 	if media in ('movie', 'movies'):
 		data = {'movie': {'ids': {'tmdb': media_id}}, 'progress': float(percent)}
 	else:
-		data = {'show': {'ids': {'tmdb': media_id}, 'season': {'episode': {'number': int(episode)}, 'number': int(season)}}, 'progress': float(percent)}
+		try: season, episode = int(season), int(episode)
+		except (ValueError, TypeError): return
+		data = {'show': {'ids': {'tmdb': media_id}, 'season': {'episode': {'number': episode}, 'number': season}}, 'progress': float(percent)}
 	return call_mdblist(url, json=data, method='post')
 
 def mdbl_get_ratings(media_type='movies', offset=0, limit=1000, since=None):
@@ -305,7 +310,9 @@ def mdbl_add_rating(media, media_id, rating, season=None, episode=None):
 	if media in ('movie', 'movies'):
 		data = {'movies': [{'ids': {'tmdb': media_id}, 'rating': int(rating)}]}
 	elif media == 'episode':
-		data = {'shows': [{'ids': {'tmdb': media_id}, 'seasons': [{'number': int(season), 'episodes': [{'number': int(episode), 'rating': int(rating)}]}]}]}
+		try: s, e = int(season), int(episode)
+		except (ValueError, TypeError): return False
+		data = {'shows': [{'ids': {'tmdb': media_id}, 'seasons': [{'number': s, 'episodes': [{'number': e, 'rating': int(rating)}]}]}]}
 	else:
 		data = {'shows': [{'ids': {'tmdb': media_id}, 'rating': int(rating)}]}
 	result = call_mdblist(url, json=data, method='post')
@@ -319,7 +326,9 @@ def mdbl_remove_rating(media, media_id, season=None, episode=None):
 	if media in ('movie', 'movies'):
 		data = {'movies': [{'ids': {'tmdb': media_id}}]}
 	elif media == 'episode':
-		data = {'shows': [{'ids': {'tmdb': media_id}, 'seasons': [{'number': int(season), 'episodes': [{'number': int(episode)}]}]}]}
+		try: s, e = int(season), int(episode)
+		except (ValueError, TypeError): return False
+		data = {'shows': [{'ids': {'tmdb': media_id}, 'seasons': [{'number': s, 'episodes': [{'number': e}]}]}]}
 	else:
 		data = {'shows': [{'ids': {'tmdb': media_id}}]}
 	result = call_mdblist(url, json=data, method='post')
