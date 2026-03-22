@@ -14,7 +14,7 @@ class source(Debrid):
 			sources_append = self.sources.append
 			filter_lang, lang_filters = easynews_language_filter()
 			title_filter = filter_by_name('easynews')
-			self.media_type, title, self.year = info.get('media_type'), info.get('title'), int(info.get('year'))
+			self.media_type, title, self.year = info.get('media_type'), info.get('title'), int(info.get('year', 0) or 0)
 			self.season, self.episode = info.get('season'), info.get('episode')
 			self.search_title = clean_file_name(title).replace('&', 'and')
 			if self.media_type == 'movie': query = '%s %d' % (self.search_title, self.year)

@@ -55,8 +55,10 @@ def reuseLanguageInvokerCheck():
 	current_addon_setting = get_setting('reuse_language_invoker', 'true')
 	text = '[B]Reuse Language Invoker[/B] SETTING/XML mismatch[CR]POV will reload your profile to refresh the addon.xml'
 	item, refresh = next(root.iter('reuselanguageinvoker'), None), False
-	if item is None: kodi_utils.notification(text.split('[CR]')[0])
-	if item is not None and item.text != current_addon_setting:
+	if item is None:
+		kodi_utils.notification(text.split('[CR]')[0])
+		return logger('POV', 'ReuseLanguageInvokerCheck Service Finished')
+	if item.text != current_addon_setting:
 		item.text = current_addon_setting
 		tree.write(addon_xml)
 		refresh = True

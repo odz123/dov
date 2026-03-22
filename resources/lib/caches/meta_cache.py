@@ -153,8 +153,8 @@ class MetaCache(BaseCache):
 
 	def make_fanart_dict(self, meta):
 		if meta.get('fanart_added', False):
-			return {'poster2': meta['poster2'], 'fanart2': meta['fanart2'], 'banner': meta['banner'], 'clearart': meta['clearart'],
-					'clearlogo': meta['clearlogo'], 'landscape': meta['landscape'], 'discart': meta['discart'], 'fanart_added': True}
+			return {'poster2': meta.get('poster2', ''), 'fanart2': meta.get('fanart2', ''), 'banner': meta.get('banner', ''), 'clearart': meta.get('clearart', ''),
+					'clearlogo': meta.get('clearlogo', ''), 'landscape': meta.get('landscape', ''), 'discart': meta.get('discart', ''), 'fanart_added': True}
 		else: return None
 
 	# Stremio metadata methods

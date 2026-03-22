@@ -281,7 +281,7 @@ def results_sort_order():
 		lambda k: (k['provider_rank'], direction*k['size'], k['quality_rank']), #Provider, Size, Quality
 		lambda k: (direction*k['size'], k['quality_rank'], k['provider_rank']), #Size, Quality, Provider
 		lambda k: (direction*k['size'], k['provider_rank'], k['quality_rank'])  #Size, Provider, Quality
-	)[int(get_setting('results.sort_order', '1'))]
+	)[min(int(get_setting('results.sort_order', '1')), 5)]
 
 def results_xml_style():
 	return str(get_setting('results.xml_style', 'List Contrast Details').lower())

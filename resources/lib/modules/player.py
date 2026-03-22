@@ -209,7 +209,7 @@ class POVPlayer(kodi_utils.xbmc_player):
 			focus_button=10,
 			percent=percent
 		)
-		return percent if choice == True else bookmark if choice == False else 'cancel'
+		return percent if choice is True else bookmark if choice is False else 'cancel'
 
 	def getStingers(self, tmdb_id, poster):
 		if not tmdb_id: return

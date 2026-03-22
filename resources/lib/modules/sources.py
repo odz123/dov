@@ -362,7 +362,7 @@ class SourceSelect:
 		return [i[2] for i in scraper_list]
 
 	def _process_post_results(self):
-		if self.ignore_results_filter and self.orig_results: return self._process_ignore_filters()
+		if self.ignore_results_filter and getattr(self, 'orig_results', None): return self._process_ignore_filters()
 		return self._no_results()
 
 	def _process_ignore_filters(self):
@@ -451,7 +451,7 @@ class SourceSelect:
 						if monitor.abortRequested(): break
 						elif self.progress_dialog and self.progress_dialog.iscanceled(): break
 						total_items = len(items)
-						percent = int((total_items - count) / total_items * 100) if total_items > 0 else 0
+						percent = int(count / total_items * 100) if total_items > 0 else 0
 						name = item['name'].replace('.', ' ').replace('-', ' ').upper()
 						line1 = item.get('scrape_provider'), item.get('cache_provider'), item.get('provider')
 						line1 = ' | '.join(i for i in line1 if i and i != 'external').upper()

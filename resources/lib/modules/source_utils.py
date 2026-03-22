@@ -91,7 +91,8 @@ def external_sources(ret_all=False):
 	source_list = []
 	append = source_list.append
 	enabled_set = set()
-	for k, v in kodi_utils.make_settings_dict().items():
+	settings_dict = kodi_utils.make_settings_dict() or {}
+	for k, v in settings_dict.items():
 		if k.startswith('provider.') and v == 'true':
 			parts = k.split('.')
 			if len(parts) > 1:
