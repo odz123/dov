@@ -72,20 +72,21 @@ def movie_meta(id_type, media_id, user_info, current_date):
 			if data['overview'] in empty_value_check:
 				media_id, id_type = data['id'], 'tmdb_id'
 				eng_data = movie_data(media_id, 'en', tmdb_api)
-				eng_overview = eng_data['overview']
-				data['overview'] = eng_overview
-				if 'videos' in data:
-					all_trailers = data['videos']['results']
-					if all_trailers:
-						try: trailer_test = [i for i in all_trailers if i['site'] == 'YouTube' and i['type'] in trailers_test]
-						except Exception: trailer_test = False
+				if eng_data:
+					eng_overview = eng_data['overview']
+					data['overview'] = eng_overview
+					if 'videos' in data:
+						all_trailers = data['videos']['results']
+						if all_trailers:
+							try: trailer_test = [i for i in all_trailers if i['site'] == 'YouTube' and i['type'] in trailers_test]
+							except Exception: trailer_test = False
+						else: trailer_test = False
 					else: trailer_test = False
-				else: trailer_test = False
-				if not trailer_test:
-					if 'videos' in eng_data:
-						eng_all_trailers = eng_data['videos']['results']
-						if eng_all_trailers:
-							data['videos']['results'] = eng_all_trailers
+					if not trailer_test:
+						if 'videos' in eng_data:
+							eng_all_trailers = eng_data['videos']['results']
+							if eng_all_trailers:
+								data['videos']['results'] = eng_all_trailers
 		if not fanarttv_data and extra_fanart_enabled: fanarttv_data = fanarttv_get('movies', language, data['id'], fanart_client_key)
 		meta = build_movie_meta(data, user_info, fanarttv_data)
 		metacache_set('movie', id_type, meta, movie_expiry(current_date, meta))
@@ -129,20 +130,21 @@ def tvshow_meta(id_type, media_id, user_info, current_date):
 			if data['overview'] in empty_value_check:
 				media_id, id_type = data['id'], 'tmdb_id'
 				eng_data = tvshow_data(media_id, 'en', tmdb_api)
-				eng_overview = eng_data['overview']
-				data['overview'] = eng_overview
-				if 'videos' in data:
-					all_trailers = data['videos']['results']
-					if all_trailers:
-						try: trailer_test = [i for i in all_trailers if i['site'] == 'YouTube' and i['type'] in trailers_test]
-						except Exception: trailer_test = False
+				if eng_data:
+					eng_overview = eng_data['overview']
+					data['overview'] = eng_overview
+					if 'videos' in data:
+						all_trailers = data['videos']['results']
+						if all_trailers:
+							try: trailer_test = [i for i in all_trailers if i['site'] == 'YouTube' and i['type'] in trailers_test]
+							except Exception: trailer_test = False
+						else: trailer_test = False
 					else: trailer_test = False
-				else: trailer_test = False
-				if not trailer_test:
-					if 'videos' in eng_data:
-						eng_all_trailers = eng_data['videos']['results']
-						if eng_all_trailers:
-							data['videos']['results'] = eng_all_trailers
+					if not trailer_test:
+						if 'videos' in eng_data:
+							eng_all_trailers = eng_data['videos']['results']
+							if eng_all_trailers:
+								data['videos']['results'] = eng_all_trailers
 		if not fanarttv_data and extra_fanart_enabled: fanarttv_data = fanarttv_get('tv', language, data['external_ids']['tvdb_id'], fanart_client_key)
 		meta = build_tvshow_meta(data, user_info, fanarttv_data)
 		metacache_set('tvshow', id_type, meta, tvshow_expiry(current_date, meta))
@@ -432,9 +434,9 @@ def get_title(meta, language=None):
 	else: title = meta.get('english_title')
 	if not title:
 		try:
-			from settings import metadata_user_info
+			from modules.settings import metadata_user_info
 			meta_user_info = metadata_user_info()
-			media_type = 'movie' if meta['media_type'] == 'movie' else 'tv'
+			media_type = 'movie' if meta.get('mediatype', meta.get('media_type', '')) == 'movie' else 'tv'
 			english_title = tmdb_english_translation(media_type, meta['tmdb_id'], meta_user_info)
 			if english_title: title = english_title
 			else: title = meta['original_title']

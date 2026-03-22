@@ -104,6 +104,7 @@ def remove_from_search_history(params):
 		maincache = MainCache()
 		try:
 			result = maincache.get(params['setting_id'])
+			if not result: return
 			result.remove(params.get('query'))
 			maincache.set(params['setting_id'], result, expiration=timedelta(days=365))
 		finally:

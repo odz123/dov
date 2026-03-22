@@ -137,7 +137,7 @@ def trakt_expires(func):
 
 def trakt_recommendations(media_type):
 	string = 'trakt_recommendations_%s' % media_type
-	url = {'path': '/recommendations/%s', 'path_insert': media_type, 'with_auth': True, 'params': {'limit': 50}, 'pagination': False}
+	url = {'path': 'recommendations/%s', 'path_insert': media_type, 'with_auth': True, 'params': {'limit': 50}, 'pagination': False}
 	return trakt_cache.cache_trakt_object(get_trakt, string, url)
 
 def trakt_movies_trending(page_no):
