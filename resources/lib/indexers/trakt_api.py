@@ -649,6 +649,7 @@ def trakt_official_status(media_type):
 def trakt_get_my_calendar(recently_aired, current_date):
 	def _process(dummy):
 		data = get_trakt(url)
+		if not data: return []
 		data = [
 			{'sort_title': '%s s%s e%s' % (i['show']['title'], str(i['episode']['season']).zfill(2), str(i['episode']['number']).zfill(2)),
 			'media_ids': i['show']['ids'], 'season': i['episode']['season'], 'episode': i['episode']['number'], 'first_aired': i['first_aired']}
@@ -667,6 +668,7 @@ def trakt_get_my_calendar(recently_aired, current_date):
 def trakt_my_anime_calendar(current_date):
 	def _process(dummy):
 		data = get_trakt(url)
+		if not data: return []
 		data = [
 			{'sort_title': '%s s%s e%s' % (i['show']['title'], str(i['episode']['season']).zfill(2), str(i['episode']['number']).zfill(2)),
 			'media_ids': i['show']['ids'], 'season': i['episode']['season'], 'episode': i['episode']['number'], 'first_aired': i['first_aired']}
@@ -685,6 +687,7 @@ def trakt_my_anime_calendar(current_date):
 def trakt_anime_calendar(current_date):
 	def _process(dummy):
 		data = get_trakt(url)
+		if not data: return []
 		data = [
 			{'sort_title': '%s s%s e%s' % (i['show']['title'], str(i['episode']['season']).zfill(2), str(i['episode']['number']).zfill(2)),
 			'media_ids': i['show']['ids'], 'season': i['episode']['season'], 'episode': i['episode']['number'], 'first_aired': i['first_aired']}
