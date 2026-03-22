@@ -514,7 +514,7 @@ def url_strip(url):
 		url = url.lower().replace("'", "").lstrip('.').rstrip('.')
 		fmt = _RE_NON_ALNUM.sub(' ', url)
 		if 'http' in fmt: return None
-		if fmt == '': return None
+		if not fmt: return None
 		return fmt
 	except Exception: return None
 

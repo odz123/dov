@@ -67,6 +67,7 @@ class source:
 			try:
 				if any(value in row for value in ('<th', 'nofollow')): continue
 				columns = re.findall(r'<td.*?>(.+?)</td>', row, re.DOTALL)
+				if len(columns) < 4: continue
 
 				link_match = re.search(r'href\s*=\s*["\']/(.+?)["\']>', columns[0], re.I)
 				if not link_match: continue
@@ -156,6 +157,7 @@ class source:
 			try:
 				if any(value in row for value in ('<th', 'nofollow')): continue
 				columns = re.findall(r'<td.*?>(.+?)</td>', row, re.DOTALL)
+				if len(columns) < 4: continue
 
 				link_match = re.search(r'href\s*=\s*["\']/(.+?)["\']>', columns[0], re.I)
 				if not link_match: continue

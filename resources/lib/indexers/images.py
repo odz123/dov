@@ -18,9 +18,9 @@ class Images:
 		elif self.mode == 'browser_image': self.browser_image(params['folder_path'])
 		elif self.mode == 'slideshow_image': return self.slideshow_image()
 		elif self.mode == 'delete_image': return self.delete_image()
-		if not self.list_items and not self.params.get('in_progress') == 'true':
+		if not self.list_items and self.params.get('in_progress') != 'true':
 			return notification(32490)
-		if not 'in_progress' in params: self.open_window_xml()
+		if 'in_progress' not in params: self.open_window_xml()
 		else: return self.list_items, self.next_page_params
 
 	def open_window_xml(self):

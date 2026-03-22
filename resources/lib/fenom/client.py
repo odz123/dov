@@ -86,7 +86,7 @@ def request(url, close=True, redirect=True, error=False, proxy=None, post=None, 
 		if 'Accept-Encoding' in headers: pass
 		elif compression and limit is None: headers['Accept-Encoding'] = 'gzip'
 
-		if redirect is False:
+		if not redirect:
 			class NoRedirectHandler(urllib2.HTTPRedirectHandler):
 				def http_error_302(self, reqst, fp, code, msg, head):
 					infourl = addinfourl(fp, head, reqst.get_full_url())
@@ -112,11 +112,11 @@ def request(url, close=True, redirect=True, error=False, proxy=None, post=None, 
 			except Exception: ignore = False
 
 			if not ignore:
-				if error is False:
+				if not error:
 					from fenom import log_utils
 					log_utils.error('Request-Error url=(%s)' % url)
 					return None
-				elif error is True and response.code in (401, 404, 405): # no point in continuing after this exception runs with these response.code's
+				elif error and response.code in (401, 404, 405): # no point in continuing after this exception runs with these response.code's
 					try: response_headers = dict((item[0].title(), item[1]) for item in response.info().items()) # behaves differently 18 to 19. 18 I had 3 "Set-Cookie:" it combined all 3 values into 1 key. In 19 only the last keys value was present.
 					except Exception:
 						from fenom import log_utils
@@ -193,10 +193,10 @@ def request(url, close=True, redirect=True, error=False, proxy=None, post=None, 
 			except Exception: response_code = ''
 			try: cookie = '; '.join(['%s=%s' % (i.name, i.value) for i in cookies])
 			except Exception: pass
-			if close is True: response.close()
+			if close: response.close()
 			return (result, response_code, response_headers, headers, cookie)
 		else:
-			if close is True: response.close()
+			if close: response.close()
 			return result
 	except Exception:
 		from fenom import log_utils

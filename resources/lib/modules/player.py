@@ -209,7 +209,7 @@ class POVPlayer(kodi_utils.xbmc_player):
 			focus_button=10,
 			percent=percent
 		)
-		return percent if choice is True else bookmark if choice is False else 'cancel'
+		return percent if choice == True else bookmark if choice == False else 'cancel'
 
 	def getStingers(self, tmdb_id, poster):
 		if not tmdb_id: return
@@ -322,7 +322,7 @@ class POVPlayer(kodi_utils.xbmc_player):
 		if self.trakt_scrobble_started or self.watched_indicators != 1: return
 		try:
 			from indexers.trakt_api import trakt_official_status, trakt_scrobble
-			if trakt_official_status(self.media_type) is False: return
+			if not trakt_official_status(self.media_type): return
 			self.trakt_scrobble_started = True
 			self._safe_thread(trakt_scrobble, 'start', self.media_type, self.tmdb_id, 0, self.season, self.episode)
 		except Exception: pass
@@ -445,7 +445,7 @@ class Subtitles(kodi_utils.xbmc_player):
 		def _video_file_subs():
 			try: available_sub_language = self.getSubtitles()
 			except Exception: available_sub_language = ''
-			if not available_sub_language == self.language1: return False
+			if available_sub_language != self.language1: return False
 			if self.auto_enable == 'true': self.showSubtitles(True)
 			kodi_utils.notification(32852, icon=poster)
 			return True
@@ -488,7 +488,7 @@ class Subtitles(kodi_utils.xbmc_player):
 			response = subtitles.download(chosen_sub['url'])
 			if isinstance(response, str): return kodi_utils.notification('Subtitles Error: %s' % response)
 			try:
-				if not 'utf-8' in response.encoding.lower():
+				if 'utf-8' not in response.encoding.lower():
 					import codecs
 					content = codecs.decode(response.content, encoding='utf-8')
 				else: content = response.text
@@ -496,7 +496,7 @@ class Subtitles(kodi_utils.xbmc_player):
 			with kodi_utils.open_file(final_path, 'w') as file: file.write(content)
 			kodi_utils.sleep(1000)
 			return final_path
-		if not self.subs_action in ('auto', 'select'): return
+		if self.subs_action not in ('auto', 'select'): return
 		from indexers import subtitles
 		kodi_utils.sleep(2500)
 		subtitle_path = 'special://temp/'
@@ -536,7 +536,7 @@ def infoTagger(listitem, meta=None):
 		('status', 'setTvShowStatus'), ('tvshowtitle', 'setTvShowTitle')
 	):
 		try:
-			if not key in meta or not (arg := meta[key]): continue
+			if key not in meta or not (arg := meta[key]): continue
 			if   key in {'director', 'genre', 'studio', 'writer'}: arg = arg.split(', ')
 			elif key in {'episode', 'season', 'year'}: arg = int(arg)
 			func = getattr(infotag, val)

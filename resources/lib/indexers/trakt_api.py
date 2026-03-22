@@ -63,7 +63,7 @@ def get_rate_limit_status():
 
 def call_trakt(path, params=None, data=None, with_auth=True, method=None, pagination=False, page=1):
 	headers = {'trakt-api-key': V2_API_KEY, 'trakt-api-version': '2', 'Content-Type': 'application/json'}
-	if with_auth is True and (token := settings.trakt_token()): headers['Authorization'] = 'Bearer %s' % token
+	if with_auth and (token := settings.trakt_token()): headers['Authorization'] = 'Bearer %s' % token
 	if pagination:
 		if params is None: params = {}
 		params['page'] = page
@@ -362,7 +362,7 @@ def remove_from_collection(data):
 	return result
 
 def hide_unhide_trakt_items(action, media_type, media_id, list_type):
-	if not action in ('hide', 'unhide'):
+	if action not in ('hide', 'unhide'):
 		try:
 			hidden_data = set(map(str, trakt_get_hidden_items('dropped')))
 			action = 'unhide' if action in hidden_data else 'hide'
@@ -627,7 +627,7 @@ def trakt_official_status(media_type):
 	trakt_addon = kodi_utils.addon('script.trakt')
 	try: authorization = trakt_addon.getSetting('authorization')
 	except Exception: authorization = ''
-	if authorization == '': return True
+	if not authorization: return True
 	try: exclude_http = trakt_addon.getSetting('ExcludeHTTP')
 	except Exception: exclude_http = ''
 	if exclude_http in ('true', ''): return True
@@ -644,7 +644,7 @@ def trakt_get_my_calendar(recently_aired, current_date):
 			{'sort_title': '%s s%s e%s' % (i['show']['title'], str(i['episode']['season']).zfill(2), str(i['episode']['number']).zfill(2)),
 			'media_ids': i['show']['ids'], 'season': i['episode']['season'], 'episode': i['episode']['number'], 'first_aired': i['first_aired']}
 			for i in data
-			if i['episode']['season'] > 0 and not 'anime' in i['show']['genres']
+			if i['episode']['season'] > 0 and 'anime' not in i['show']['genres']
 		]
 		# Use dict for O(1) dedup based on sort_title (O(n) instead of O(n³))
 		seen = {}

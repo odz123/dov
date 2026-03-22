@@ -491,7 +491,11 @@ def upload_logfile():
 	show_busy_dialog()
 	try:
 		with open_file(log_file) as f: text = f.read().encode('utf-8', errors='ignore')
-		response = requests.post('%s%s' % (url, 'documents'), data=text, timeout=10.0).json()
+		resp = requests.post('%s%s' % (url, 'documents'), data=text, timeout=10.0)
+		if not resp.ok:
+			ok_dialog(text='Error. Log Upload Failed (HTTP %s)' % resp.status_code, top_space=True)
+			return
+		response = resp.json()
 		if 'key' in response: ok_dialog(text=url + response['key'], top_space=True)
 		else: ok_dialog(text='Error. Log Upload Failed', top_space=True)
 	except Exception as e:

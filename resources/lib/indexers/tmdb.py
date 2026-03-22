@@ -145,7 +145,7 @@ def edit_tmdb_list(params):
 			'backdrop_path': '' if params['fanart'] == 'clear' else params['fanart'],
 			'public': 'true' if params.get('public') in ('true', '1') else 'false',
 		}
-		data = {k: v for k, v in data.items() if not v in ('None', None)}
+		data = {k: v for k, v in data.items() if v not in ('None', None)}
 		if tmdb_api.list_update(params['list_id'], data)['success']:
 			tmdb_api.clear_tmdbl_cache()
 			kodi_utils.container_refresh()

@@ -113,7 +113,7 @@ def notification(title=None, message=None, icon=None, time=3000, sound=False):
 	else: heading = str(title)
 	if isinstance(message, int): body = lang(message)
 	else: body = str(message)
-	if icon is None or icon == '' or icon == 'default': icon = addonIcon()
+	if not icon or icon == 'default': icon = addonIcon()
 	elif icon == 'INFO': icon = xbmcgui.NOTIFICATION_INFO
 	elif icon == 'WARNING': icon = xbmcgui.NOTIFICATION_WARNING
 	elif icon == 'ERROR': icon = xbmcgui.NOTIFICATION_ERROR

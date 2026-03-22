@@ -120,7 +120,7 @@ def get_secret():
 		return t4 | t5
 
 	def slice_hash(s, n):
-		half = int(len(s) // 2)
+		half = len(s) // 2
 		left_s, right_s = s[:half], s[half:]
 		left_n, right_n = n[:half], n[half:]
 		l = ''.join(ls + ln for ls, ln in zip(left_s, left_n))

@@ -85,7 +85,11 @@ class Indexer(Debrid):
 	def show_account_info(self):
 		try:
 			kodi_utils.show_busy_dialog()
-			account_info = self.account_info()['user']
+			account_info = self.account_info()
+			if not account_info or 'user' not in account_info:
+				kodi_utils.hide_busy_dialog()
+				return kodi_utils.notification(32574)
+			account_info = account_info['user']
 			username = account_info['username']
 			email = account_info['email']
 			status = 'Premium' if account_info['isPremium'] else 'Not Active'

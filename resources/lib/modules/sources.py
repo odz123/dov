@@ -2,7 +2,7 @@ import json
 import time
 import re, random
 from concurrent.futures import ThreadPoolExecutor as TPE
-from threading import Thread
+from threading import Thread, Lock
 from windows import open_window, create_window
 from modules.debrid import debrid_enabled, debrid_type_enabled, debrid_valid_hosts, Source, DebridCheck
 from modules import player, kodi_utils, settings
@@ -74,6 +74,7 @@ class SourceSelect:
 		self.progress_dialog, self.pov_background_url = None, None
 		self.threads, self.providers, self.sources, self.internal_scraper_names = [], [], [], []
 		self.prescrape_scrapers, self.prescrape_threads, self.prescrape_sources = [], [], []
+		self._sources_lock = Lock()
 		self.remove_scrapers = ['external']# needs to be mutable so leave as list.
 		self.exclude_list = ['easynews', 'library']# needs to be mutable so leave as list.
 		self.internal_resolutions = dict.fromkeys('4K 1080p 720p SD total'.split(), 0)
@@ -284,8 +285,9 @@ class SourceSelect:
 		else: module = function()
 		sources = module.results(self.meta['search_info'])
 		if not sources: return
-		if prescrape: self.prescrape_sources.extend(sources)
-		else: self.sources.extend(sources)
+		with self._sources_lock:
+			if prescrape: self.prescrape_sources.extend(sources)
+			else: self.sources.extend(sources)
 
 	def activate_external_providers(self):
 		self.debrid_enabled = debrid_enabled()
@@ -818,7 +820,7 @@ class Manager:
 					else: line3 = string1 % ', '.join(alive_threads).upper()
 					if self.progress_dialog: self.progress_dialog.update(format_line % (line1, line2, line3), progress)
 					else: progressDialogBG.update(progress, line3)
-					finish_early = debrid_check is False and self.finish_early and len(self.sources) > len_threads * 10
+					finish_early = not debrid_check and self.finish_early and len(self.sources) > len_threads * 10
 					if finish_early: break
 				except Exception: pass
 			sleep(self.sleep_time)

@@ -79,7 +79,7 @@ def error(message=None, exception=True):
 			linenumber = traceback.tb_lineno
 			errortype = type.__name__
 			errormessage = value
-			if str(errormessage) == '': return
+			if not str(errormessage): return
 			if message: message += ' -> '
 			else: message = ''
 			message += str(errortype) + ' -> ' + str(errormessage)

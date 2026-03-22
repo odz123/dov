@@ -1001,11 +1001,11 @@ def stremio_debug_loop():
 
 		for i in range(loop_count):
 			attempt = {'iteration': i + 1, 'status': 'unknown', 'time': 0.0, 'error': '', 'http_code': 0}
-			start_time = time.time()
+			start_time = time.monotonic()
 
 			try:
 				response, error = _fetch_url(addon_url.rstrip('/') + '/manifest.json', timeout=10)
-				elapsed = time.time() - start_time
+				elapsed = time.monotonic() - start_time
 				attempt['time'] = round(elapsed, 3)
 
 				if response is not None and response.status_code == 200:
@@ -1038,7 +1038,7 @@ def stremio_debug_loop():
 					attempt['error'] = error or 'No response'
 					addon_results['fail_count'] += 1
 			except Exception as e:
-				elapsed = time.time() - start_time
+				elapsed = time.monotonic() - start_time
 				attempt['time'] = round(elapsed, 3)
 				attempt['status'] = 'fail'
 				attempt['error'] = str(e)[:60]

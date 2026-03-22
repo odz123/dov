@@ -611,7 +611,8 @@ class TMDbList:
 		tiny_url = 'http://tinyurl.com/api-create.php'
 		try: tiny_url = requests.get(tiny_url, params={'url': url}, timeout=timeout).text
 		except Exception: tiny_url = url
-		qr_icon = qr_str % '&data=%s' % quote(tiny_url)
+		try: qr_icon = qr_str % ('&data=%s' % quote(tiny_url))
+		except Exception: qr_icon = ''
 		kodi_utils.logger('tmdblist', '%s\n%s' % (tiny_url, url))
 		meta = {**dict.fromkeys(meta_keys.split(), ''), 'poster': qr_icon}
 		detail = nav2_str % tiny_url, ''
@@ -643,7 +644,7 @@ class TMDbList:
 		params = {'session_id': session_id}
 		response = requests.get(self.base_url('3/account'), params=params, headers=self.headers, timeout=timeout)
 		result = response.json()
-		if not 'id' in result: return
+		if 'id' not in result: return
 		username, session_account_id = str(result['username']), str(result['id'])
 		set_setting('tmdb.username', username)
 		set_setting('tmdb.session_id', session_id)

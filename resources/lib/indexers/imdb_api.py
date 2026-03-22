@@ -347,7 +347,7 @@ def get_imdb(params):
 		try: spoiler_results = parseDOM(result, 'section', attrs={'id': 'advisory-spoilers'})[0]
 		except (IndexError, TypeError): pass
 		if spoiler_results:
-			results = [i for i in results if not i in spoiler_results]
+			results = [i for i in results if i not in spoiler_results]
 			spoiler_results = spoiler_results.split('<h4 class="ipl-list-title">')[1:]
 			for item in spoiler_results:
 				item_dict = {}
@@ -363,9 +363,9 @@ def get_imdb(params):
 				for item in listings:
 					try:
 						listing = replace_html_codes(re.findall(r'(.+?)     <div class="', item, re.DOTALL)[0])
-						if not listing in item_dict['listings']: dict_listings_append(listing)
+						if listing not in item_dict['listings']: dict_listings_append(listing)
 					except (IndexError, TypeError): pass
-				if not item_dict in spoiler_list: spoiler_append(item_dict)
+				if item_dict not in spoiler_list: spoiler_append(item_dict)
 		for item in results:
 			item_dict = {}
 			try:
@@ -384,7 +384,7 @@ def get_imdb(params):
 			for item in listings:
 				try:
 					listing = replace_html_codes(re.findall(r'(.+?)     <div class="', item, re.DOTALL)[0])
-					if not listing in item_dict['listings']: dict_listings_append(listing)
+					if listing not in item_dict['listings']: dict_listings_append(listing)
 				except (IndexError, TypeError): pass
 			if item_dict: imdb_append(item_dict)
 		if spoiler_list:

@@ -88,7 +88,7 @@ class Extras(BaseDialog):
 			if focus_id == actions_id and self.media_type == 'movie':
 				chosen_listitem = self.get_listitem(focus_id)
 				params = int(chosen_listitem.getProperty('tikiskins.extras.actions'))
-				if not params == playbrowse_id: return
+				if params != playbrowse_id: return
 				dialogs.playback_choice('movie', self.poster, self.meta)
 			elif focus_id in (posters_id, backdrops_id):
 				chosen_listitem = self.get_listitem(focus_id)
@@ -100,7 +100,7 @@ class Extras(BaseDialog):
 					'image_url': image.replace('w780', 'original')
 				}
 				return runner(params)
-		if not self.control_id or not action in self.selection_actions: return
+		if not self.control_id or action not in self.selection_actions: return
 		if self.control_id == actions_id:
 			try: chosen_var = int(self.get_listitem(self.control_id).getProperty('tikiskins.extras.actions'))
 			except Exception: return
@@ -211,7 +211,7 @@ class Extras(BaseDialog):
 		except Exception: pass
 
 	def make_cast(self):
-		if not cast_id in self.enabled_lists: return
+		if cast_id not in self.enabled_lists: return
 		def builder():
 			for item in self.meta['cast']:
 				try:
@@ -231,7 +231,7 @@ class Extras(BaseDialog):
 		except Exception: pass
 
 	def make_recommended(self):
-		if not recommended_id in self.enabled_lists: return
+		if recommended_id not in self.enabled_lists: return
 		try:
 			function = tmdb_api.tmdb_movies_recommendations if self.media_type == 'movie' else tmdb_api.tmdb_tv_recommendations
 			data = function(self.tmdb_id, 1)['results']
@@ -242,7 +242,7 @@ class Extras(BaseDialog):
 		except Exception: pass
 
 	def make_reviews(self):
-		if not reviews_id in self.enabled_lists: return
+		if reviews_id not in self.enabled_lists: return
 		def builder():
 			for count, item in enumerate(reviews, 1):
 				try:
@@ -278,7 +278,7 @@ class Extras(BaseDialog):
 		except Exception: pass
 
 	def make_trivia(self):
-		if not trivia_id in self.enabled_lists: return
+		if trivia_id not in self.enabled_lists: return
 		def builder():
 			for count, item in enumerate(data, 1):
 				try:
@@ -296,7 +296,7 @@ class Extras(BaseDialog):
 		except Exception: pass
 
 	def make_blunders(self):
-		if not blunders_id in self.enabled_lists: return
+		if blunders_id not in self.enabled_lists: return
 		def builder():
 			for count, item in enumerate(data, 1):
 				try:
@@ -314,7 +314,7 @@ class Extras(BaseDialog):
 		except Exception: pass
 
 	def make_parentsguide(self):
-		if not parentsguide_id in self.enabled_lists: return
+		if parentsguide_id not in self.enabled_lists: return
 		def builder():
 			for item in data:
 				try:
@@ -339,7 +339,7 @@ class Extras(BaseDialog):
 		except Exception: pass
 
 	def make_videos(self):
-		if not videos_id in self.enabled_lists: return
+		if videos_id not in self.enabled_lists: return
 		def builder():
 			for count, item in enumerate(data, 1):
 				try:
@@ -359,10 +359,10 @@ class Extras(BaseDialog):
 
 	def make_artwork(self, image_type):
 		if image_type == 'posters':
-			if not posters_id in self.enabled_lists: return
+			if posters_id not in self.enabled_lists: return
 			_id = posters_id
 		else:
-			if not backdrops_id in self.enabled_lists: return
+			if backdrops_id not in self.enabled_lists: return
 			_id = backdrops_id
 		def builder():
 			for count, item in enumerate(data, 1):
@@ -387,7 +387,7 @@ class Extras(BaseDialog):
 		except Exception: pass
 
 	def make_year(self):
-		if not year_id in self.enabled_lists: return
+		if year_id not in self.enabled_lists: return
 		try:
 			function = tmdb_api.tmdb_movies_year if self.media_type == 'movie' else tmdb_api.tmdb_tv_year
 			data = self.remove_current_tmdb_mediaitem(function(self.year, 1)['results'])
@@ -398,7 +398,7 @@ class Extras(BaseDialog):
 		except Exception: pass
 
 	def make_genres(self):
-		if not genres_id in self.enabled_lists: return
+		if genres_id not in self.enabled_lists: return
 		try:
 			function = tmdb_api.tmdb_movies_genres if self.media_type == 'movie' else tmdb_api.tmdb_tv_genres
 			genre_dict = dialogs.genres_choice(self.media_type, self.genre, '', return_genres=True)
@@ -411,7 +411,7 @@ class Extras(BaseDialog):
 		except Exception: pass
 
 	def make_network(self):
-		if not networks_id in self.enabled_lists: return
+		if networks_id not in self.enabled_lists: return
 		try:
 			network = self.meta['studio']
 			if self.media_type == 'movie':
@@ -431,7 +431,7 @@ class Extras(BaseDialog):
 		except Exception: pass
 
 	def make_collection(self):
-		if not collection_id in self.enabled_lists: return
+		if collection_id not in self.enabled_lists: return
 		try: coll_id = self.meta['extra_info']['collection_id']
 		except Exception: coll_id = self.meta['extra_info']['ei_collection_id']
 		if not coll_id: return
