@@ -139,7 +139,7 @@ def upload_LogFile():
 		from fenom.control import addonVersion, selectDialog
 		with open(log_file, 'r', encoding='utf-8', errors='ignore') as f:
 			text = f.read()
-		UserAgent = 'FenomScrpaers %s' % addonVersion()
+		UserAgent = 'FenomScrapers %s' % addonVersion()
 		response = requests.post(url + 'documents', data=text.encode('utf-8', errors='ignore'), headers={'User-Agent': UserAgent}, timeout=30)
 		# log('log_response: ' + str(response))
 		response_data = response.json()

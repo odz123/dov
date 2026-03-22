@@ -269,6 +269,7 @@ def remove_lang(release_info, check_foreign_audio):
 
 def remove_undesirables(release_info, undesirables):
 	if any(value in release_info for value in undesirables): return True
+	return False
 
 def filter_season_pack(show_title, aliases, year, season, release_title):
 	if len(release_title) > MAX_RELEASE_TITLE_LEN: return False, 0, 0
