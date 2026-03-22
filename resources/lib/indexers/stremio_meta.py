@@ -249,6 +249,8 @@ class StremioMetaProvider:
 
 		results = []
 		threads = []
+		from threading import Lock
+		_results_lock = Lock()
 
 		def fetch_one(addon):
 			addon_url = addon.get('config_url', '') or addon.get('url', '')
@@ -265,7 +267,8 @@ class StremioMetaProvider:
 				return
 			meta = self.fetch_meta(addon_url, media_type, media_id)
 			if meta:
-				results.append(meta)
+				with _results_lock:
+					results.append(meta)
 
 		for addon in addons:
 			t = Thread(target=fetch_one, args=(addon,))

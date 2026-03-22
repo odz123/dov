@@ -200,7 +200,7 @@ def mdbl_modify_collection(data, action='add'):
 	if 'shows' in data: data['shows'] = [{'ids': i} for i in data['shows']]
 	result = call_mdblist(url, json=data, method='post')
 	if not result: return False
-	success = key in result and any(result[key][i] for i in ('movies', 'shows'))
+	success = key in result and any(result.get(key, {}).get(i, 0) for i in ('movies', 'shows'))
 	return success
 
 def mdbl_modify_list(list_id, data, action='add'):
@@ -210,7 +210,7 @@ def mdbl_modify_list(list_id, data, action='add'):
 	result = call_mdblist(url, json=data, method='post')
 	if not result: return False
 	key = 'added' if action == 'add' else 'removed'
-	success = key in result and any(result[key][i] for i in ('movies', 'shows'))
+	success = key in result and any(result.get(key, {}).get(i, 0) for i in ('movies', 'shows'))
 	return success
 
 def mdbl_watched_unwatched(action, media, media_id, tvdb_id=0, data=None, season=None, episode=None, key='tmdb'):

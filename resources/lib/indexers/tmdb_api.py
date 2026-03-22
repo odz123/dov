@@ -447,7 +447,8 @@ def english_translation(media_type, tmdb_id, tmdb_api=None):
 		string = 'english_translation_%s_%s' % (media_type, tmdb_id)
 		url = '%s/%s/%s/translations?api_key=%s' % (base_url, media_type, tmdb_id, get_tmdb_api(tmdb_api))
 		result = cache_function(get_tmdb, string, url, EXPIRES_1_WEEK * 52)
-		try: result = result['translations']
+		if not result: return None
+		try: result = result.get('translations')
 		except Exception: result = None
 		return result
 	except Exception: return None
