@@ -332,9 +332,9 @@ def folder_scraper_manager_choice(folder_info=None):
 			set_setting(name_setting % folder_no,  _get_property(name_setting % folder_no))
 			set_setting(movie_dir_setting % folder_no,  _get_property(movie_dir_setting % folder_no))
 			set_setting(tvshow_dir_setting % folder_no,  _get_property(tvshow_dir_setting % folder_no))
-			_clear_property('pov_%s' % name_setting % folder_no)
-			_clear_property('pov_%s' % movie_dir_setting % folder_no)
-			_clear_property('pov_%s' % tvshow_dir_setting % folder_no)
+			_clear_property('pov_%s' % (name_setting % folder_no))
+			_clear_property('pov_%s' % (movie_dir_setting % folder_no))
+			_clear_property('pov_%s' % (tvshow_dir_setting % folder_no))
 	def _return(passed_folder_info):
 		return folder_scraper_manager_choice(passed_folder_info)
 	def _make_folders():
@@ -533,20 +533,20 @@ def options_menu(params, meta=None):
 	scraper_options_str = '%s %s' % (ls(32533), ls(32841))
 	multi_line = 'true' if content in ('movie', 'episode') else 'false'
 	listing = (
-		('scrape_from_episode_group', 'Scrape From Episode Group', scraper_options_str, meta['poster']) if content == 'episode' else None,
-		('clear_and_rescrape', ls(32014), scraper_options_str, meta['poster']) if multi_line == 'true' else None,
-		('rescrape_with_disabled', ls(32006), scraper_options_str, meta['poster']) if multi_line == 'true' else None,
-		('scrape_with_filters_ignored', ls(32807), scraper_options_str, meta['poster']) if multi_line == 'true' else None,
-		('scrape_with_custom_values', ls(32135), scraper_options_str, meta['poster']) if multi_line == 'true' else None,
-		('play_random', ls(32541), '', meta['poster']) if content in ('tvshow') and meta else None,
-		('play_random_continual', ls(32542), '', meta['poster']) if content in ('tvshow') and meta else None,
+		('scrape_from_episode_group', 'Scrape From Episode Group', scraper_options_str, meta.get('poster', '')) if content == 'episode' else None,
+		('clear_and_rescrape', ls(32014), scraper_options_str, meta.get('poster', '')) if multi_line == 'true' else None,
+		('rescrape_with_disabled', ls(32006), scraper_options_str, meta.get('poster', '')) if multi_line == 'true' else None,
+		('scrape_with_filters_ignored', ls(32807), scraper_options_str, meta.get('poster', '')) if multi_line == 'true' else None,
+		('scrape_with_custom_values', ls(32135), scraper_options_str, meta.get('poster', '')) if multi_line == 'true' else None,
+		('play_random', ls(32541), '', meta.get('poster', '')) if content in ('tvshow') and meta else None,
+		('play_random_continual', ls(32542), '', meta.get('poster', '')) if content in ('tvshow') and meta else None,
 		('clear_scrapers_cache', ls(32637), '') if content in ('movie', 'episode') else None,
 		('open_external_scrapers_choice', '%s %s' % (ls(32118), ls(32513)), ''),
 		('toggle_torrents_display_uncached', base_str1 % ('', ls(32160)), base_str2 % uncached_torrents_status) if multi_line == 'true' and 'external' in active_internal_scrapers else None,
 		('set_results_xml_display', base_str1 % ('', '%s %s' % (ls(32139), ls(32140))), base_str2 % results_xml_style_status) if multi_line == 'true' else None,
 		('clear_trakt_cache', ls(32497) % ls(32037), '') if watched_indicators == 1 else None,
 		('clear_mdbl_cache', ls(32497) % 'MDBList', '') if watched_indicators == 2 else None,
-		('clear_media_cache', ls(32604) % (ls(32028) if content in ('movie') else ls(32029)), '', meta['poster']) if content in ('movie', 'tvshow') and meta else None,
+		('clear_media_cache', ls(32604) % (ls(32028) if content in ('movie') else ls(32029)), '', meta.get('poster', '')) if content in ('movie', 'tvshow') and meta else None,
 		('open_pov_settings', '%s %s %s' % (open_str, ls(32036), settings_str), ''),
 		('reload_widgets', 'POV: Refresh Widgets', '') if is_widget else None
 	)
@@ -691,7 +691,7 @@ def scrape_from_episode_group(meta, season=None, episode=None):
 	from indexers.tmdb_api import episode_groups, episode_group_details
 	from modules.sources import SourceSelect
 	user_info = settings.metadata_user_info()
-	tmdb_id, heading, poster = meta['tmdb_id'], meta['tvshowtitle'], meta['poster']
+	tmdb_id, heading, poster = meta['tmdb_id'], meta.get('tvshowtitle', meta.get('title', '')), meta.get('poster', '')
 	groups = episode_groups(tmdb_id, user_info['tmdb_api'])
 	choices = [
 		(item['id'], '%s (%s)' % (item['name'], item['type']), '%s Groups, %s Episodes' % (item['group_count'], item['episode_count']))

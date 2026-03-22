@@ -62,8 +62,9 @@ class source:
 		for file in files:
 			try:
 				package, episode_start = None, 0
-				hash = file['infoHash']
-				file_title = file['title'].split('\n')
+				hash = file.get('infoHash', '')
+				if not hash: continue
+				file_title = file.get('title', '').split('\n')
 				file_info = next((x for x in file_title if _INFO_PATTERN.search(x)), '')
 
 				name = source_utils.clean_name(file_title[0])

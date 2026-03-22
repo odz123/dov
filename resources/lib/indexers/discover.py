@@ -24,7 +24,7 @@ listitem_position = {
 class Discover:
 	def __init__(self, params):
 		self.view = 'view.main'
-		self.media_type, self.key = params.get('media_type'), params.get('key')
+		self.media_type, self.key = params.get('media_type', ''), params.get('key')
 		self.window_id = 'POV_%s_discover_params' % self.media_type.upper() if self.media_type else ''
 		try: self.discover_params = json.loads(kodi_utils.get_property(self.window_id))
 		except Exception: self.discover_params = {}
@@ -319,12 +319,12 @@ class Discover:
 		if self._action(key) in ('clear', None): return
 		current_company_ids = self.discover_params['search_string'].get(key, [])
 		current_companies = self.discover_params['search_name'].get(key, [])
-		company_ids_append = current_company_ids.append
-		company_append = current_companies.append
 		if not isinstance(current_company_ids, list):
 			current_company_ids = current_company_ids.replace('&with_companies=', '').split('|')
 		if not isinstance(current_companies, list):
 			current_companies = current_companies.split(', ')
+		company_ids_append = current_company_ids.append
+		company_append = current_companies.append
 		company = kodi_utils.dialog.input(heading_base % ls(32660))
 		if company:
 			company_choice = None

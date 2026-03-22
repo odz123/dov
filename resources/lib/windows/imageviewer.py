@@ -53,7 +53,7 @@ class ThumbImageViewer(BaseDialog):
 	def make_page(self):
 		try:
 			self.set_properties()
-			if self.next_page_params.get('page_no', 'final_page') != 'final_page': self.make_next_page()
+			if self.next_page_params and self.next_page_params.get('page_no', 'final_page') != 'final_page': self.make_next_page()
 			self.win = self.getControl(self.window_id)
 			self.win.addItems(self.list_items)
 			self.setFocusId(self.window_id)
@@ -154,7 +154,8 @@ class SlideShow(BaseDialog):
 		BaseDialog.__init__(self, args)
 		self.window_id = 5000
 		self.all_images = kwargs.get('all_images')
-		self.index = kwargs.get('index')
+		self.index = kwargs.get('index', 0)
+		self.position = self.index
 		self.set_properties()
 		self.make_items()
 

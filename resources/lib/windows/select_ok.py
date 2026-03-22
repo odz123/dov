@@ -145,7 +145,7 @@ class YesNo(BaseDialog):
 class OK(BaseDialog):
 	def __init__(self, *args, **kwargs):
 		BaseDialog.__init__(self, args)
-		self.ok_label = kwargs.get('ok_label')
+		self.ok_label = kwargs.get('ok_label', 'OK')
 		self.text = kwargs['text']
 		self.highlight = kwargs['highlight']
 		self.heading = kwargs['heading']

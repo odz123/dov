@@ -19,9 +19,9 @@ class VideoPlayer(BaseDialog):
 		if action in self.closing_actions:
 			self.player.stop()
 			self.exit()
-		elif action == self.left_actions and video_playing:
+		elif action in self.left_actions and video_playing:
 			self.execute_code('Seek(-10.0)')
-		elif action == self.right_actions and video_playing:
+		elif action in self.right_actions and video_playing:
 			self.execute_code('Seek(10.0)')
 
 	def monitor(self):

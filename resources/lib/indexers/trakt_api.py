@@ -16,9 +16,9 @@ EXPIRES_2_DAYS = 48
 _rate_limit_lock = Lock()
 _rate_limit_remaining = {'get': 1000, 'post': 1}
 _rate_limit_reset = {'get': 0, 'post': 0}
-V2_API_KEY = get_setting('trakt.client_id')
-CLIENT_SECRET = get_setting('trakt.client_secret')
 REDIRECT_URI = 'urn:ietf:wg:oauth:2.0:oob'
+def _get_v2_api_key(): return get_setting('trakt.client_id')
+def _get_client_secret(): return get_setting('trakt.client_secret')
 base_url = 'https://api.trakt.tv/%s'
 timeout = 10.05
 session = requests.Session()
@@ -62,7 +62,7 @@ def get_rate_limit_status():
 		}
 
 def call_trakt(path, params=None, data=None, with_auth=True, method=None, pagination=False, page=1):
-	headers = {'trakt-api-key': V2_API_KEY, 'trakt-api-version': '2', 'Content-Type': 'application/json'}
+	headers = {'trakt-api-key': _get_v2_api_key(), 'trakt-api-version': '2', 'Content-Type': 'application/json'}
 	if with_auth and (token := settings.trakt_token()): headers['Authorization'] = 'Bearer %s' % token
 	if pagination:
 		if params is None: params = {}
@@ -113,7 +113,7 @@ def get_trakt(params):
 
 def trakt_refresh():
 	try:
-		data = {'client_id': V2_API_KEY, 'client_secret': CLIENT_SECRET, 'redirect_uri': REDIRECT_URI}
+		data = {'client_id': _get_v2_api_key(), 'client_secret': _get_client_secret(), 'redirect_uri': REDIRECT_URI}
 		data.update({'refresh_token': get_setting('trakt.refresh'), 'grant_type': 'refresh_token'})
 		response = call_trakt('oauth/token', data=data, with_auth=False)
 		expires = int(response['created_at']) + int(response['expires_in'])
@@ -196,10 +196,12 @@ def trakt_tvanime_most_watched(page_no):
 
 def trakt_get_hidden_items(list_type):
 	def _get_trakt_ids(item):
-		tmdb_id = get_trakt_tvshow_id(item['show']['ids'])
-		results_append(tmdb_id)
+		tmdb_id = get_trakt_tvshow_id(item.get('show', {}).get('ids', {}))
+		if tmdb_id:
+			results_append(tmdb_id)
 	def _process(url):
 		hidden_data = get_trakt(url)
+		if not hidden_data: return results
 		threads = list(make_thread_list(_get_trakt_ids, hidden_data, Thread))
 		for i in threads: i.join()
 		return results
@@ -509,9 +511,9 @@ def trakt_unlike_a_list(params):
 	except Exception: kodi_utils.notification(32574)
 
 def get_trakt_movie_id(item):
-	if item['tmdb']: return item['tmdb']
+	if item.get('tmdb'): return item['tmdb']
 	tmdb_id = None
-	if item['imdb']:
+	if item.get('imdb'):
 		try:
 			meta = movie_external_id('imdb_id', item['imdb'])
 			tmdb_id = meta['id']
@@ -519,15 +521,15 @@ def get_trakt_movie_id(item):
 	return tmdb_id
 
 def get_trakt_tvshow_id(item):
-	if item['tmdb']: return item['tmdb']
+	if item.get('tmdb'): return item['tmdb']
 	tmdb_id = None
-	if item['imdb']:
+	if item.get('imdb'):
 		try:
 			meta = tvshow_external_id('imdb_id', item['imdb'])
 			tmdb_id = meta['id']
 		except Exception: tmdb_id = None
 	if not tmdb_id:
-		if item['tvdb']:
+		if item.get('tvdb'):
 			try:
 				meta = tvshow_external_id('tvdb_id', item['tvdb'])
 				tmdb_id = meta['id']
@@ -536,43 +538,50 @@ def get_trakt_tvshow_id(item):
 
 def trakt_indicators_movies():
 	def _process(item):
-		movie = item['movie']
-		title = movie['title']
-		tmdb_id = get_trakt_movie_id(movie['ids'])
+		movie = item.get('movie', {})
+		title = movie.get('title', '')
+		tmdb_id = get_trakt_movie_id(movie.get('ids', {}))
 		if not tmdb_id: return
-		insert_append(('movie', tmdb_id, '', '', item['last_watched_at'], title))
+		with _insert_lock:
+			insert_append(('movie', tmdb_id, '', '', item.get('last_watched_at', ''), title))
 	insert_list = []
 	insert_append = insert_list.append
-	result = [(i,) for i in call_trakt('sync/watched/movies')] # TaskPool requires tuple
-#	threads = list(make_thread_list(_process, result, Thread))
+	_insert_lock = Lock()
+	api_result = call_trakt('sync/watched/movies')
+	if not api_result: return
+	result = [(i,) for i in api_result] # TaskPool requires tuple
 	for i in TaskPool().tasks(_process, result, Thread): i.join()
 	with trakt_cache.TraktCache() as tc:
 		tc.set_bulk_movie_watched(insert_list)
 
 def trakt_indicators_tv():
 	def _process(item):
-		show, seasons = item['show'], item['seasons']
-		title = show['title']
-		tmdb_id = get_trakt_tvshow_id(show['ids'])
+		show, seasons = item.get('show', {}), item.get('seasons', [])
+		title = show.get('title', '')
+		tmdb_id = get_trakt_tvshow_id(show.get('ids', {}))
 		if not tmdb_id: return
 		reset_at = item.get('reset_at')
 		if reset_at: reset_at = js2date(reset_at, '%Y-%m-%dT%H:%M:%S.%fZ')
 		for s in seasons:
-			season_no, episodes = s['number'], s['episodes']
+			season_no, episodes = s.get('number', 0), s.get('episodes', [])
 			for e in episodes:
 				if reset_at and reset_at > js2date(e['last_watched_at'], '%Y-%m-%dT%H:%M:%S.%fZ'): continue
-				insert_append(('episode', tmdb_id, season_no, e['number'], e['last_watched_at'], title))
+				with _insert_lock:
+					insert_append(('episode', tmdb_id, season_no, e['number'], e['last_watched_at'], title))
 	insert_list = []
 	insert_append = insert_list.append
-	result = [(i,) for i in call_trakt('sync/watched/shows?extended=full')] # TaskPool requires tuple
-#	threads = list(make_thread_list(_process, result, Thread))
+	_insert_lock = Lock()
+	api_result = call_trakt('sync/watched/shows?extended=full')
+	if not api_result: return
+	result = [(i,) for i in api_result] # TaskPool requires tuple
 	for i in TaskPool().tasks(_process, result, Thread): i.join()
 	with trakt_cache.TraktCache() as tc:
 		tc.set_bulk_tvshow_watched(insert_list)
 
 def trakt_playback_progress():
 	url = {'path': 'sync/playback%s', 'with_auth': True, 'pagination': False}
-	return get_trakt(url)
+	result = get_trakt(url)
+	return result if isinstance(result, list) else []
 
 def trakt_progress_movies(progress_info):
 	def _process(item):
@@ -640,6 +649,7 @@ def trakt_official_status(media_type):
 def trakt_get_my_calendar(recently_aired, current_date):
 	def _process(dummy):
 		data = get_trakt(url)
+		if not data: return []
 		data = [
 			{'sort_title': '%s s%s e%s' % (i['show']['title'], str(i['episode']['season']).zfill(2), str(i['episode']['number']).zfill(2)),
 			'media_ids': i['show']['ids'], 'season': i['episode']['season'], 'episode': i['episode']['number'], 'first_aired': i['first_aired']}
@@ -658,6 +668,7 @@ def trakt_get_my_calendar(recently_aired, current_date):
 def trakt_my_anime_calendar(current_date):
 	def _process(dummy):
 		data = get_trakt(url)
+		if not data: return []
 		data = [
 			{'sort_title': '%s s%s e%s' % (i['show']['title'], str(i['episode']['season']).zfill(2), str(i['episode']['number']).zfill(2)),
 			'media_ids': i['show']['ids'], 'season': i['episode']['season'], 'episode': i['episode']['number'], 'first_aired': i['first_aired']}
@@ -676,6 +687,7 @@ def trakt_my_anime_calendar(current_date):
 def trakt_anime_calendar(current_date):
 	def _process(dummy):
 		data = get_trakt(url)
+		if not data: return []
 		data = [
 			{'sort_title': '%s s%s e%s' % (i['show']['title'], str(i['episode']['season']).zfill(2), str(i['episode']['number']).zfill(2)),
 			'media_ids': i['show']['ids'], 'season': i['episode']['season'], 'episode': i['episode']['number'], 'first_aired': i['first_aired']}

@@ -101,5 +101,6 @@ def resolve_rd(params):
 	url = params['url']
 	resolved_link = Debrid().unrestrict_link(url)
 	if params.get('play', 'false') != 'true' : return resolved_link
-	kodi_utils.player.play(resolved_link)
+	if resolved_link: kodi_utils.player.play(resolved_link)
+	else: kodi_utils.notification(32574)
 

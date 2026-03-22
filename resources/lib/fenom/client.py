@@ -192,7 +192,7 @@ def request(url, close=True, redirect=True, error=False, proxy=None, post=None, 
 			try: response_code = str(response.code)
 			except Exception: response_code = ''
 			try: cookie = '; '.join(['%s=%s' % (i.name, i.value) for i in cookies])
-			except Exception: pass
+			except Exception: cookie = ''
 			if close: response.close()
 			return (result, response_code, response_headers, headers, cookie)
 		else:
@@ -324,6 +324,7 @@ class bfcookie:
 	# not very robust but lazieness...
 	def getCookieString(self, content, rcksid):
 		vars = re.findall(r'toNumbers\("([^"]+)"', content)
+		if len(vars) < 3: return None
 		value = self._decrypt(vars[2], vars[0], vars[1])
 		cookie = "%s=%s;%s" % (self.COOKIE_NAME, value, rcksid)
 		return cookie

@@ -13,6 +13,7 @@ class DebridCache(BaseCache):
 	def get_many(self, hash_list):
 		result = None
 		try:
+			if not hash_list: return result
 			current_time = self._get_timestamp(datetime.now())
 			self.dbcur.execute(GET_MANY % (', '.join('?' for _ in hash_list)), hash_list)
 			cache_data = self.dbcur.fetchall()

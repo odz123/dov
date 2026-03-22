@@ -494,8 +494,8 @@ def imdb_build_keyword_results(media_type, query):
 
 def imdb_sort_list():
 	# From Exodus Codebase
-	sort = int(get_setting('imdb_lists.sort_type'))
-	sort_order = int(get_setting('imdb_lists.sort_direction'))
+	sort = int(get_setting('imdb_lists.sort_type', '0'))
+	sort_order = int(get_setting('imdb_lists.sort_direction', '0'))
 	if sort == 0: imdb_sort = 'list_order' # Default
 	elif sort == 1: imdb_sort = 'alpha' # Alphabetical
 	elif sort == 2: imdb_sort = 'user_rating' # IMDb Rating
@@ -505,6 +505,7 @@ def imdb_sort_list():
 	elif sort == 6: imdb_sort = 'release_date' # Release Date
 	elif sort == 7: imdb_sort = 'runtime' # Runtime
 	elif sort == 8: imdb_sort = 'date_added' # Date Added
+	else: imdb_sort = 'list_order' # Default fallback
 	imdb_sort_order = ',asc' if sort_order == 0 else ',desc'
 	sort_string = imdb_sort + imdb_sort_order
 	return sort_string

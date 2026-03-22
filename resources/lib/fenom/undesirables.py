@@ -9,22 +9,38 @@ from fenom.control import existsPath, dataPath, makeFile, undesirablescacheFile,
 class Undesirables():
 	def get_enabled(self):
 		self.make_database_objects()
-		results = self.dbcur.execute('SELECT keyword FROM undesirables WHERE enabled = ?', (True,))
+		try:
+			results = self.dbcur.execute('SELECT keyword FROM undesirables WHERE enabled = ?', (True,))
+		except Exception:
+			self.dbcon.close()
+			raise
 		return self.process_keywords(results)
 
 	def get_default(self):
 		self.make_database_objects()
-		results = self.dbcur.execute('SELECT keyword FROM undesirables WHERE user_defined = ?', (False,))
+		try:
+			results = self.dbcur.execute('SELECT keyword FROM undesirables WHERE user_defined = ?', (False,))
+		except Exception:
+			self.dbcon.close()
+			raise
 		return self.process_keywords(results)
 
 	def get_user_defined(self):
 		self.make_database_objects()
-		results = self.dbcur.execute('SELECT keyword FROM undesirables WHERE user_defined = ?', (True,))
+		try:
+			results = self.dbcur.execute('SELECT keyword FROM undesirables WHERE user_defined = ?', (True,))
+		except Exception:
+			self.dbcon.close()
+			raise
 		return self.process_keywords(results)
 
 	def get_all(self):
 		self.make_database_objects()
-		results = self.dbcur.execute('SELECT keyword FROM undesirables')
+		try:
+			results = self.dbcur.execute('SELECT keyword FROM undesirables')
+		except Exception:
+			self.dbcon.close()
+			raise
 		return self.process_keywords(results)
 
 	def set_many(self, undesirables):
@@ -83,18 +99,19 @@ class Undesirables():
 def undesirablesSelect():
 	from fenom.control import multiselectDialog
 	from fenom.source_utils import UNDESIRABLES
+	undesirables_list = sorted(UNDESIRABLES)
 	undesirables_cache = Undesirables()
 	chosen = undesirables_cache.get_enabled()
 	# Build index map for O(1) lookup instead of O(n²) .index() calls
-	idx_map = {item: idx for idx, item in enumerate(UNDESIRABLES)}
+	idx_map = {item: idx for idx, item in enumerate(undesirables_list)}
 	try: preselect = [idx_map[i] for i in chosen if i in idx_map]
-	except Exception: preselect = list(range(len(UNDESIRABLES)))  # O(n) instead of O(n²)
-	choices = multiselectDialog(UNDESIRABLES, preselect=preselect, heading=lang(32085))
+	except Exception: preselect = list(range(len(undesirables_list)))  # O(n) instead of O(n²)
+	choices = multiselectDialog(undesirables_list, preselect=preselect, heading=lang(32085))
 	if not choices: return
-	enabled = [UNDESIRABLES[i] for i in choices]
+	enabled = [undesirables_list[i] for i in choices]
 	enabled_set = set(enabled)  # O(1) lookup
-	disabled = [i for i in UNDESIRABLES if i not in enabled_set]
-	new_settings = [(i, False, i in enabled) for i in UNDESIRABLES]
+	disabled = [i for i in undesirables_list if i not in enabled_set]
+	new_settings = [(i, False, i in enabled_set) for i in undesirables_list]
 	undesirables_cache.set_many(new_settings)
 
 def undesirablesUserRemove():

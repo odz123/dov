@@ -72,12 +72,12 @@ class RealDebridAPI:
 	def delete_torrent(self, folder_id):
 		url = 'torrents/delete/%s' % folder_id
 		result = self._request('delete', url)
-		return True if result is not None and result.ok else False
+		return True if result is not None and hasattr(result, 'ok') and result.ok else False
 
 	def delete_download(self, download_id):
 		url = 'downloads/delete/%s' % download_id
 		result = self._request('delete', url)
-		return True if result is not None and result.ok else False
+		return True if result is not None and hasattr(result, 'ok') and result.ok else False
 
 	def unrestrict_link(self, link):
 		url = 'unrestrict/link'
@@ -129,10 +129,11 @@ class RealDebridAPI:
 		try:
 			extensions = supported_video_extensions()
 			torrent_id = self.create_transfer(magnet_url)
+			if not torrent_id: raise Exception('real debrid failed to create transfer')
 			for key in ['ended'] * 3:
 				kodi_utils.sleep(500)
 				torrent_info = self.torrent_info(torrent_id)
-				if key in torrent_info: break
+				if isinstance(torrent_info, dict) and key in torrent_info: break
 			else: raise Exception('real debrid uncached magnet')
 			torrent_files = (i for i in torrent_info['files'] if i['selected'])
 			torrent_files = [
@@ -157,7 +158,7 @@ class RealDebridAPI:
 		string = 'pov_rd_user_cloud'
 		url = 'torrents?limit=500'
 		result = cache_object(self._get, string, url, False, 0.5)
-		if completed: result = [i for i in result if i.get('ended')]
+		if completed: result = [i for i in (result or []) if i.get('ended')]
 		return result
 
 	def user_cloud_info(self, file_id):

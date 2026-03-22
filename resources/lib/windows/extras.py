@@ -452,8 +452,8 @@ class Extras(BaseDialog):
 	def get_release_year(self, release_data):
 		try:
 			if release_data in ('', None): release_data = 'N/A'
-			else: release_data = release_data.split('-')[0]
-		except Exception: pass
+			else: release_data = str(release_data).split('-')[0]
+		except Exception: release_data = 'N/A'
 		return release_data
 
 	def get_finish(self):

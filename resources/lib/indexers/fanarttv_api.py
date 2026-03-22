@@ -44,10 +44,12 @@ def parse_art(art, language):
 		if not result and language != 'en': result = [(x['url'], x['likes']) for x in art if x.get('lang') == 'en']
 		if not result: result = [(x['url'], x['likes']) for x in art if any(value == x.get('lang') for value in ('00', ''))]
 		if result:
-			result.sort(key=lambda x: int(x[1]), reverse=True)
+			result.sort(key=lambda x: int(x[1]) if str(x[1]).isdigit() else 0, reverse=True)
 			result = result[0][0]
+		else:
+			result = ''
 	except Exception: result = ''
-	if 'http' not in result: result = ''
+	if not isinstance(result, str) or 'http' not in result: result = ''
 	return result
 
 def add(media_type, language, media_id, client_key, meta):

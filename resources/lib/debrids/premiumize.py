@@ -96,6 +96,7 @@ class Indexer(Debrid):
 				else:
 					is_folder = False
 					details = self.get_item_details(item['file_id'])
+					if not details or not isinstance(details, dict): continue
 					url_link = details['link']
 					if url_link.startswith('/'): url_link = 'https:' + url_link
 					size = details['size']

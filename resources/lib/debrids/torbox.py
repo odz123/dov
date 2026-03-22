@@ -77,7 +77,7 @@ class Indexer(Debrid):
 			append = body.append
 			append(ls(32758) % account_info['email'])
 			append(ls(32755) % account_info['customer'])
-			append(ls(32757) % plans[account_info['plan']])
+			append(ls(32757) % plans.get(account_info['plan'], 'Unknown'))
 			append(ls(32750) % expires.strftime('%Y-%m-%d'))
 			append(ls(32751) % days_remaining)
 			append('[B]Downloaded[/B]: %s' % account_info['total_downloaded'])
@@ -91,4 +91,5 @@ def resolve_tb(params):
 	elif media_type == 'webdl': resolved_link = Debrid().unrestrict_webdl(file_id)
 	else: resolved_link = Debrid().unrestrict_link(file_id)
 	if params.get('play', 'false') != 'true': return resolved_link
-	kodi_utils.player.play(resolved_link)
+	if resolved_link: kodi_utils.player.play(resolved_link)
+	else: kodi_utils.notification(32574)

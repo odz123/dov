@@ -19,7 +19,7 @@ def get_random_episode(tmdb_id, continual=False):
 		episodes_data = [i for i in all_episodes_meta_with_stremio(meta, meta_user_info, Thread) if i['premiered']]
 		episodes_data = [i for i in episodes_data if not i['season'] == 0 and adjust_premiered_date(i['premiered'], adjust_hours)[0] <= current_date]
 	except Exception: episodes_data = []
-	if not episodes_data: return None
+	if not episodes_data: return None, None
 	if continual:
 		episode_history = {}
 		episode_list = []

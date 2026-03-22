@@ -62,9 +62,8 @@ class OffcloudAPI:
 		return self._get(url)
 
 	def delete_torrent(self, request_id):
-		params = {'key': self.token}
 		url = 'https://offcloud.com/cloud/remove/%s' % request_id
-		result = self._get(url, params=params)
+		result = self._get(url)
 		return True if isinstance(result, dict) and result.get('success') else False
 
 	def unrestrict_link(self, link):
@@ -96,6 +95,7 @@ class OffcloudAPI:
 		try:
 			extensions = supported_video_extensions()
 			torrent = self.add_magnet(magnet_url)
+			if not isinstance(torrent, dict) or 'requestId' not in torrent: raise Exception('offcloud failed to add magnet')
 			torrent_id = torrent['requestId']
 			torrent_files = self.torrent_info(torrent_id)
 			if isinstance(torrent_files, list): pass

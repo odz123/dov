@@ -36,7 +36,7 @@ def autoplay_next_window_percentage():
 	return int(get_setting('autoplay_next_window_percentage', '95'))
 
 def autoplay_next_window_timer_method():
-	return {'0': 'time', '1': 'percentage'}[get_setting('autoplay_next_window_timer_method')]
+	return {'0': 'time', '1': 'percentage'}.get(get_setting('autoplay_next_window_timer_method', '0'), 'time')
 
 def autoplay_next_settings():
 	scraper_time = int(get_setting('scrapers.timeout.1', '60')) + 20
@@ -77,7 +77,7 @@ def date_offset():
 	return int(get_setting('datetime.offset', '0')) + 5
 
 def default_all_episodes():
-	return int(get_setting('default_all_episodes'))
+	return int(get_setting('default_all_episodes', '0'))
 
 def display_sleep_time():
 	return 100
@@ -246,8 +246,8 @@ def nav_jump_use_alphabet():
 def nextep_content_settings():
 	include_unaired = get_setting('nextep.include_unaired') == 'true'
 	include_unwatched = False # get_setting('nextep.include_unwatched') == 'true'
-	sort_type = int(get_setting('nextep.sort_type'))
-	sort_order = int(get_setting('nextep.sort_order'))
+	sort_type = int(get_setting('nextep.sort_type', '0'))
+	sort_order = int(get_setting('nextep.sort_order', '0'))
 	sort_direction = sort_order == 0
 	sort_key = 'pov_last_played' if sort_type == 0 else 'pov_first_aired' if sort_type == 1 else 'pov_name'
 	sort_airing_today_to_top = get_setting('nextep.sort_airing_today_to_top', 'false') == 'true'
@@ -268,7 +268,9 @@ def page_limit():
 	return int(get_setting('page_limit', '20'))
 
 def quality_filter(setting):
-	return get_setting(setting).split(', ')
+	value = get_setting(setting)
+	if not value: return ['4K', '1080p', '720p', 'SD']
+	return value.split(', ')
 
 def results_sort_order():
 	direction = 1 if get_setting('results.sort_size') == '1' else -1
@@ -286,7 +288,7 @@ def results_xml_style():
 
 def results_xml_window_number(window_style=None):
 	if not window_style: window_style = results_xml_style()
-	return {'list': 2000, 'infolist': 2001, 'widelist': 2002}[window_style.split(' ')[0]]
+	return {'list': 2000, 'infolist': 2001, 'widelist': 2002}.get(window_style.split(' ')[0], 2000)
 
 def rpdb_api_key():
 	return get_setting('rpdb_api_key')
@@ -428,7 +430,7 @@ def scraping_settings():
 		highlight_4K = get_setting('scraper_4k_highlight', 'fuchsia')
 		highlight_1080P = get_setting('scraper_1080p_highlight', 'lawngreen')
 		highlight_720P = get_setting('scraper_720p_highlight', 'gold')
-		highlight_SD = get_setting('scraper_SD_highlight', 'lightsaltegray')
+		highlight_SD = get_setting('scraper_SD_highlight', 'lightslategray')
 	return {
 		'alldebrid': ad_highlight, 'ad_cloud': debrid_cloud_highlight,
 		'premiumize': pm_highlight, 'pm_cloud': debrid_cloud_highlight,

@@ -117,13 +117,13 @@ class People(BaseDialog):
 		if self.person_deathday: self.person_age = calculate_age(self.person_birthday, '%Y-%m-%d', self.person_deathday)
 		elif self.person_birthday: self.person_age = calculate_age(self.person_birthday, '%Y-%m-%d')
 		else: self.person_age = ''
-		self.imdb_id = person_info['imdb_id']
+		self.imdb_id = person_info.get('imdb_id', '')
 		more_from_data = person_info['combined_credits']
 		acting_data = more_from_data['cast']
 		directing_data = more_from_data['crew']
 		self.movie_data = [i for i in acting_data if i['media_type'] == 'movie']
 		self.tvshow_data = [i for i in acting_data if i['media_type'] == 'tv']
-		self.director_data = [i for i in directing_data if i['job'].lower() == 'director']
+		self.director_data = [i for i in directing_data if i.get('job', '').lower() == 'director']
 
 	def make_more_from(self, media_type):
 		try:
@@ -132,14 +132,14 @@ class People(BaseDialog):
 				_id = more_from_movies_id
 				data = self.movie_data
 				if self.exclude_non_acting:
-					try: data = [i for i in data if 99 not in i['genre_ids'] and i['character'].lower() not in roles_exclude]
+					try: data = [i for i in data if 99 not in i.get('genre_ids', []) and i.get('character', '').lower() not in roles_exclude]
 					except Exception: pass
 			elif media_type == 'tvshow':
 				list_type = media_type
 				_id = more_from_tvshows_id
 				data = self.tvshow_data
 				if self.exclude_non_acting:
-					try: data = [i for i in data if not any(x in genres_exclude for x in i['genre_ids']) and not i['character'].lower() in roles_exclude]
+					try: data = [i for i in data if not any(x in genres_exclude for x in i.get('genre_ids', [])) and not i.get('character', '').lower() in roles_exclude]
 					except Exception: pass
 			else:#director
 				list_type = 'movie'

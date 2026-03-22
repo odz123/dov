@@ -213,13 +213,16 @@ class StremioIndexer:
 		"""Fetch multiple addon manifests in parallel"""
 		results = {}
 		threads = []
+		from threading import Lock
+		_results_lock = Lock()
 
 		def fetch_one(addon):
 			addon_url = addon.get('config_url', '') or addon.get('url', '')
 			if addon_url:
 				manifest = self.fetch_manifest(addon_url)
 				if manifest:
-					results[addon_url] = manifest
+					with _results_lock:
+						results[addon_url] = manifest
 
 		for addon in addons:
 			t = Thread(target=fetch_one, args=(addon,))
@@ -839,6 +842,8 @@ class StremioIndexer:
 
 		all_results = []
 		threads = []
+		from threading import Lock
+		_results_lock = Lock()
 
 		def search_addon(addon_url, manifest):
 			catalogs = manifest.get('catalogs', [])
@@ -863,7 +868,8 @@ class StremioIndexer:
 					result['_addon_name'] = manifest.get('name', 'Unknown')
 					result['_addon_url'] = addon_url
 					result['_catalog_type'] = catalog_type
-					all_results.append(result)
+				with _results_lock:
+					all_results.extend(results)
 
 		for addon in addons:
 			addon_url = addon.get('config_url', '') or addon.get('url', '')
