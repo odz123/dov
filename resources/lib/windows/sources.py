@@ -74,43 +74,51 @@ class SourceResults(BaseDialog):
 			if not 'UNCACHED' in chosen_listitem.getProperty('tikiskins.source_type'):
 				self.selected = ('play', json.loads(chosen_listitem.getProperty('source')))
 				return self.close()
-			source = json.loads(chosen_listitem.getProperty('source'))
-			magnet_url = str(source.get('url')).startswith('magnet')
-			if magnet_url: link = Source(source, self.meta).manual_add_magnet_to_cloud()
-			else: link = Source(source, self.meta).manual_add_nzb_to_cloud()
-			if link is not None:
-				source['unrestricted_link'] = link
-				self.selected = ('play', source)
-				return self.close()
-		elif action == self.info_actions:
-			kwargs = dict(item=chosen_listitem, fanart=self.original_fanart())
-			self.open_window(('windows.sources', 'ResultsInfo'), 'sources_info.xml', **kwargs)
-		elif action in self.context_actions:
-			highlight = chosen_listitem.getProperty('tikiskins.highlight')
-			source = json.loads(chosen_listitem.getProperty('source'))
-			kwargs = dict(item=source, meta=self.meta, highlight=highlight, filter_applied=self.filter_applied)
-			choice = self.open_window(('windows.sources', 'ResultsContextMenu'), 'contextmenu.xml', **kwargs)
-			if choice is None: return
-			if 'clear_results_filter' in choice: return self.clear_filter()
-			elif 'results_filter' in choice: return self.filter_results()
-			elif 'results_info' in choice:
-				kwargs = dict(item=chosen_listitem, fanart=self.original_fanart())
-				self.open_window(('windows.sources', 'ResultsInfo'), 'sources_info.xml', **kwargs)
-			elif 'seekable_easynews' in choice:
-				link = Source(source, self.meta).resolve_internal_sources(True)
+			try:
+				source = json.loads(chosen_listitem.getProperty('source'))
+				magnet_url = str(source.get('url')).startswith('magnet')
+				if magnet_url: link = Source(source, self.meta).manual_add_magnet_to_cloud()
+				else: link = Source(source, self.meta).manual_add_nzb_to_cloud()
 				if link is not None:
 					source['unrestricted_link'] = link
 					self.selected = ('play', source)
 					return self.close()
-			elif 'browse_packs' in choice:
-				link = Source(source, self.meta).browse_packs(highlight)
-				if not link == 'cancel':
-					source['unrestricted_link'] = link
-					self.selected = ('play', source)
-					return self.close()
-			elif 'manual_add_magnet_to_cloud' in choice: Source(source, self.meta).manual_add_magnet_to_cloud()
-			elif 'unchecked_magnet_status' in choice: Source(source, self.meta).unchecked_magnet_status()
-			else: self.execute_code(choice)
+			except Exception as e:
+				logger('SourceResults.onAction uncached error', str(e))
+				hide_busy_dialog()
+		elif action == self.info_actions:
+			kwargs = dict(item=chosen_listitem, fanart=self.original_fanart())
+			self.open_window(('windows.sources', 'ResultsInfo'), 'sources_info.xml', **kwargs)
+		elif action in self.context_actions:
+			try:
+				highlight = chosen_listitem.getProperty('tikiskins.highlight')
+				source = json.loads(chosen_listitem.getProperty('source'))
+				kwargs = dict(item=source, meta=self.meta, highlight=highlight, filter_applied=self.filter_applied)
+				choice = self.open_window(('windows.sources', 'ResultsContextMenu'), 'contextmenu.xml', **kwargs)
+				if choice is None: return
+				if 'clear_results_filter' in choice: return self.clear_filter()
+				elif 'results_filter' in choice: return self.filter_results()
+				elif 'results_info' in choice:
+					kwargs = dict(item=chosen_listitem, fanart=self.original_fanart())
+					self.open_window(('windows.sources', 'ResultsInfo'), 'sources_info.xml', **kwargs)
+				elif 'seekable_easynews' in choice:
+					link = Source(source, self.meta).resolve_internal_sources(True)
+					if link is not None:
+						source['unrestricted_link'] = link
+						self.selected = ('play', source)
+						return self.close()
+				elif 'browse_packs' in choice:
+					link = Source(source, self.meta).browse_packs(highlight)
+					if not link == 'cancel':
+						source['unrestricted_link'] = link
+						self.selected = ('play', source)
+						return self.close()
+				elif 'manual_add_magnet_to_cloud' in choice: Source(source, self.meta).manual_add_magnet_to_cloud()
+				elif 'unchecked_magnet_status' in choice: Source(source, self.meta).unchecked_magnet_status()
+				else: self.execute_code(choice)
+			except Exception as e:
+				logger('SourceResults.onAction context error', str(e))
+				hide_busy_dialog()
 
 	def make_items(self):
 		def builder():
