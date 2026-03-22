@@ -519,12 +519,14 @@ class SourceSelect:
 		except Exception as e:
 			from modules.kodi_utils import logger
 			logger('play_file error', str(e))
+			if not background: close_all_dialog()
 		finally:
 			if not background:
-				self._kill_progress_dialog()
+				# Safety net: always close progress dialogs to prevent trapping the user.
+				# Use close_all=False to avoid interfering with next-episode autoplay dialogs.
+				_cleanup_dialog(self, close_all=False)
 				try: progressDialogBG.close()
 				except Exception: pass
-				close_all_dialog()
 
 	def filter_results(self, results):
 		# Combine all filtering into a single pass for performance
