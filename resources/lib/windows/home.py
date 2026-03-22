@@ -76,10 +76,10 @@ class Home(BaseDialog):
 			return self.close()
 		focus_id = self.getFocusId()
 		if focus_id in (WATCH_BTN, EXTRAS_BTN, TRAILER_BTN):
-			if action == self.left_actions:
+			if action in self.left_actions:
 				if focus_id == WATCH_BTN:
 					self._hero_prev()
-			elif action == self.right_actions:
+			elif action in self.right_actions:
 				if focus_id == TRAILER_BTN:
 					self._hero_next()
 		if action in self.context_actions:

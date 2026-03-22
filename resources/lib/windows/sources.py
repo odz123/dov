@@ -86,7 +86,7 @@ class SourceResults(BaseDialog):
 			except Exception as e:
 				logger('SourceResults.onAction uncached error', str(e))
 				hide_busy_dialog()
-		elif action == self.info_actions:
+		elif action in self.info_actions:
 			kwargs = dict(item=chosen_listitem, fanart=self.original_fanart())
 			self.open_window(('windows.sources', 'ResultsInfo'), 'sources_info.xml', **kwargs)
 		elif action in self.context_actions:
