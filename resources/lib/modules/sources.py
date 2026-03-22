@@ -17,8 +17,10 @@ def _safe_int(value, default=0):
 
 def _cleanup_dialog(obj, dialog=None, close_all=False):
 	"""Shared progress dialog cleanup to prevent resource leaks."""
-	target = dialog if dialog is not None else obj.progress_dialog
+	target = dialog if dialog is not None else getattr(obj, 'progress_dialog', None)
 	if target is not None:
+		try: target.is_canceled = True
+		except Exception: pass
 		try: target.close()
 		except Exception: pass
 	if close_all:
@@ -395,7 +397,9 @@ class SourceSelect:
 
 	def _make_progress_dialog(self):
 		self.progress_dialog = create_window(('windows.sources', 'ProgressMedia'), 'progress_media.xml', meta=self.meta)
-		Thread(target=self.progress_dialog.run).start()
+		if self.progress_dialog is None: return
+		Thread(target=self.progress_dialog.run, daemon=True).start()
+		sleep(200)  # Allow doModal() to initialize before any close() calls
 
 	def _kill_progress_dialog(self, dialog=None):
 		_cleanup_dialog(self, dialog, close_all=True)
@@ -433,10 +437,11 @@ class SourceSelect:
 		def _resolve_with_timeout(item):
 			"""Resolve a source with a timeout to prevent indefinite hangs."""
 			from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeout
-			with ThreadPoolExecutor(1) as executor:
-				future = executor.submit(Source(item, self.meta).resolve_sources)
-				try: return future.result(timeout=resolve_timeout)
-				except (FuturesTimeout, Exception): return None
+			executor = ThreadPoolExecutor(1)
+			future = executor.submit(Source(item, self.meta).resolve_sources)
+			try: return future.result(timeout=resolve_timeout)
+			except (FuturesTimeout, Exception): return None
+			finally: executor.shutdown(wait=False, cancel_futures=True)
 		def _process():
 			for count, item in enumerate(items, 1):
 				if not background:
@@ -490,8 +495,13 @@ class SourceSelect:
 				progress_media = None
 			try: url = next(_process(), None)
 			finally:
-				if not self.full_screen: progressDialogBG.close()
-			if not url: self._kill_progress_dialog()
+				if not self.full_screen:
+					try: progressDialogBG.close()
+					except Exception: pass
+			if not url:
+				self._kill_progress_dialog()
+				if not background: notification(32760)
+				return
 			# Store Stremio source properties in meta for player consumption
 			src = resolved_source_item[0]
 			if src:
@@ -509,10 +519,14 @@ class SourceSelect:
 		except Exception as e:
 			from modules.kodi_utils import logger
 			logger('play_file error', str(e))
-			self._kill_progress_dialog()
-			try: progressDialogBG.close()
-			except Exception: pass
-			close_all_dialog()
+			if not background: close_all_dialog()
+		finally:
+			if not background:
+				# Safety net: always close progress dialogs to prevent trapping the user.
+				# Use close_all=False to avoid interfering with next-episode autoplay dialogs.
+				_cleanup_dialog(self, close_all=False)
+				try: progressDialogBG.close()
+				except Exception: pass
 
 	def filter_results(self, results):
 		# Combine all filtering into a single pass for performance
@@ -850,7 +864,9 @@ class Manager:
 	def _make_progress_dialog(self):
 		if self.progress_dialog: return
 		self.progress_dialog = create_window(('windows.sources', 'ProgressMedia'), 'progress_media.xml', meta=self.meta)
-		Thread(target=self.progress_dialog.run).start()
+		if self.progress_dialog is None: return
+		Thread(target=self.progress_dialog.run, daemon=True).start()
+		sleep(200)  # Allow doModal() to initialize before any close() calls
 
 	def _kill_progress_dialog(self, dialog=None):
 		_cleanup_dialog(self, dialog)
