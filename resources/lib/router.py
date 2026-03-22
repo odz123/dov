@@ -263,7 +263,9 @@ class Router:
 		elif mode == 'pov_detail':
 			from windows import open_window
 			import json as _json
-			meta = _json.loads(params_get('meta'))
+			meta_str = params_get('meta')
+			if not meta_str: return
+			meta = _json.loads(meta_str)
 			kwargs = {'meta': meta, 'is_home': params_get('is_home', 'false')}
 			result = open_window(('windows.detail', 'Detail'), 'detail.xml', **kwargs)
 			if result:

@@ -90,7 +90,7 @@ class source:
 		- Custom user-provided URL (index 3)
 		"""
 		instance_index = int(getSetting('aiostreams.url', '0'))
-		if instance_index < len(PUBLIC_INSTANCES):
+		if 0 <= instance_index < len(PUBLIC_INSTANCES):
 			return PUBLIC_INSTANCES[instance_index]
 		# Custom URL
 		custom_url = getSetting('aiostreams.custom_url', '').strip()
@@ -123,7 +123,7 @@ class source:
 			error = response.get('error', {})
 			source_utils.scraper_error('AIOSTREAMS: %s' % error.get('message', 'Unknown error'))
 			return []
-		return response.get('data', {}).get('results', [])
+		return (response.get('data') or {}).get('results', [])
 
 	def sources(self, data, hostDict):
 		sources = []

@@ -36,7 +36,7 @@ class NextEpisode(BaseDialog):
 
 	def onClick(self, controlID):
 		self.closed = True
-		self.selected = self.actions[controlID]
+		self.selected = self.actions.get(controlID, self.selected)
 		self.close()
 
 	def set_properties(self):

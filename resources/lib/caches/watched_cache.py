@@ -129,7 +129,6 @@ def erase_bookmark(media_type, tmdb_id, season='', episode='', refresh='false'):
 		watched_indicators = settings.watched_indicators()
 		# Use dict for O(1) lookups
 		bookmarks = get_bookmarks_dict(watched_indicators, media_type)
-		if media_type == 'episode': season, episode = int(season), int(episode)
 		try: resume_id = detect_bookmark(bookmarks, tmdb_id, season, episode)[2]
 		except (IndexError, TypeError): return
 		if watched_indicators == 1:
@@ -657,7 +656,7 @@ def mark_as_watched_unwatched_kodi_library(media_type, action, title, year, seas
 
 def batch_mark_episodes_as_watched_unwatched_kodi_library(action, show_info, episode_list):
 	playcount = 1 if action == 'mark_as_watched' else 0
-	tvshowid = str(show_info['tvshowid'])
+	tvshowid = int(show_info['tvshowid'])
 	ep_ids, action_list = [], []
 	ep_ids_append, action_append = ep_ids.append, action_list.append
 	progressDialogBG.create(ls(32577), '')

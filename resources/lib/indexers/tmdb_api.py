@@ -394,7 +394,8 @@ def movie_external_id(external_source, external_id, tmdb_api=None):
 		string = 'movie_external_id_%s_%s' % (external_source, external_id)
 		url = '%s/find/%s?api_key=%s&external_source=%s' % (base_url, external_id, get_tmdb_api(tmdb_api), external_source)
 		result = cache_function(get_tmdb, string, url, EXPIRES_1_MONTH)
-		result = result['movie_results']
+		if not result: return None
+		result = result.get('movie_results', [])
 		if result: return result[0]
 		else: return None
 	except Exception: return None
@@ -404,7 +405,8 @@ def tvshow_external_id(external_source, external_id, tmdb_api=None):
 		string = 'tvshow_external_id_%s_%s' % (external_source, external_id)
 		url = '%s/find/%s?api_key=%s&external_source=%s' % (base_url, external_id, get_tmdb_api(tmdb_api), external_source)
 		result = cache_function(get_tmdb, string, url, EXPIRES_1_MONTH)
-		result = result['tv_results']
+		if not result: return None
+		result = result.get('tv_results', [])
 		if result: return result[0]
 		else: return None
 	except Exception: return None
@@ -414,7 +416,8 @@ def movie_title_year(title, year, tmdb_api=None):
 		string = 'movie_title_year_%s_%s' % (title, year)
 		url = '%s/search/movie?api_key=%s&query=%s&year=%s' % (base_url, get_tmdb_api(tmdb_api), title, year)
 		result = cache_function(get_tmdb, string, url, EXPIRES_1_MONTH)
-		result = result['results']
+		if not result: return None
+		result = result.get('results', [])
 		if result: return result[0]
 		else: return None
 	except Exception: return None
@@ -424,7 +427,8 @@ def tvshow_title_year(title, year, tmdb_api=None):
 		string = 'tvshow_title_year_%s_%s' % (title, year)
 		url = '%s/search/tv?api_key=%s&query=%s&first_air_date_year=%s' % (base_url, get_tmdb_api(tmdb_api), title, year)
 		result = cache_function(get_tmdb, string, url, EXPIRES_1_MONTH)
-		result = result['results']
+		if not result: return None
+		result = result.get('results', [])
 		if result: return result[0]
 		else: return None
 	except Exception: return None
@@ -433,7 +437,8 @@ def movie_keywords(tmdb_id, tmdb_api=None):
 	try:
 		url = '%s/movie/%s/keywords?api_key=%s' % (base_url, tmdb_id, get_tmdb_api(tmdb_api))
 		result = get_tmdb(url)
-		result = result['keywords']
+		if not result: return None
+		result = result.get('keywords', [])
 		return result
 	except Exception: return None
 
@@ -464,7 +469,8 @@ def episode_group_details(group_id, tmdb_api=None):
 		string = 'tmdb_episode_group_details_%s' % group_id
 		url = '%s/tv/episode_group/%s?api_key=%s' % (base_url, group_id, get_tmdb_api(tmdb_api))
 		result = cache_function(get_tmdb, string, url, EXPIRES_1_WEEK)
-		result = sorted(result['groups'], key=lambda k: k['order'])
+		if not result: return []
+		result = sorted(result.get('groups', []), key=lambda k: k.get('order', 0))
 		return result
 	except Exception: return []
 

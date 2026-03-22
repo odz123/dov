@@ -75,7 +75,8 @@ class MetaCache(BaseCache):
 				# Validate id_type against whitelist to prevent SQL injection
 				if id_type not in VALID_ID_TYPES: return
 				self.dbcur.execute(DELETE_MOVIE_SHOW % id_type, (media_type, media_id))
-				for item in id_types: self.delete_memory_cache(media_type, item, meta[item])
+				if meta:
+					for item in id_types: self.delete_memory_cache(media_type, item, meta[item])
 				if media_type == 'tvshow': self.dbcur.execute(DELETE_SEASONS, (media_id+'%',))
 			else:
 				self.dbcur.execute(DELETE_SEASON, (media_id,))

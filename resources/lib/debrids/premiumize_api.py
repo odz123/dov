@@ -91,13 +91,14 @@ class PremiumizeAPI:
 		data = {'src': magnet, 'folder_id': 0}
 		url = 'transfer/create'
 		response = self._post(url, data)
-		return response.get('id', '')
+		return response.get('id', '') if isinstance(response, dict) else ''
 
 	def parse_magnet_pack(self, magnet_url, info_hash):
 		from modules.source_utils import supported_video_extensions
 		try:
 			extensions = supported_video_extensions()
 			torrent = self.instant_transfer(magnet_url)
+			if not isinstance(torrent, dict) or 'content' not in torrent: return []
 			torrent_files = torrent['content']
 			torrent_files = [
 				{'link': item['link'],
@@ -122,13 +123,14 @@ class PremiumizeAPI:
 #			transfer_id = result['id']
 			transfer_id = self.create_transfer(magnet_url)
 			if not transfer_id: return None
-			transfers = self.downloads().get('transfers', [])
+			downloads_data = self.downloads()
+			transfers = downloads_data.get('transfers', []) if isinstance(downloads_data, dict) else []
 			matching_transfers = [i['folder_id'] for i in transfers if i['id'] == transfer_id]
 			if not matching_transfers: return None
 			folder_id = matching_transfers[0]
 			result = self.zip_folder(folder_id)
-			if result['status'] == 'success':
-				return result['location']
+			if isinstance(result, dict) and result.get('status') == 'success':
+				return result.get('location')
 			else: return None
 		except Exception:
 			pass
@@ -138,13 +140,13 @@ class PremiumizeAPI:
 		else: url = 'item/rename'
 		data = {'id': file_id , 'name': new_name}
 		response = self._post(url, data)
-		return True if response is not None and response['status'] == 'success' else False
+		return True if isinstance(response, dict) and response.get('status') == 'success' else False
 
 	def delete_object(self, object_type, object_id):
 		data = {'id': object_id}
 		url = '%s/delete' % object_type
 		response = self._post(url, data)
-		return True if response is not None and response['status'] == 'success' else False
+		return True if isinstance(response, dict) and response.get('status') == 'success' else False
 
 	def get_item_details(self, item_id):
 		string = 'pov_pm_item_details_%s' % item_id

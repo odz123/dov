@@ -159,8 +159,9 @@ def mdbl_collection_watchlist_items(url):
 	while items['has_more']:
 		result = call_mdblist(url, params=params)
 		if result is not None:
-			items['has_more'] = result['pagination']['has_more']
-			params['offset'] = result['pagination']['page'] * result['pagination']['limit']
+			pagination = result.get('pagination', {})
+			items['has_more'] = pagination.get('has_more', False)
+			params['offset'] = pagination.get('page', 0) * pagination.get('limit', 5000)
 			if 'movies' in result: items['movies'] += result['movies']
 			if 'shows' in result: items['shows'] += result['shows']
 		else: items['has_more'] = False
@@ -186,8 +187,8 @@ def mdbl_list_items(list_id, list_type):
 		if not result:
 			result = call_mdblist(url, params=params)
 			if result: cache_set(string, result, expiration=timedelta(hours=EXPIRES_1_HOURS))
-		if list_type and ignore_articles and not sort_index:
-			result.sort(key=lambda k: title_key(k['title'], ignore_articles), reverse=False)
+		if result and list_type and ignore_articles and not sort_index:
+			result.sort(key=lambda k: title_key(k.get('title', ''), ignore_articles), reverse=False)
 		return result
 	finally:
 		cache.close()
@@ -226,41 +227,45 @@ def mdbl_watched_unwatched(action, media, media_id, tvdb_id=0, data=None, season
 		else: data = {'shows': [{'ids': media_id, 'seasons': data}]}
 	result = call_mdblist(url, json=data, method='post')
 	if not result: return False
-	success = result[result_key][success_key] > 0
+	success = result.get(result_key, {}).get(success_key, 0) > 0
 	if not success:
 		if media != 'movies' and tvdb_id != 0:
-			return mdbl_watched_unwatched(action, media, tvdb_id, 0, data, season, episode, 'tvdb')
+			return mdbl_watched_unwatched(action, media, tvdb_id, 0, None, season, episode, 'tvdb')
 	return success
 
 def mdbl_indicators_movies(watched_info):
 	def _process(item):
-		tmdb_id = get_mdbl_movie_id(item['movie']['ids'])
+		tmdb_id = get_mdbl_movie_id(item.get('movie', {}).get('ids', {}))
 		if not tmdb_id: return
-		insert_append((
-			'movie', str(tmdb_id), '', '', item['last_watched_at'], item['movie']['title']
-		))
+		with _insert_lock:
+			insert_append((
+				'movie', str(tmdb_id), '', '', item.get('last_watched_at', ''), item.get('movie', {}).get('title', '')
+			))
 	insert_list = []
 	insert_append = insert_list.append
-	watched_items = [(i,) for i in watched_info['movies']] # TaskPool requires tuple
+	_insert_lock = Lock()
+	watched_items = [(i,) for i in watched_info.get('movies', [])] # TaskPool requires tuple
 	if not watched_items: return
-#	threads = list(make_thread_list(_process, watched_items, Thread))
 	for i in TaskPool().tasks(_process, watched_items, Thread): i.join()
 	with mdbl_cache.MDBLCache() as mc:
 		mc.set_bulk_movie_watched(insert_list)
 
 def mdbl_indicators_tv(watched_info):
 	def _process(item):
-		tmdb_id = get_mdbl_tvshow_id(item['episode']['show']['ids'])
+		ep = item.get('episode', {})
+		show = ep.get('show', {})
+		tmdb_id = get_mdbl_tvshow_id(show.get('ids', {}))
 		if not tmdb_id: return
-		season, episode = item['episode']['season'], item['episode']['number']
-		insert_append((
-			'episode', str(tmdb_id), season, episode, item['last_watched_at'], item['episode']['show']['title']
-		))
+		season, episode = ep.get('season', 0), ep.get('number', 0)
+		with _insert_lock:
+			insert_append((
+				'episode', str(tmdb_id), season, episode, item.get('last_watched_at', ''), show.get('title', '')
+			))
 	insert_list = []
 	insert_append = insert_list.append
-	watched_items = [(i,) for i in watched_info['episodes']] # TaskPool requires tuple
+	_insert_lock = Lock()
+	watched_items = [(i,) for i in watched_info.get('episodes', [])] # TaskPool requires tuple
 	if not watched_items: return
-#	threads = list(make_thread_list(_process, watched_items, Thread))
 	for i in TaskPool().tasks(_process, watched_items, Thread): i.join()
 	with mdbl_cache.MDBLCache() as mc:
 		mc.set_bulk_tvshow_watched(insert_list)
@@ -366,9 +371,9 @@ def mdbl_progress_tv(progress_info):
 		mc.set_bulk_tvshow_progress(insert_list)
 
 def get_mdbl_movie_id(item):
-	if item['tmdb']: return item['tmdb']
+	if item.get('tmdb'): return item['tmdb']
 	tmdb_id = None
-	if item['imdb']:
+	if item.get('imdb'):
 		try:
 			meta = movie_external_id('imdb_id', item['imdb'])
 			tmdb_id = meta['id']
@@ -376,15 +381,15 @@ def get_mdbl_movie_id(item):
 	return tmdb_id
 
 def get_mdbl_tvshow_id(item):
-	if item['tmdb']: return item['tmdb']
+	if item.get('tmdb'): return item['tmdb']
 	tmdb_id = None
-	if item['imdb']:
+	if item.get('imdb'):
 		try:
 			meta = tvshow_external_id('imdb_id', item['imdb'])
 			tmdb_id = meta['id']
 		except Exception: tmdb_id = None
 	if not tmdb_id:
-		if item['tvdb']:
+		if item.get('tvdb'):
 			try:
 				meta = tvshow_external_id('tvdb_id', item['tvdb'])
 				tmdb_id = meta['id']
@@ -403,11 +408,13 @@ def mdbl_watched_progress():
 	url = 'sync/watched'
 	params = {'limit': 5000}
 	watched = {'movies': [], 'episodes': [], 'has_more': True}
+	result = None
 	while watched['has_more']:
 		result = call_mdblist(url, params=params)
 		if result is not None:
-			watched['has_more'] = result['pagination']['has_more']
-			params['offset'] = result['pagination']['page'] * result['pagination']['limit']
+			watched['has_more'] = result.get('pagination', {}).get('has_more', False)
+			pagination = result.get('pagination', {})
+			params['offset'] = pagination.get('page', 0) * pagination.get('limit', 5000)
 			if 'movies' in result: watched['movies'] += result['movies']
 			if 'episodes' in result: watched['episodes'] += result['episodes']
 		else: watched['has_more'] = False
@@ -433,7 +440,8 @@ def mdbl_sync_activities(force_update=False):
 		return 'failed'
 	success = 'not needed'
 	progress_info = mdbl_playback_progress()
-	progress_info.sort(key=lambda k: k['paused_at'], reverse=True)
+	if not progress_info: progress_info = []
+	progress_info.sort(key=lambda k: k.get('paused_at', ''), reverse=True)
 	latest['paused_at'] = progress_info[0]['paused_at'] if progress_info else None
 	cached = mdbl_cache.reset_activity(latest)
 	refresh_movies_watched = _compare(latest['watched_at'], cached['watched_at'])
@@ -443,7 +451,7 @@ def mdbl_sync_activities(force_update=False):
 		watched_info = mdbl_watched_progress()
 		if refresh_movies_watched: mdbl_indicators_movies(watched_info)
 		if refresh_episodes_watched: mdbl_indicators_tv(watched_info)
-	if _compare(latest['paused_at'], cached['paused_at']):
+	if latest.get('paused_at') and cached.get('paused_at') and _compare(latest['paused_at'], cached['paused_at']):
 		success = 'success'
 		mdbl_progress_movies(progress_info)
 		mdbl_progress_tv(progress_info)

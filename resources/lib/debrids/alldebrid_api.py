@@ -65,15 +65,14 @@ class AllDebridAPI:
 		url = 'v4.1/magnet/status'
 		params = {'id': transfer_id}
 		result = self._get(url, params)
-		if not result or not isinstance(result, dict): return []
-		result = result['magnets']
-		return result
+		if not result or not isinstance(result, dict): return {}
+		return result.get('magnets', {})
 
 	def delete_torrent(self, transfer_id):
 		url = 'v4.1/magnet/delete'
 		params = {'id': transfer_id}
 		result = self._get(url, params)
-		return True if result is not None and 'error' not in result else False
+		return True if isinstance(result, dict) and 'error' not in result else False
 
 	def unrestrict_link(self, link):
 		url = 'v4.1/link/unlock'
@@ -107,12 +106,13 @@ class AllDebridAPI:
 		try:
 			extensions = supported_video_extensions()
 			torrent_id = self.create_transfer(magnet_url)
+			if not torrent_id: raise Exception('alldebrid failed to create transfer')
 			for key in ['completionDate'] * 3:
 				kodi_utils.sleep(500)
 				transfer_info = self.list_transfer(torrent_id)
-				if transfer_info[key]: break
+				if isinstance(transfer_info, dict) and transfer_info.get(key): break
 			else: raise Exception('alldebrid uncached magnet')
-			transfer_info['links'] = self.flatten_magnet_files(transfer_info['files'])
+			transfer_info['links'] = self.flatten_magnet_files(transfer_info.get('files', []))
 			torrent_files = [
 				{'link': item['l'],
 				 'size': item['s'],
@@ -135,7 +135,8 @@ class AllDebridAPI:
 		url = 'v4.1/magnet/status'
 		string = 'pov_ad_user_cloud'
 		result = cache_object(self._get, string, url, False, 0.5)
-		if completed: result['magnets'] = [i for i in result['magnets'] if i['statusCode'] == 4]
+		if not result or not isinstance(result, dict): return {}
+		if completed: result['magnets'] = [i for i in result.get('magnets', []) if i.get('statusCode') == 4]
 		return result
 
 	def clear_cache(self):

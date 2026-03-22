@@ -60,7 +60,7 @@ class source:
 		for file in files:
 			try:
 				package, episode_start = None, 0
-				name = source_utils.clean_name(file['title'])
+				name = source_utils.clean_name(file.get('title', ''))
 
 				if not source_utils.check_title(title, aliases, name, hdlr, year):
 					if total_seasons is None: continue
@@ -74,10 +74,11 @@ class source:
 				if source_utils.remove_lang(name_info, check_foreign_audio): continue
 				if undesirables and source_utils.remove_undesirables(name_info, undesirables): continue
 
-				if file['protocol'] == 'usenet':
-					url = file['downloadUrl']
-					file['seeders'] = file['age']
-					file['infoHash'] = file.get('infoHash') or hashlib.md5(file['fileName'].encode()).hexdigest()
+				if file.get('protocol') == 'usenet':
+					url = file.get('downloadUrl', '')
+					if not url: continue
+					file['seeders'] = file.get('age', 0)
+					file['infoHash'] = file.get('infoHash') or hashlib.md5(file.get('fileName', name).encode()).hexdigest()
 				elif 'infoHash' in file: url = 'magnet:?xt=urn:btih:%s&dn=%s' % (file['infoHash'], name)
 				else: continue
 
@@ -95,8 +96,8 @@ class source:
 				info = ' | '.join(info)
 
 				item = {
-					'source': file['protocol'], 'language': 'en', 'direct': False, 'debridonly': True,
-					'provider': file['indexer'], 'hash': file['infoHash'], 'url': url, 'name': name, 'name_info': name_info,
+					'source': file.get('protocol', 'torrent'), 'language': 'en', 'direct': False, 'debridonly': True,
+					'provider': file.get('indexer', 'prowlarr'), 'hash': file.get('infoHash', ''), 'url': url, 'name': name, 'name_info': name_info,
 					'quality': quality, 'info': info, 'size': dsize, 'seeders': seeders
 				}
 				if package: item['package'] = package

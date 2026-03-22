@@ -58,7 +58,7 @@ class SourceResults(BaseDialog):
 		return provider, provider_path
 
 	def get_quality_and_path(self, quality):
-		quality_path = info_icons_dict[quality]
+		quality_path = info_icons_dict.get(quality, info_icons_dict.get('sd', ''))
 		return quality, quality_path
 
 	def onAction(self, action):
@@ -140,8 +140,8 @@ class SourceResults(BaseDialog):
 					extra_info = get('extraInfo', '') or 'N/A'
 					extra_info = extra_info.rstrip('| ')
 					if scrape_provider == 'external':
-						if 'usenet' in source: source_site = get('tracker')
-						else: source_site = get('provider')
+						if 'usenet' in source: source_site = get('tracker', 'N/A')
+						else: source_site = get('provider', 'N/A')
 						source_site = upper(source_site)
 						provider = upper(get('debrid', source_site).replace('.me', ''))
 						provider_lower = lower(provider)
@@ -302,7 +302,7 @@ class ResultsInfo(BaseDialog):
 
 	def get_quality_and_path(self):
 		quality = lower(self.item.getProperty('tikiskins.quality'))
-		quality_path = info_icons_dict[quality]
+		quality_path = info_icons_dict.get(quality, info_icons_dict.get('sd', ''))
 		return quality, quality_path
 
 	def set_properties(self):
@@ -357,7 +357,7 @@ class ResultsContextMenu(BaseDialog):
 		source = json.dumps(self.item)
 		name, provider_source = self.item.get('name'), self.item.get('source')
 		magnet_url, info_hash = self.item.get('url', 'None'), self.item.get('hash', 'None')
-		scrape_provider, cache_provider = self.item.get('scrape_provider'), self.item.get('cache_provider', 'None')
+		scrape_provider, cache_provider = self.item.get('scrape_provider', ''), self.item.get('cache_provider', 'None')
 		if next((True for x in ('real-debrid', 'alldebrid') if x in cache_provider), False):
 			append(self.make_contextmenu_item(check_str, run_plugin_str, {'mode': 'unchecked_magnet_status'}))
 		if 'offcloud' in cache_provider:

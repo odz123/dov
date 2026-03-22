@@ -50,7 +50,7 @@ class source:
 			headers = {'User-Agent': self.user_agent, 'Authorization': 'Bearer %s' % self.token}
 			results = session.get(url, params=params, headers=headers, timeout=self.timeout)
 			response_json = results.json()
-			files = response_json.get('data', {}).get('nzbs', [])
+			files = (response_json.get('data') or {}).get('nzbs', [])
 			undesirables = source_utils.get_undesirables()
 			check_foreign_audio = source_utils.check_foreign_audio()
 		except Exception:
@@ -59,10 +59,10 @@ class source:
 
 		for file in files:
 			try:
-				if self.user_engines_only and not file['user_search']: continue
+				if self.user_engines_only and not file.get('user_search'): continue
 				package, episode_start = None, 0
-				hash = file['hash'] or hashlib.md5(file['nzb'].encode('utf-8')).hexdigest()
-				file_title = file['raw_title']
+				hash = file.get('hash') or hashlib.md5(file.get('nzb', '').encode('utf-8')).hexdigest()
+				file_title = file.get('raw_title', '')
 
 				name = source_utils.clean_name(file_title)
 
@@ -78,10 +78,11 @@ class source:
 				if source_utils.remove_lang(name_info, check_foreign_audio): continue
 				if undesirables and source_utils.remove_undesirables(name_info, undesirables): continue
 
-				url = file['nzb']
+				url = file.get('nzb', '')
+				if not url: continue
 
 				try:
-					seeders = file['last_known_seeders']
+					seeders = file.get('last_known_seeders', 0)
 					if self.min_seeders > seeders: continue
 				except Exception: seeders = 0
 
@@ -96,7 +97,7 @@ class source:
 				item = {
 					'source': 'usenet', 'language': 'en', 'direct': False, 'debridonly': True,
 					'provider': 'torboxnews', 'hash': hash, 'url': url, 'name': name, 'name_info': name_info,
-					'quality': quality, 'info': info, 'size': dsize, 'seeders': seeders, 'tracker': file['tracker']
+					'quality': quality, 'info': info, 'size': dsize, 'seeders': seeders, 'tracker': file.get('tracker', '')
 				}
 				if package: item['package'] = package
 				if package == 'show': item.update({'last_season': last_season})

@@ -52,8 +52,9 @@ class source:
 
 		for file in files:
 			try:
-				hash = file['info_hash']
-				name = source_utils.clean_name(file['name'])
+				hash = file.get('info_hash', '')
+				if not hash: continue
+				name = source_utils.clean_name(file.get('name', ''))
 
 				if not source_utils.check_title(title, aliases, name, hdlr, year): continue
 				name_info = source_utils.info_from_name(name, title, year, hdlr, episode_title)
@@ -136,8 +137,9 @@ class source:
 
 		for file in files:
 			try:
-				hash = file['info_hash']
-				name = source_utils.clean_name(file['name'])
+				hash = file.get('info_hash', '')
+				if not hash: continue
+				name = source_utils.clean_name(file.get('name', ''))
 
 				episode_start, episode_end = 0, 0
 				if not self.search_series:

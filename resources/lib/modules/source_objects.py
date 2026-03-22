@@ -62,8 +62,8 @@ def get_source_meta(params):
 	meta.update({'background': background, 'media_type': media_type, 'season': season, 'episode': episode})
 	if custom_title: meta['custom_title'] = custom_title
 	if custom_year: meta['custom_year'] = custom_year
-	if custom_season: meta['custom_season'] = custom_season
-	if custom_episode: meta['custom_episode'] = custom_episode
+	if custom_season is not None: meta['custom_season'] = custom_season
+	if custom_episode is not None: meta['custom_episode'] = custom_episode
 	# Carry Stremio bingeGroup from previous episode for autoplay preference
 	stremio_binge_group = params_get('stremio_binge_group')
 	if stremio_binge_group: meta['stremio_binge_group'] = stremio_binge_group

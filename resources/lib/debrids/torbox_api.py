@@ -142,7 +142,7 @@ class TorBoxAPI:
 	def create_transfer(self, link, name=''):
 		if link.startswith('magnet'): key, result = 'torrent_id', self.add_magnet(link)
 		else: key, result = 'usenetdownload_id', self.add_nzb(link, name)
-		return result.get(key, '') if result else ''
+		return result.get(key, '') if isinstance(result, dict) else ''
 
 	def parse_magnet_pack(self, magnet_url, info_hash):
 		from modules.source_utils import supported_video_extensions
@@ -150,7 +150,9 @@ class TorBoxAPI:
 		try:
 			extensions = supported_video_extensions()
 			torrent_id = self.create_transfer(magnet_url)
+			if not torrent_id: raise Exception('torbox failed to create transfer')
 			torrent_files = self.torrent_info(torrent_id)
+			if not torrent_files or not isinstance(torrent_files, dict): raise Exception('torbox failed to get torrent info')
 			torrent_files = [
 				{'link': '%d,%d' % (torrent_id, item['id']),
 				 'size': item['size'],
@@ -198,7 +200,7 @@ class TorBoxAPI:
 		url = 'torrents/mylist?id=%s' % request_id if request_id else 'torrents/mylist'
 		if check_cache: result = cache_object(self._get, string, url, False, 0.5)
 		else: result = self._get(url)
-		if not request_id and completed: result = [i for i in result if i['download_finished'] and i['files']]
+		if not request_id and completed: result = [i for i in (result or []) if i.get('download_finished') and i.get('files')]
 		return result
 
 	def user_cloud_usenet(self, request_id=None, check_cache=True, completed=True):
@@ -206,7 +208,7 @@ class TorBoxAPI:
 		url = 'usenet/mylist?id=%s' % request_id if request_id else 'usenet/mylist'
 		if check_cache: result = cache_object(self._get, string, url, False, 0.5)
 		else: result = self._get(url)
-		if not request_id and completed: result = [i for i in result if i['download_finished'] and i['files']]
+		if not request_id and completed: result = [i for i in (result or []) if i.get('download_finished') and i.get('files')]
 		return result
 
 	def user_cloud_webdl(self, request_id=None, check_cache=True, completed=True):
@@ -214,7 +216,7 @@ class TorBoxAPI:
 		url = 'webdl/mylist?id=%s' % request_id if request_id else 'webdl/mylist'
 		if check_cache: result = cache_object(self._get, string, url, False, 0.5)
 		else: result = self._get(url)
-		if not request_id and completed: result = [i for i in result if i['download_finished'] and i['files']]
+		if not request_id and completed: result = [i for i in (result or []) if i.get('download_finished') and i.get('files')]
 		return result
 
 	def clear_cache(self):

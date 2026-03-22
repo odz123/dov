@@ -81,6 +81,7 @@ class EasyDebridAPI:
 		try:
 			extensions = supported_video_extensions()
 			torrent = self.instant_transfer(magnet_url)
+			if not isinstance(torrent, dict) or 'files' not in torrent: return []
 			torrent_files = torrent['files']
 			torrent_files = [
 				{'link': item['url'],

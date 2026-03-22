@@ -52,6 +52,7 @@ class EasyNewsAPI:
 		return account_info, usage_info
 
 	def _process_files(self, files):
+		if not files or not isinstance(files, dict): return []
 		def _process():
 			for item in files:
 				try:
@@ -89,17 +90,22 @@ class EasyNewsAPI:
 		return files
 
 	def _get(self, url, params=None):
-		response = session.get(url, auth=(self.username, self.password), params=params, timeout=timeout).text
+		try: response = session.get(url, auth=(self.username, self.password), params=params, timeout=timeout).text
+		except (requests.exceptions.ConnectionError, requests.exceptions.Timeout): return None
 		try: return json.loads(response)
 		except Exception: return response
 
 	def unrestrict_link(self, url_dl, spool=False):
-		response = session.get(url_dl, auth=(self.username, self.password), stream=True, timeout=timeout*3)
+		try: response = session.get(url_dl, auth=(self.username, self.password), stream=True, timeout=timeout*3)
+		except (requests.exceptions.ConnectionError, requests.exceptions.Timeout): return None
 		if not response.ok: return None
 		if spool: return response
-		chunk = next(response.iter_content(chunk_size=1048576), b'')
-		if chunk: resolved_link = response.url # direct/unrestricted link
-		else: resolved_link = None
+		try:
+			chunk = next(response.iter_content(chunk_size=1048576), b'')
+			if chunk: resolved_link = response.url # direct/unrestricted link
+			else: resolved_link = None
+		finally:
+			response.close()
 		return resolved_link
 
 def clear_media_results_database():
@@ -114,6 +120,7 @@ def clear_media_results_database():
 		if not easynews_results: return 'success'
 		try:
 			dbcur.execute("""DELETE FROM maincache WHERE id LIKE ?""", ('pov_EASYNEWS_SEARCH_%',))
+			dbcon.commit()
 			for i in easynews_results: clear_property(i)
 			return 'success'
 		except Exception: return 'failed'

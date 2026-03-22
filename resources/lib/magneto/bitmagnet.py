@@ -48,7 +48,7 @@ class source:
 			if 'timeout' in data: self.timeout = max(1, min(int(data['timeout']), 60))
 			results = session.get(url, params=params, headers=self._headers(), timeout=self.timeout)
 			response_json = results.json()
-			files = response_json.get('data', {}).get('results', [])
+			files = (response_json.get('data') or {}).get('results', [])
 			undesirables = source_utils.get_undesirables()
 			check_foreign_audio = source_utils.check_foreign_audio()
 		except Exception:
@@ -79,7 +79,7 @@ class source:
 				url = 'magnet:?xt=urn:btih:%s&dn=%s' % (hash, name)
 
 				try:
-					seeders = file['seeders']
+					seeders = file.get('seeders', 0)
 					if self.min_seeders > seeders: continue
 				except Exception: seeders = 0
 

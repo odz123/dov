@@ -30,7 +30,7 @@ def search_easynews(params):
 				listitem.setArt({'icon': thumbnail, 'poster': thumbnail, 'thumb': thumbnail, 'fanart': fanart, 'banner': default_icon})
 				yield (url, listitem, False)
 			except Exception: pass
-	search_name = clean_file_name(unquote(params.get('query')))
+	search_name = clean_file_name(unquote(params.get('query', '')))
 	files = EasyNews().search(search_name) or []
 	__handle__ = int(sys.argv[1])
 	kodi_utils.add_items(__handle__, list(_builder()))

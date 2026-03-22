@@ -531,7 +531,7 @@ def get_file_info(name_info=None, url=None):
 	if name_info: fmt = name_info
 	elif url: fmt = url_strip(url)
 	else: fmt = None
-	if not fmt: return ''
+	if not fmt: return 'SD', ''
 	quality = get_release_quality(fmt)
 	# Video type detection
 	if _any_match(fmt, VIDEO_3D): _append('[B]3D[/B]')

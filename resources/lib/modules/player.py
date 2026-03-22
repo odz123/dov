@@ -372,7 +372,7 @@ class Subtitles(kodi_utils.xbmc_player):
 		kodi_utils.xbmc_player.__init__(self)
 		self.auto_enable = get_setting('subtitles.auto_enable')
 		self.subs_action = {'0': 'auto', '1': 'select', '2': 'off'}[get_setting('subtitles.subs_action', '2')]
-		self.language1 = language_choices[get_setting('subtitles.language')]
+		self.language1 = language_choices.get(get_setting('subtitles.language'), 'eng')
 
 	def get(self, query, imdb_id, season, episode, poster, stremio_subs=None, video_hash=None, video_size=None):
 		def _stremio_subs():
@@ -488,7 +488,8 @@ class Subtitles(kodi_utils.xbmc_player):
 			response = subtitles.download(chosen_sub['url'])
 			if isinstance(response, str): return kodi_utils.notification('Subtitles Error: %s' % response)
 			try:
-				if 'utf-8' not in response.encoding.lower():
+				encoding = (response.encoding or '').lower()
+				if 'utf-8' not in encoding:
 					import codecs
 					content = codecs.decode(response.content, encoding='utf-8')
 				else: content = response.text

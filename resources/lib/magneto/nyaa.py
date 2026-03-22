@@ -56,7 +56,7 @@ class source:
 			undesirables = source_utils.get_undesirables()
 			check_foreign_audio = source_utils.check_foreign_audio()
 		except Exception:
-			source_utils.scraper_error('NYYAA')
+			source_utils.scraper_error('NYAA')
 			return sources
 
 		for url in urls:
@@ -93,7 +93,7 @@ class source:
 							t = _clean_anime_title(name.split(hdlr2)[0], year)
 						# if cleantitle.get(t) != cleantitle.get(title): continue # Anime title matching is a bitch!
 						try:
-							seeders = int(link[2][0])
+							seeders = int(link[2])
 							if self.min_seeders > seeders: continue
 						except Exception: seeders = 0
 
@@ -109,6 +109,6 @@ class source:
 										'quality': quality, 'language': 'en', 'url': url, 'info': info, 'direct': False, 'debridonly': True, 'size': dsize})
 			except Exception:
 				source_utils.scraper_error('NYAA')
-				return sources
+				continue
 		return sources
 

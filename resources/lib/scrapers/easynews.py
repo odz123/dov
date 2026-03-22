@@ -18,7 +18,7 @@ class source(Debrid):
 			self.season, self.episode = info.get('season'), info.get('episode')
 			self.search_title = clean_file_name(title).replace('&', 'and')
 			if self.media_type == 'movie': query = '%s %d' % (self.search_title, self.year)
-			else: query = '%s S%02dE%02d' % (self.search_title, self.season, self.episode)
+			else: query = '%s S%02dE%02d' % (self.search_title, int(self.season), int(self.episode))
 			expiry_times = info.get('expiry_times') or [None]
 			self.scrape_results = self.search(query, expiry_times[0] if expiry_times else None)
 			if not self.scrape_results: return internal_results(self.scrape_provider, self.sources)
