@@ -87,8 +87,7 @@ class Downloader:
 			title = get_title(self.meta, get_language())
 			self.media_type = self.meta_get('media_type')
 			self.year = self.meta_get('year')
-			self.image = self.meta_get('poster')
-			self.image = self.meta_get(art_provider[0]) or self.meta_get(art_provider[1]) or poster_empty
+			self.image = self.meta_get(art_provider[0]) or self.meta_get(art_provider[1]) or self.meta_get('poster') or poster_empty
 			self.season = self.meta_get('season')
 			self.name = self.params_get('name')
 		else:

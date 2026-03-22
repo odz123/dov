@@ -72,10 +72,7 @@ UNWANTED_TAGS = ('tamilrockers.com', 'www.tamilrockers.com', 'www.tamilrockers.w
 # Pre-compiled regex patterns for UNWANTED_TAGS to avoid re-compilation in check_title()
 _UNWANTED_TAG_PATTERNS = {}
 for _tag in UNWANTED_TAGS:
-	if _tag.startswith('[') or _tag.startswith('+'):
-		_UNWANTED_TAG_PATTERNS[_tag] = re.compile(r'^\\%s' % _tag, re.I)
-	else:
-		_UNWANTED_TAG_PATTERNS[_tag] = re.compile(r'^%s' % re.escape(_tag), re.I)
+	_UNWANTED_TAG_PATTERNS[_tag] = re.compile(r'^%s' % re.escape(_tag), re.I)
 
 # Module-level cache for external sources to avoid repeated directory scans and imports
 _external_sources_cache = {}

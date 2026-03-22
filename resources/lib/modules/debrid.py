@@ -184,7 +184,8 @@ class Source:
 			elif self.scrape_provider == 'pm_cloud':
 				details = import_debrid('premiumize.me').get_item_details(self.id)
 				url = details['link']
-				if url.startswith('/'): url = 'https' + url
+				if url.startswith('//'): url = 'https:' + url
+				elif url.startswith('/'): url = 'https:/' + url
 			elif self.scrape_provider == 'ad_cloud':
 				if direct_debrid_link: url = self.url_dl
 				else: url = import_debrid('alldebrid').unrestrict_link(self.id)

@@ -482,11 +482,10 @@ class SourceSelect:
 				if self.filters_ignored: notification(32686)
 			else:
 				source_index = results.index(source) if source in results else 0
-				if source_index: items = [
+				items = [
 					i for i in results[source_index + 1:]
 					if 'Uncached' not in i.get('cache_provider', '')
 				][:40]
-				else: items = []
 				items.insert(0, source)
 			if background: return True if items else None
 			if self.full_screen:

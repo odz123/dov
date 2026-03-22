@@ -526,7 +526,7 @@ def infoTagger(listitem, meta=None):
 		('imdbnumber', 'setIMDBNumber'), ('mediatype', 'setMediaType'),
 		('mpaa', 'setMpaa'), ('original_title', 'setOriginalTitle'),
 		('playcount', 'setPlaycount'), ('plot', 'setPlot'),
-		('premiered', 'setFirstAired' if 'episode' in meta else 'setPremiered'),
+		('premiered', 'setFirstAired' if meta.get('mediatype') == 'episode' else 'setPremiered'),
 		('rating', 'setRating'), ('studio', 'setStudios'),
 		('tagline', 'setTagLine'), ('title', 'setTitle'),
 		('trailer', 'setTrailer'), ('votes', 'setVotes'),
