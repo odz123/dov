@@ -397,13 +397,14 @@ def filter_show_pack(show_title, aliases, imdb, year, season, release_title, tot
 # set last_season for range type ex "1.2.3.4" or "1.2.3.and.4" (dots or dashes)
 		dot_release_title = release_title.replace('-', '.')
 		dot_season_ranges = []
-		all_seasons = '1'
+		season_parts = ['1']
 		season_count = 2
 		total_seasons_int = int(total_seasons)
 		while season_count <= total_seasons_int:
+			all_seasons = '.'.join(season_parts)
 			dot_season_ranges.append(all_seasons + '.and.%s' % str(season_count))
-			all_seasons += '.%s' % str(season_count)
-			dot_season_ranges.append(all_seasons)
+			season_parts.append(str(season_count))
+			dot_season_ranges.append('.'.join(season_parts))
 			season_count += 1
 		# Optimized: single pass instead of any() + list comprehension
 		match = _find_range_match(dot_season_ranges, dot_release_title, '.')

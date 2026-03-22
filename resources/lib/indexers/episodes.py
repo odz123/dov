@@ -123,7 +123,8 @@ class Episodes:
 				display = ''.join(['[', display_premiered, '] ', title_string.upper(), seas_ep, ep_name])
 				if unaired:
 					displays = display.split(']')
-					display = ''.join(['[COLOR cyan]', displays[0], '][/COLOR]', displays[1]])
+					if len(displays) > 1:
+						display = ''.join(['[COLOR cyan]', displays[0], '][/COLOR]', displays[1]])
 			else:
 				color_tags = ('[COLOR cyan]', '[/COLOR]') if unaired else ('', '')
 				display = ''.join([title_string.upper(), seas_ep, color_tags[0], ep_name, color_tags[1]])

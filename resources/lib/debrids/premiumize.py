@@ -109,7 +109,7 @@ class Indexer(Debrid):
 				listitem.setLabel(display)
 				listitem.addContextMenuItems(cm)
 				listitem.setArt(default_art)
-				if not status == 'finished': listitem.setInfo('video', {'plot': message}) if KODI_VERSION < 20 else listitem.getVideoInfoTag().setPlot(message)
+				if status != 'finished': listitem.setInfo('video', {'plot': message}) if KODI_VERSION < 20 else listitem.getVideoInfoTag().setPlot(message)
 				yield (url, listitem, is_folder)
 			except Exception: pass
 

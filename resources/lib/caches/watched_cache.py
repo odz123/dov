@@ -358,7 +358,7 @@ def mark_as_watched_unwatched_movie(params):
 	watched_indicators = settings.watched_indicators()
 	Thread(target=simkl_watched_unwatched, args=(action, 'movies', tmdb_id), daemon=True).start()
 	if watched_indicators == 1:
-		if from_playback and trakt_official_status(media_type) is False: kodi_utils.sleep(3000)
+		if from_playback and not trakt_official_status(media_type): kodi_utils.sleep(3000)
 		elif not trakt_watched_unwatched(action, 'movies', tmdb_id):
 			return kodi_utils.notification(32574)
 		clear_trakt_collection_watchlist_data('watchlist', media_type)
@@ -478,7 +478,7 @@ def mark_as_watched_unwatched_episode(params):
 	watched_indicators = settings.watched_indicators()
 	Thread(target=simkl_watched_unwatched, args=(action, 'episode', tmdb_id, season, episode), daemon=True).start()
 	if watched_indicators == 1:
-		if from_playback and trakt_official_status(media_type) is False: kodi_utils.sleep(3000)
+		if from_playback and not trakt_official_status(media_type): kodi_utils.sleep(3000)
 		elif not trakt_watched_unwatched(action, media_type, tmdb_id, tvdb_id, season, episode):
 			return kodi_utils.notification(32574)
 		clear_trakt_collection_watchlist_data('watchlist', 'tvshow')
@@ -573,7 +573,7 @@ def _find_library_item(media_type, title, year, properties=None):
 		else:
 			method, result_key = 'VideoLibrary.GetTVShows', 'tvshows'
 		r = execJSONRPC(json.dumps({"jsonrpc": "2.0", "method": method, "params": params, "id": 1}))
-		items = json.loads(r)['result'][result_key]
+		items = json.loads(r).get('result', {}).get(result_key, [])
 		clean_title = clean_file_name(title).lower()
 		if media_type == 'movie':
 			matches = [i for i in items if clean_title in clean_file_name(i['title']).lower()]
@@ -581,7 +581,7 @@ def _find_library_item(media_type, title, year, properties=None):
 			matches = [
 				i for i in items
 				if clean_title
-				in (clean_file_name(i['title']).lower() if not ' (' in i['title'] else clean_file_name(i['title']).lower().split(' (')[0])
+				in (clean_file_name(i['title']).lower() if ' (' not in i['title'] else clean_file_name(i['title']).lower().split(' (')[0])
 			]
 		return matches[0] if matches else None
 	except Exception:
@@ -635,7 +635,7 @@ def get_bookmark_kodi_library(media_type, tmdb_id, season='', episode=''):
 		else: method, id_name, library_id, results_key = 'VideoLibrary.GetEpisodeDetails', 'episodeid', r['episodeid'], 'episodedetails'
 		query = {"jsonrpc": "2.0", "id": "getResumePoint", "method": method, "params": {id_name: library_id, "properties": ["title", "resume"]}}
 		r = json.loads(execJSONRPC(json.dumps(query)))
-		resume = r["result"][results_key]["resume"]["position"]
+		resume = r.get("result", {}).get(results_key, {}).get("resume", {}).get("position", resume)
 		return resume
 	except Exception: return resume
 

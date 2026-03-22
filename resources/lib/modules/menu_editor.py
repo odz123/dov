@@ -150,7 +150,7 @@ class MenuEditor:
 		list_type = 'edited' if edited else'default'
 		current_list = edited or default
 		if default == new_contents: return kodi_utils.notification(32983, 1500)
-		new_entries = [i for i in new_contents if not i in default]
+		new_entries = [i for i in new_contents if i not in default]
 		if not new_entries: return kodi_utils.notification(32983, 1500)
 		new_entry = new_entries[0]
 		new_entry_translated_name = ls(new_entry.get('name'))

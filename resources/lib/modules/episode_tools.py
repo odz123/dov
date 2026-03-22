@@ -29,7 +29,7 @@ def get_random_episode(tmdb_id, continual=False):
 			episode_history = json.loads(kodi_utils.get_property('pov_random_episode_history'))
 			if tmdb_key in episode_history: episode_list = episode_history[tmdb_key]
 		except Exception: pass
-		episodes_data = [i for i in episodes_data if not i in episode_list] or episodes_data
+		episodes_data = [i for i in episodes_data if i not in episode_list] or episodes_data
 	chosen_episode = choice(episodes_data)
 	if continual:
 		episode_list.append(chosen_episode)

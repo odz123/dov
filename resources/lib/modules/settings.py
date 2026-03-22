@@ -99,7 +99,7 @@ _DOWNLOAD_DIR_MAP = {
 def download_directory(media_type):
 	setting = _DOWNLOAD_DIR_MAP.get(media_type, 'premium_download_directory')
 	value = get_setting(setting)
-	return translate_path(value) if value != '' else False
+	return translate_path(value) if value else False
 
 def easynews_active():
 	if get_setting('provider.easynews', 'false') == 'true':
@@ -346,7 +346,7 @@ def use_season_title():
 	return get_setting('use_season_title') == 'true'
 
 def watched_indicators():
-	if get_setting('trakt_user') == '' and get_setting('mdblist_user') == '': return 0
+	if not get_setting('trakt_user') and not get_setting('mdblist_user'): return 0
 	return int(get_setting('watched_indicators', '0'))
 
 def widget_hide_watched():

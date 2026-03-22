@@ -130,7 +130,7 @@ class Source:
 				return api.resolve_nzb(self.url, self.hash, store_to_cloud, title, season, episode)
 			if self.scrape_provider in default_internal_scrapers:
 				return self.resolve_internal_sources(self.direct_debrid_link)
-			if self.debrid in default_hosters_providers and not self.source.lower() == 'torrent':
+			if self.debrid in default_hosters_providers and self.source.lower() != 'torrent':
 				return import_debrid(self.debrid).unrestrict_link(self.url)
 			return self.url
 		except Exception as e:
@@ -142,7 +142,7 @@ class Source:
 		files, torrent_id = None, None
 		try:
 			extensions = supported_video_extensions()
-			extras_filtering_list = tuple(i for i in extras_filter() if not i in title.lower())
+			extras_filtering_list = tuple(i for i in extras_filter() if i not in title.lower())
 			if self.debrid in ('real-debrid', 'alldebrid'): args = self.url, self.hash, True
 			else: args = self.url, self.hash
 			files = api.parse_magnet_pack(*args)

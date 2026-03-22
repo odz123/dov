@@ -63,7 +63,7 @@ def movie_meta(id_type, media_id, user_info, current_date):
 			external_result = movie_external_id(id_type, media_id, tmdb_api)
 			if not external_result: data = None
 			else: data = movie_data(external_result['id'], language, tmdb_api)
-		if not data or data.get('success', True) is False:
+		if not data or not data.get('success', True):
 			if id_type == 'tmdb_id': meta = {'tmdb_id': media_id, 'imdb_id': 'tt0000000', 'tvdb_id': '0000000', 'fanart_added': True, 'blank_entry': True}
 			else: meta = {'tmdb_id': '0000000', 'imdb_id': media_id, 'tvdb_id': '0000000', 'fanart_added': True, 'blank_entry': True}
 			metacache_set('movie', id_type, meta, EXPIRES_2_DAYS)
@@ -119,7 +119,7 @@ def tvshow_meta(id_type, media_id, user_info, current_date):
 			external_result = tvshow_external_id(id_type, media_id, tmdb_api)
 			if not external_result: data = None
 			else: data = tvshow_data(external_result['id'], language, tmdb_api)
-		if not data or data.get('success', True) is False:
+		if not data or not data.get('success', True):
 			if id_type == 'tmdb_id': meta = {'tmdb_id': media_id, 'imdb_id': 'tt0000000', 'tvdb_id': '0000000', 'fanart_added': True, 'blank_entry': True}
 			elif id_type == 'imdb_id': meta = {'tmdb_id': '0000000', 'imdb_id': media_id, 'tvdb_id': '0000000', 'fanart_added': True, 'blank_entry': True}
 			else: meta = {'tmdb_id': '0000000', 'imdb_id': 'tt0000000', 'tvdb_id': media_id, 'fanart_added': True, 'blank_entry': True}
@@ -407,7 +407,7 @@ def build_tvshow_meta(data, user_info, fanarttv_data=None):
 	else: ei_created_by = 'N/A'
 	ei_next_ep = data_get('next_episode_to_air')
 	ei_last_ep = data_get('last_episode_to_air')
-	if ei_last_ep and not status in finished_show_check: total_aired_eps = ei_last_ep['episode_number'] + sum([
+	if ei_last_ep and status not in finished_show_check: total_aired_eps = ei_last_ep['episode_number'] + sum([
 			i['episode_count'] for i in season_data if 0 < i['season_number'] < ei_last_ep['season_number']
 		])
 	extra_info = {'status': status, 'type': _type, 'homepage': homepage, 'created_by': ei_created_by, 'next_episode_to_air': ei_next_ep, 'last_episode_to_air': ei_last_ep}

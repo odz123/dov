@@ -31,12 +31,12 @@ class Discover:
 		self.tmdb_api = tmdb_api_key()
 
 	def movie(self):
-		if not 'media_type' in self.discover_params: self._set_default_params('movie')
+		if 'media_type' not in self.discover_params: self._set_default_params('movie')
 		names = self.discover_params['search_name']
 		self._add_dir({'mode': 'discover._clear_property', 'media_type': 'movie', 'list_name': '[B]%s[/B]' % ls(32656).upper()})
-		if not 'recommended' in names:
+		if 'recommended' not in names:
 			self._add_dir({'mode': 'discover.similar_recommended', 'media_type': 'movie', 'key': 'similar', 'list_name': _ln_ins % (ls(32451), ls(32592), names.get('similar', ''))})
-		if not 'similar' in names:
+		if 'similar' not in names:
 			self._add_dir({'mode': 'discover.similar_recommended', 'media_type': 'movie', 'key': 'recommended', 'list_name': _ln_ins % (ls(32451), ls(32593), names.get('recommended', ''))})
 		if not any(i in names for i in ('similar', 'recommended')):
 			for item in (
@@ -60,12 +60,12 @@ class Discover:
 		self._end_directory()
 
 	def tvshow(self):
-		if not 'media_type' in self.discover_params: self._set_default_params('tvshow')
+		if 'media_type' not in self.discover_params: self._set_default_params('tvshow')
 		names = self.discover_params['search_name']
 		self._add_dir({'mode': 'discover._clear_property', 'media_type': 'tvshow', 'list_name': '[B]%s[/B]' % ls(32656).upper()})
-		if not 'recommended' in names:
+		if 'recommended' not in names:
 			self._add_dir({'mode': 'discover.similar_recommended', 'media_type': 'tvshow', 'key': 'similar', 'list_name': _ln_ins % (ls(32451), ls(32592), names.get('similar', ''))})
-		if not 'similar' in names:
+		if 'similar' not in names:
 			self._add_dir({'mode': 'discover.similar_recommended', 'media_type': 'tvshow', 'key': 'recommended', 'list_name': _ln_ins % (ls(32451), ls(32593), names.get('recommended', ''))})
 		if not any(i in names for i in ['similar', 'recommended']):
 			for item in (
@@ -136,7 +136,7 @@ class Discover:
 							key_ids_append(str(i['id']))
 							key_words_append(i['name'].upper())
 			except Exception: pass
-			values = ('&with_keywords=%s' % ','.join([i for i in current_key_ids]), ', '.join([i for i in current_keywords]))
+			values = ('&with_keywords=%s' % ','.join(current_key_ids), ', '.join(current_keywords))
 			self._process(key, values)
 
 	def exclude_keywords(self):
@@ -162,7 +162,7 @@ class Discover:
 							key_ids_append(str(i['id']))
 							key_words_append(i['name'].upper())
 			except Exception: pass
-			values = ('&without_keywords=%s' % ','.join([i for i in current_key_ids]), ', '.join([i for i in current_keywords]))
+			values = ('&without_keywords=%s' % ','.join(current_key_ids), ', '.join(current_keywords))
 			self._process(key, values)
 
 	def year_start(self):
@@ -284,7 +284,7 @@ class Discover:
 		if not actors: return
 		for item in actors:
 			known_for_list = [i.get('title', 'NA') for i in item['known_for']]
-			known_for_list = [i for i in known_for_list if not i == 'NA']
+			known_for_list = [i for i in known_for_list if i != 'NA']
 			item['icon'] = icon = profile_url % item['profile_path'] if item.get('profile_path') else people_icon
 			item['line1'] = item['name']
 			item['line2'] = ', '.join(known_for_list) if known_for_list else ''
@@ -341,7 +341,7 @@ class Discover:
 					for i in company_choice:
 						company_ids_append(str(i['id']))
 						company_append(i['name'].upper())
-				values = ('&with_companies=%s' % '|'.join([i for i in current_company_ids]), ', '.join([i for i in current_companies]))
+				values = ('&with_companies=%s' % '|'.join(current_company_ids), ', '.join(current_companies))
 				self._process(key, values)
 			except Exception: pass
 

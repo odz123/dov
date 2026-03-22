@@ -73,7 +73,7 @@ class source:
 							size = self._get_size(url_path)
 							scrape_results_append((item[0], url_path, size))
 					elif seas_ep_filter(self.season, self.episode, normalized):
-						if self.title_query in item_name or not folder_name in self.folder_path:
+						if self.title_query in item_name or folder_name not in self.folder_path:
 							url_path = self.url_path(folder_name, item[0])
 							size = self._get_size(url_path)
 							scrape_results_append((item[0], url_path, size))

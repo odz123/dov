@@ -71,7 +71,7 @@ class SourceResults(BaseDialog):
 			if chosen_listitem.getProperty('tikiskins.perform_full_search') == 'true':
 				self.selected = ('perform_full_search', '')
 				return self.close()
-			if not 'UNCACHED' in chosen_listitem.getProperty('tikiskins.source_type'):
+			if 'UNCACHED' not in chosen_listitem.getProperty('tikiskins.source_type'):
 				self.selected = ('play', json.loads(chosen_listitem.getProperty('source')))
 				return self.close()
 			try:
@@ -109,7 +109,7 @@ class SourceResults(BaseDialog):
 						return self.close()
 				elif 'browse_packs' in choice:
 					link = Source(source, self.meta).browse_packs(highlight)
-					if not link == 'cancel':
+					if link != 'cancel':
 						source['unrestricted_link'] = link
 						self.selected = ('play', source)
 						return self.close()
@@ -380,7 +380,7 @@ class ResultsContextMenu(BaseDialog):
 				'name': self.meta.get('rootname', ''), 'provider': cache_provider, 'url': None,
 				'magnet_url': magnet_url, 'info_hash': info_hash, 'highlight': self.highlight
 			}))
-		if not scrape_provider == 'folders':
+		if scrape_provider != 'folders':
 			append(self.make_contextmenu_item(down_file_str, run_plugin_str, {
 				'mode': 'downloader', 'action': 'meta.single', 'source': source, 'meta': meta_json,
 				'name': self.meta.get('rootname', ''), 'provider': scrape_provider, 'url': None

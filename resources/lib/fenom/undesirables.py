@@ -29,15 +29,19 @@ class Undesirables():
 
 	def set_many(self, undesirables):
 		self.make_database_objects()
-		self.dbcur.executemany('INSERT OR REPLACE INTO undesirables VALUES (?, ?, ?)', undesirables)
-		self.dbcon.commit()
-		self.dbcon.close()
+		try:
+			self.dbcur.executemany('INSERT OR REPLACE INTO undesirables VALUES (?, ?, ?)', undesirables)
+			self.dbcon.commit()
+		finally:
+			self.dbcon.close()
 
 	def remove_many(self, undesirables):
 		self.make_database_objects()
-		self.dbcur.executemany('DELETE FROM undesirables WHERE keyword = ?', undesirables)
-		self.dbcon.commit()
-		self.dbcon.close()
+		try:
+			self.dbcur.executemany('DELETE FROM undesirables WHERE keyword = ?', undesirables)
+			self.dbcon.commit()
+		finally:
+			self.dbcon.close()
 
 	def make_connection(self):
 		self.dbcon = db.connect(undesirablescacheFile, timeout=60)
@@ -57,20 +61,23 @@ class Undesirables():
 		try:
 			row = self.dbcur.execute('SELECT keyword FROM undesirables WHERE user_defined = ?', (False,)).fetchone()
 			if not row: raise ValueError('No default undesirables found')
-			self.dbcon.close()
 			return True
 		except Exception:
 			self.dbcur.execute('CREATE TABLE IF NOT EXISTS undesirables (keyword TEXT NOT NULL, user_defined BOOL NOT NULL, enabled BOOL NOT NULL, UNIQUE(keyword))')
 			self.set_defaults()
 			return False
+		finally:
+			self.dbcon.close()
 
 	def set_defaults(self):
 		from fenom.source_utils import UNDESIRABLES
 		self.set_many([(i, False, True) for i in UNDESIRABLES])
 
 	def process_keywords(self, results):
-		keywords = sorted([i[0] for i in results.fetchall()])
-		self.dbcon.close()
+		try:
+			keywords = sorted([i[0] for i in results.fetchall()])
+		finally:
+			self.dbcon.close()
 		return keywords
 
 def undesirablesSelect():

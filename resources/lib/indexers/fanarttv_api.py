@@ -47,7 +47,7 @@ def parse_art(art, language):
 			result.sort(key=lambda x: int(x[1]), reverse=True)
 			result = result[0][0]
 	except Exception: result = ''
-	if not 'http' in result: result = ''
+	if 'http' not in result: result = ''
 	return result
 
 def add(media_type, language, media_id, client_key, meta):

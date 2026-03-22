@@ -96,7 +96,7 @@ def _make_alias_dict(meta, title):
 	if alternative_titles: aliases = [{'title': i, 'country': ''} for i in alternative_titles]
 	if country_codes: aliases.extend([{'title': '%s %s' % (title, i), 'country': ''} for i in country_codes])
 	normalized = ({'title': normalize(i['title']), 'country': i['country']} for i in aliases)
-	aliases.extend(i for i in normalized if not i in aliases)
+	aliases.extend(i for i in normalized if i not in aliases)
 	return aliases
 
 def _get_search_year(meta):
@@ -183,7 +183,7 @@ class ExternalSource:
 				sources = self.process_sources(provider, sources)
 				epc.set(provider, self.media_type, self.tmdb_id, self.title, self.year, s_check, e_check, sources, expiry_hours)
 		if sources:
-			if pack == season_display: sources = [i for i in sources if not 'episode_start' in i or i['episode_start'] <= self.episode <= i['episode_end']]
+			if pack == season_display: sources = [i for i in sources if 'episode_start' not in i or i['episode_start'] <= self.episode <= i['episode_end']]
 			elif pack == show_display: sources = [i for i in sources if i['last_season'] >= self.season]
 			self.sources.extend(sources)
 
