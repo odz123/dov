@@ -96,7 +96,8 @@ class TorBoxAPI:
 	def unrestrict_link(self, file_id):
 		user_ip = self._get_user_ip()
 		params = {'user_ip': user_ip} if user_ip else {}
-		torrent_id, file_id = file_id.split(',')
+		if ',' not in str(file_id): return None
+		torrent_id, file_id = file_id.split(',', 1)
 		params.update({'token': self.token, 'torrent_id': torrent_id, 'file_id': file_id})
 		url = 'torrents/requestdl'
 		return self._get(url, params=params)
@@ -104,7 +105,8 @@ class TorBoxAPI:
 	def unrestrict_usenet(self, file_id):
 		user_ip = self._get_user_ip()
 		params = {'user_ip': user_ip} if user_ip else {}
-		usenet_id, file_id = file_id.split(',')
+		if ',' not in str(file_id): return None
+		usenet_id, file_id = file_id.split(',', 1)
 		params.update({'token': self.token, 'usenet_id': usenet_id, 'file_id': file_id})
 		url = 'usenet/requestdl'
 		return self._get(url, params=params)
@@ -112,7 +114,8 @@ class TorBoxAPI:
 	def unrestrict_webdl(self, file_id):
 		user_ip = self._get_user_ip()
 		params = {'user_ip': user_ip} if user_ip else {}
-		webdl_id, file_id = file_id.split(',')
+		if ',' not in str(file_id): return None
+		webdl_id, file_id = file_id.split(',', 1)
 		params.update({'token': self.token, 'web_id': webdl_id, 'file_id': file_id})
 		url = 'webdl/requestdl'
 		return self._get(url, params=params)

@@ -37,6 +37,6 @@ def person_search(query=None):
 		if selection is None: return
 	else: selection = actors[0]
 	actor = int(selection['id']), selection['name'], selection['icon']
-	if not actor: return
+	if not actor[0]: return
 	return person_data_dialog({'actor_id': actor[0], 'actor_name': actor[1], 'actor_image': actor[2]})
 

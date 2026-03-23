@@ -82,7 +82,7 @@ def build_tmdb_list(params):
 	threads = list(TaskPool.process(threads))
 	for i in threads: i.join()
 	items = movies.items + tvshows.items
-	items.sort(key=lambda k: int(k[1].getProperty('pov_sort_order')))
+	items.sort(key=lambda k: int(k[1].getProperty('pov_sort_order') or '0'))
 	content, total = max(
 		('movies', movies), ('tvshows', tvshows), key=lambda k: len(k[1].items)
 	)

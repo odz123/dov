@@ -195,7 +195,7 @@ class ExternalSource:
 					if 'hash' in i: i['hash'] = str(i['hash']).lower()
 					size, size_label, divider = 0, None, None
 					if 'name' in i: URLName = clean_file_name(i_get('name')).replace('html', ' ').replace('+', ' ').replace('-', ' ')
-					else: URLName = get_filename_match(self.orig_title, i_get('url'), i_get('name'))
+					else: URLName = get_filename_match(self.orig_title, i_get('url'), i_get('name', ''))
 					if 'name_info' in i: quality, extraInfo = get_file_info(name_info=i_get('name_info'))
 					else: quality, extraInfo = get_file_info(url=i_get('url'))
 					try:
@@ -203,7 +203,7 @@ class ExternalSource:
 						if 'package' in i and not i_get('true_size', False):
 							if i_get('package') == 'season': divider = self.season_divider
 							else: divider = self.show_divider
-							size = float(size) / divider
+							size = float(size) / divider if divider else float(size)
 							size_label = '%.2f GB' % size
 						else: size_label = '%.2f GB' % size
 					except Exception: pass

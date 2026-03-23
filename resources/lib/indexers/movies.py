@@ -127,9 +127,9 @@ class Movies:
 				if self.show_cast: videoinfo.setCast(make_cast_list(meta_get('cast', [])))
 				videoinfo.setUniqueIDs({'imdb': imdb_id, 'tmdb': string(tmdb_id)})
 				videoinfo.setCountries(meta_get('country'))
-				videoinfo.setDirectors(meta_get('director').split(', '))
-				videoinfo.setDuration(int(meta_get('duration')))
-				videoinfo.setGenres(meta_get('genre').split(', '))
+				videoinfo.setDirectors((meta_get('director') or '').split(', '))
+				videoinfo.setDuration(int(meta_get('duration') or 0))
+				videoinfo.setGenres((meta_get('genre') or '').split(', '))
 				videoinfo.setIMDBNumber(imdb_id)
 				videoinfo.setMediaType('movie')
 				videoinfo.setMpaa(meta_get('mpaa'))
@@ -143,14 +143,14 @@ class Movies:
 				videoinfo.setTitle(rootname if self.include_year_in_title else title)
 				if self.show_trailer: videoinfo.setTrailer(meta_get('trailer'))
 				videoinfo.setVotes(meta_get('votes'))
-				videoinfo.setWriters(meta_get('writer').split(', '))
-				videoinfo.setYear(int(year))
+				videoinfo.setWriters((meta_get('writer') or '').split(', '))
+				videoinfo.setYear(int(year or 0))
 			self.append((url_params, listitem, False))
 		except Exception: pass
 
 	def worker(self):
 		for i in TaskPool().tasks_enumerate(self.build_movie_content, self.list, Thread): i.join()
-		self.items.sort(key=lambda k: int(k[1].getProperty('pov_sort_order')))
+		self.items.sort(key=lambda k: int(k[1].getProperty('pov_sort_order') or '0'))
 		return self.items
 
 class Indexer(Movies):

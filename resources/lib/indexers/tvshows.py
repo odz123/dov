@@ -130,9 +130,9 @@ class TVShows:
 				if self.show_cast: videoinfo.setCast(make_cast_list(meta_get('cast', [])))
 				videoinfo.setUniqueIDs({'imdb': imdb_id, 'tmdb': string(tmdb_id), 'tvdb': string(tvdb_id)})
 				videoinfo.setCountries(meta_get('country'))
-				videoinfo.setDirectors(meta_get('director').split(', '))
+				videoinfo.setDirectors((meta_get('director') or '').split(', '))
 				videoinfo.setDuration(meta_get('duration'))
-				videoinfo.setGenres(meta_get('genre').split(', '))
+				videoinfo.setGenres((meta_get('genre') or '').split(', '))
 				videoinfo.setIMDBNumber(imdb_id)
 				videoinfo.setMediaType('tvshow')
 				videoinfo.setMpaa(meta_get('mpaa'))
@@ -147,14 +147,14 @@ class TVShows:
 				videoinfo.setTvShowStatus(meta_get('status'))
 				videoinfo.setTvShowTitle(title)
 				videoinfo.setVotes(meta_get('votes'))
-				videoinfo.setWriters(meta_get('writer').split(', '))
-				videoinfo.setYear(int(year))
+				videoinfo.setWriters((meta_get('writer') or '').split(', '))
+				videoinfo.setYear(int(year or 0))
 			self.append((url_params, listitem, self.is_folder))
 		except Exception: pass
 
 	def worker(self):
 		for i in TaskPool().tasks_enumerate(self.build_tvshow_content, self.list, Thread): i.join()
-		self.items.sort(key=lambda k: int(k[1].getProperty('pov_sort_order')))
+		self.items.sort(key=lambda k: int(k[1].getProperty('pov_sort_order') or '0'))
 		return self.items
 
 class Indexer(TVShows):
