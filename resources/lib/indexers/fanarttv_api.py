@@ -40,9 +40,9 @@ def get(media_type, language, media_id, client_key):
 def parse_art(art, language):
 	if art is None: return ''
 	try:
-		result = [(x['url'], x['likes']) for x in art if x.get('lang') == language]
-		if not result and language != 'en': result = [(x['url'], x['likes']) for x in art if x.get('lang') == 'en']
-		if not result: result = [(x['url'], x['likes']) for x in art if any(value == x.get('lang') for value in ('00', ''))]
+		result = [(x.get('url', ''), x.get('likes', 0)) for x in art if x.get('lang') == language]
+		if not result and language != 'en': result = [(x.get('url', ''), x.get('likes', 0)) for x in art if x.get('lang') == 'en']
+		if not result: result = [(x.get('url', ''), x.get('likes', 0)) for x in art if any(value == x.get('lang') for value in ('00', ''))]
 		if result:
 			result.sort(key=lambda x: int(x[1]) if str(x[1]).isdigit() else 0, reverse=True)
 			result = result[0][0]

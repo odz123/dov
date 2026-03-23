@@ -65,8 +65,9 @@ class MainCache(BaseCache):
 
 	def delete_all_lists(self):
 		from modules.meta_lists import media_lists
-		command = LIKE_SELECT % ALL_LIST_ADD.join(media_lists)
-		self.dbcur.execute(command)
+		# Use parameterized queries to prevent SQL injection
+		conditions = ' OR '.join(['id LIKE ?' for _ in media_lists])
+		self.dbcur.execute('SELECT id FROM maincache WHERE %s' % conditions, tuple(media_lists))
 		results = self.dbcur.fetchall()
 		try:
 			# Batch delete using executemany instead of N+1 pattern
@@ -74,16 +75,14 @@ class MainCache(BaseCache):
 				self.dbcur.executemany(DELETE, [(str(item[0]),) for item in results])
 				for item in results:
 					self.delete_memory_cache(str(item[0]))
-			# VACUUM removed - should be run during maintenance only
 		except Exception: pass
 
 	def delete_all_folderscrapers(self):
-		self.dbcur.execute(LIKE_SELECT % "'pov_FOLDERSCRAPER_%'")
+		self.dbcur.execute('SELECT id FROM maincache WHERE id LIKE ?', ('pov_FOLDERSCRAPER_%',))
 		remove_list = [str(i[0]) for i in self.dbcur.fetchall()]
 		if not remove_list: return 'success'
 		try:
-			self.dbcur.execute(LIKE_DELETE % "'pov_FOLDERSCRAPER_%'")
-			# VACUUM removed - should be run during maintenance only
+			self.dbcur.execute('DELETE FROM maincache WHERE id LIKE ?', ('pov_FOLDERSCRAPER_%',))
 			for item in remove_list: self.delete_memory_cache(str(item))
 		except Exception: pass
 

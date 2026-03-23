@@ -109,7 +109,7 @@ class RealDebrid:
 		sleep(500)
 		headers = {'Authorization': 'Bearer %s' % data['access_token']}
 		response = requests.get(self.base_url('rest/1.0/user'), headers=headers, timeout=timeout)
-		username = response.json()['username']
+		username = response.json().get('username', '')
 		client_id, secret = data['client_id'], data['client_secret']
 		token, refresh = data['access_token'], data['refresh_token']
 		set_setting('rd.username', str(username))
@@ -147,8 +147,9 @@ class Premiumize:
 		data = {'client_id': self.client_id, 'response_type': 'device_code'}
 		response = requests.post(self.base_url('token'), json=data, timeout=timeout)
 		result = response.json()
+		if not result or 'device_code' not in result: return notification(32574)
 		data = {'client_id': self.client_id, 'code': result['device_code'], 'grant_type': 'device_code'}
-		expires_in, expires_at = result['expires_in'], result['expires_in'] + time.monotonic()
+		expires_in, expires_at = result.get('expires_in', 120), result.get('expires_in', 120) + time.monotonic()
 		try: qr_icon = qr_str % '&data=%s' % quote(result['verification_uri'])
 		except Exception: qr_icon = ''
 		meta = {**dict.fromkeys(meta_keys.split(), ''), 'poster': qr_icon}
@@ -169,7 +170,7 @@ class Premiumize:
 		sleep(500)
 		headers = {'User-Agent': user_agent, 'Authorization': 'Bearer %s' % self.token}
 		response = requests.get(self.base_url('api/account/info'), headers=headers, timeout=timeout)
-		username = response.json()['customer_id']
+		username = response.json().get('customer_id', '')
 		token = str(data['access_token'])
 		set_setting('pm.account_id', str(username))
 		set_setting('pm.token', token)
@@ -186,7 +187,7 @@ class AllDebrid:
 
 	def poll_auth(self, url):
 		response = requests.get(url, timeout=timeout)
-		result = response.json()['data']
+		result = response.json().get('data', {})
 		self.token = result.get('apikey', '')
 
 	def set(self):
@@ -199,8 +200,9 @@ class AllDebrid:
 			return notification('Removed %s Authorization' % cls_name)
 
 		response = requests.get(self.base_url('v4/pin/get'), timeout=timeout)
-		result = response.json()['data']
-		expires_in, expires_at = result['expires_in'], result['expires_in'] + time.monotonic()
+		result = response.json().get('data', {})
+		if not result: return notification(32574)
+		expires_in, expires_at = result.get('expires_in', 120), result.get('expires_in', 120) + time.monotonic()
 		try: qr_icon = qr_str % '&bgcolor=ffd700&data=%s' % quote(result['user_url'])
 		except Exception: qr_icon = ''
 		meta = {**dict.fromkeys(meta_keys.split(), ''), 'poster': qr_icon}
@@ -221,8 +223,8 @@ class AllDebrid:
 		sleep(500)
 		headers = {'Authorization': 'Bearer %s' % self.token}
 		response = requests.get(self.base_url('v4/user'), headers=headers, timeout=timeout)
-		result = response.json()['data']
-		username = result['user']['username']
+		result = response.json().get('data', {})
+		username = result.get('user', {}).get('username', '')
 		set_setting('ad.account_id', str(username))
 		set_setting('ad.token', self.token)
 		notification('Set %s Authorization' % cls_name)
@@ -253,8 +255,9 @@ class TorBox:
 
 		params = {'app': user_agent}
 		response = requests.get(self.base_url('user/auth/device/start'), params=params, timeout=timeout)
-		try: result = response.json()['data']
+		try: result = response.json().get('data', {})
 		except (ValueError, KeyError): return notification(32574)
+		if not result or 'device_code' not in result: return notification(32574)
 		data = {'device_code': result['device_code']}
 		expires_in, expires_at = 600, 600 + time.monotonic()
 		try: qr_icon = qr_str % '&bgcolor=04bf8a&data=%s' % quote(result['verification_url'])
@@ -435,10 +438,12 @@ class Trakt:
 		headers = {'trakt-api-key': self.client_id, 'trakt-api-version': '2', 'Content-Type': 'application/json'}
 		headers.update({'Authorization': 'Bearer %s' % self.token})
 		response = requests.get(self.base_url('users/me'), headers=headers, timeout=timeout)
-		try: username = response.json()['username']
+		try: username = response.json().get('username', '')
 		except (ValueError, KeyError): return notification(32574)
-		expires = int(data['created_at']) + int(data['expires_in'])
-		refresh, token = data['refresh_token'], data['access_token']
+		if not username: return notification(32574)
+		expires = int(data.get('created_at', 0)) + int(data.get('expires_in', 0))
+		refresh, token = data.get('refresh_token'), data.get('access_token')
+		if not refresh or not token: return notification(32574)
 		set_setting('trakt_user', str(username))
 		set_setting('trakt.token', token)
 		set_setting('trakt.refresh', refresh)

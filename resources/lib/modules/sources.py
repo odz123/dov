@@ -149,7 +149,8 @@ class SourceSelect:
 		self.play_source(results)
 
 	def collect_results(self):
-		self.sources.extend(self.prescrape_sources)
+		with self._sources_lock:
+			self.sources.extend(self.prescrape_sources)
 		if self.active_folders: self.append_folder_scrapers(self.providers)
 		self.providers.extend(internal_sources(self.active_internal_scrapers, self.media_type))
 		if self.providers:
@@ -341,17 +342,18 @@ class SourceSelect:
 		remaining_threads = {x: x.name for x in _threads}
 		while True:
 			# Remove finished threads from tracking set (avoids full list scan)
-			finished = [t for t in remaining_threads if not t.is_alive()]
+			finished = [t for t in list(remaining_threads) if not t.is_alive()]
 			for t in finished: del remaining_threads[t]
 			if not remaining_threads: break
 			if monitor.abortRequested() or time.monotonic() > end_time: break
 			try:
 				if self.progress_dialog and self.progress_dialog.iscanceled(): break
 				self._process_internal_results()
-				int_totals = [_total_format % v for v in self.internal_resolutions.values()]
+				int_totals = [_total_format % v for v in list(self.internal_resolutions.values())]
 				current_progress = time.monotonic() - start_time
 				line2 = dialog_format % (int_dialog_hl, line2_inst, *int_totals)
-				line3 = remaining_format % ', '.join(remaining_threads.values()).upper()
+				remaining_snapshot = list(remaining_threads.values())
+				line3 = remaining_format % ', '.join(remaining_snapshot).upper()
 				percent = int((current_progress/float(timeout))*100) if timeout > 0 else 0
 				self.progress_dialog.update(format_line % (line1, line2, line3), percent)
 			except Exception:
@@ -796,7 +798,7 @@ class Manager:
 		# Track remaining threads with dict for efficient removal instead of full list scan each iteration
 		remaining = {t: t.name for t in self.threads}
 		while remaining:
-			finished = [t for t in remaining if t.done()]
+			finished = [t for t in list(remaining) if t.done()]
 			for t in finished: del remaining[t]
 			if not remaining: break
 			if monitor.abortRequested() or time.monotonic() > end_time: break

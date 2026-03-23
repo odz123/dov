@@ -83,13 +83,13 @@ class source:
 				else: continue
 
 				try:
-					seeders = int(file['seeders'])
+					seeders = int(file.get('seeders', 0))
 					if self.min_seeders > seeders: continue
 				except Exception: seeders = 0
 
 				quality, info = source_utils.get_release_quality(name_info, url)
 				try:
-					size = f"{float(file['size']) / 1073741824:.2f} GB"
+					size = f"{float(file.get('size', 0)) / 1073741824:.2f} GB"
 					dsize, isize = source_utils._size(size)
 					info.insert(0, isize)
 				except Exception: dsize = 0

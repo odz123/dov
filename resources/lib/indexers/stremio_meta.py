@@ -96,7 +96,7 @@ class StremioMetaCache:
 		"""Set metadata in cache (SQLite + memory)"""
 		try:
 			# Convert hours to days for the MetaCache API
-			days = max(1, int(hours / 24)) if hours >= 24 else 7
+			days = max(1, hours // 24) if hours >= 24 else 7
 			self._metacache.set_stremio(media_type, media_id, meta, expiration=days)
 		except Exception:
 			pass

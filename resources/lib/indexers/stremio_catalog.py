@@ -18,7 +18,7 @@ import sys
 import json
 import time
 from ast import literal_eval
-from threading import Thread
+from threading import Thread, Lock
 from modules.kodi_utils import (
 	get_setting, set_setting, notification, make_listitem, add_items,
 	set_content, end_directory, set_view_mode, build_url, dialog,
@@ -44,6 +44,7 @@ class StremioCache:
 
 	_REGISTRY_KEY = 'pov_stremio_cache_keys'
 	_registry_cache = None  # In-memory cache for registry keys
+	_registry_lock = Lock()
 
 	@staticmethod
 	def _make_cache_key(prefix, *args):
@@ -54,13 +55,14 @@ class StremioCache:
 	@staticmethod
 	def _load_registry():
 		"""Load registry from window property into memory (lazy load)"""
-		if StremioCache._registry_cache is None:
-			try:
-				registry = get_property(StremioCache._REGISTRY_KEY)
-				StremioCache._registry_cache = set(json.loads(registry)) if registry else set()
-			except Exception:
-				StremioCache._registry_cache = set()
-		return StremioCache._registry_cache
+		with StremioCache._registry_lock:
+			if StremioCache._registry_cache is None:
+				try:
+					registry = get_property(StremioCache._REGISTRY_KEY)
+					StremioCache._registry_cache = set(json.loads(registry)) if registry else set()
+				except Exception:
+					StremioCache._registry_cache = set()
+			return StremioCache._registry_cache
 
 	@staticmethod
 	def _save_registry():
@@ -74,10 +76,11 @@ class StremioCache:
 	@staticmethod
 	def _register_key(key):
 		"""Track a cache key in the registry for later clearing"""
-		registry = StremioCache._load_registry()
-		if key not in registry:
-			registry.add(key)
-			StremioCache._save_registry()
+		with StremioCache._registry_lock:
+			registry = StremioCache._load_registry()
+			if key not in registry:
+				registry.add(key)
+				StremioCache._save_registry()
 
 	@staticmethod
 	def get(key):

@@ -37,8 +37,8 @@ class Indexer(Debrid):
 
 
 	def torrent_cloud(self, items, folder_id=None, folder_name=None):
-		items.sort(key=lambda k: k['name'])
-		items.sort(key=lambda k: k['type'], reverse=True)
+		items.sort(key=lambda k: k.get('name', ''))
+		items.sort(key=lambda k: k.get('type', ''), reverse=True)
 		for count, item in enumerate(items, 1):
 			try:
 				if not ('link' in item and item['link'].lower().endswith(extensions)) and not item['type'] == 'folder': continue

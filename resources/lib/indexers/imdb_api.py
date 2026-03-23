@@ -303,21 +303,21 @@ def get_imdb(params):
 					quality = i['definition']
 					if quality == 'auto': continue
 					if quality == 'SD': quality = '360p'
-					quality_rank = quality_ranks_dict[quality]
+					quality_rank = quality_ranks_dict.get(quality, 3)
 					videos.append({'quality': quality, 'quality_rank': quality_rank, 'url': i['videoUrl']})
 				yield {'title': title, 'poster': poster, 'videos': videos}
 		quality_ranks_dict = {'360p': 3, '480p': 2, '720p': 1, '1080p': 0}
 		result = session.get(url, timeout=timeout).json()
-		playlists = result['playlists'][params['imdb_id']]['listItems']
-		videoMetadata = result['videoMetadata']
+		playlists = result.get('playlists', {}).get(params['imdb_id'], {}).get('listItems', [])
+		videoMetadata = result.get('videoMetadata', {})
 		imdb_list = list(_process())
 	elif action == 'imdb_people_id':
 		try:
 			import json
 			name = params['name']
 			result = session.get(url, timeout=timeout).content
-			result = json.loads(result.replace('imdb$%s(' % name.replace(' ', '_'), '')[:-1])['d']
-			imdb_list = next((i['id'] for i in result if i['id'].startswith('nm') and i['l'].lower() == name), None)
+			result = json.loads(result.replace('imdb$%s(' % name.replace(' ', '_'), '')[:-1]).get('d', [])
+			imdb_list = next((i.get('id') for i in result if i.get('id', '').startswith('nm') and i.get('l', '').lower() == name), None)
 			if not imdb_list: raise IndexError('not found')
 		except (IndexError, KeyError, TypeError, ValueError): pass
 		except Exception as e: logger('imdb_api.imdb_people_id primary', str(e))
@@ -332,7 +332,7 @@ def get_imdb(params):
 	elif action == 'imdb_movie_year':
 		result = session.get(url, timeout=timeout).json()
 		try:
-			result = next((i for i in result['d'] if 'y' in i)) # result['d'][0]
+			result = next((i for i in result.get('d', []) if 'y' in i))
 			imdb_list = str(result['y'])
 		except (StopIteration, KeyError, TypeError): pass
 	elif action == 'imdb_parentsguide':

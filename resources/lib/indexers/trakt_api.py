@@ -116,8 +116,10 @@ def trakt_refresh():
 		data = {'client_id': _get_v2_api_key(), 'client_secret': _get_client_secret(), 'redirect_uri': REDIRECT_URI}
 		data.update({'refresh_token': get_setting('trakt.refresh'), 'grant_type': 'refresh_token'})
 		response = call_trakt('oauth/token', data=data, with_auth=False)
-		expires = int(response['created_at']) + int(response['expires_in'])
-		refresh, token = response['refresh_token'], response['access_token']
+		if not response or not isinstance(response, dict): return False
+		expires = int(response.get('created_at', 0)) + int(response.get('expires_in', 0))
+		refresh, token = response.get('refresh_token'), response.get('access_token')
+		if not refresh or not token: return False
 		set_setting('trakt.token', token)
 		set_setting('trakt.refresh', refresh)
 		set_setting('trakt.expires', str(expires))
@@ -586,15 +588,17 @@ def trakt_playback_progress():
 
 def trakt_progress_movies(progress_info):
 	def _process(item):
-		tmdb_id = get_trakt_movie_id(item['movie']['ids'])
+		movie = item.get('movie')
+		if not movie: return
+		tmdb_id = get_trakt_movie_id(movie.get('ids', {}))
 		if not tmdb_id: return
 		insert_append((
-			'movie', str(tmdb_id), '', '', str(round(item['progress'], 1)),
-			0, item['paused_at'], item['id'], item['movie']['title']
+			'movie', str(tmdb_id), '', '', str(round(item.get('progress', 0), 1)),
+			0, item.get('paused_at', ''), item.get('id', 0), movie.get('title', '')
 		))
 	insert_list = []
 	insert_append = insert_list.append
-	progress_items = [i for i in progress_info  if i['type'] == 'movie' and i['progress'] > 1]
+	progress_items = [i for i in progress_info if i.get('type') == 'movie' and i.get('progress', 0) > 1]
 	if not progress_items: return
 	threads = list(make_thread_list(_process, progress_items, Thread))
 	for i in threads: i.join()
@@ -611,21 +615,23 @@ def trakt_progress_tv(progress_info):
 				tmdb_id, title = item[0], item[1]
 				if not tmdb_id: continue
 				for p_item in progress_items:
-					if not p_item['show']['title'] == title: continue
-					season, episode = p_item['episode']['season'], p_item['episode']['number']
+					show = p_item.get('show', {})
+					ep = p_item.get('episode', {})
+					if not show.get('title') == title: continue
+					season, episode = ep.get('season', 0), ep.get('number', 0)
 					if season > 0: yield (
-						'episode', str(tmdb_id), season, episode, str(round(p_item['progress'], 1)),
-						0, p_item['paused_at'], p_item['id'], p_item['show']['title']
+						'episode', str(tmdb_id), season, episode, str(round(p_item.get('progress', 0), 1)),
+						0, p_item.get('paused_at', ''), p_item.get('id', 0), show.get('title', '')
 					)
 			except Exception: pass
 	tmdb_list = []
 	tmdb_list_append = tmdb_list.append
-	progress_items = [i for i in progress_info if i['type'] == 'episode' and i['progress'] > 1]
+	progress_items = [i for i in progress_info if i.get('type') == 'episode' and i.get('progress', 0) > 1]
 	if not progress_items: return
-	all_shows = [i['show'] for i in progress_items]
+	all_shows = [i['show'] for i in progress_items if 'show' in i]
 	# Use dict for O(1) dedup based on show ids (O(n) instead of O(n³))
 	seen_ids = {}
-	all_shows = [seen_ids.setdefault(i['ids']['trakt'], i) for i in all_shows if i['ids']['trakt'] not in seen_ids]
+	all_shows = [seen_ids.setdefault(i.get('ids', {}).get('trakt'), i) for i in all_shows if i.get('ids', {}).get('trakt') and i['ids']['trakt'] not in seen_ids]
 	threads = list(make_thread_list(_process_tmdb_ids, all_shows, Thread))
 	for i in threads: i.join()
 	insert_list = list(_process())

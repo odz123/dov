@@ -139,9 +139,9 @@ def local_string(string):
 	cached = _local_string_cache.get(string)
 	if cached is not None: return cached
 	try: _string = int(string)
-	except Exception: return string
+	except (ValueError, TypeError): return string
 	try: result = str(_addon_instance.getLocalizedString(_string))
-	except Exception: result = _addon_instance.getLocalizedString(_string)
+	except Exception: result = string
 	result = result or string
 	_local_string_cache[string] = result
 	return result

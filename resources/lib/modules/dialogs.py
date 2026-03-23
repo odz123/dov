@@ -13,7 +13,8 @@ get_setting, set_setting = kodi_utils.get_setting, kodi_utils.set_setting
 def imdb_videos_choice(videos, poster):
 	try: videos = json.loads(videos)
 	except Exception: pass
-	videos.sort(key=lambda x: x['quality_rank'])
+	if not isinstance(videos, list): return None
+	videos.sort(key=lambda x: x.get('quality_rank', 99))
 	list_items = [{'line1': i['quality'], 'icon': poster} for i in videos]
 	kwargs = {'items': json.dumps(list_items), 'heading': ls(32241)}
 	return select_dialog([i['url'] for i in videos], **kwargs)

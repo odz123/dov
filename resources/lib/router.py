@@ -39,7 +39,7 @@ class Router:
 		elif mode == 'media_play':
 			from modules.kodi_utils import player, close_all_dialog
 			close_all_dialog()
-			player.play(params['url'])
+			player.play(params.get('url', ''))
 		elif mode == 'play_media':
 			from modules.sources import SourceSelect
 			SourceSelect.factory(params)
