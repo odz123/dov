@@ -551,7 +551,9 @@ def clear_local_bookmarks():
 		dbcon = _database_connect(db_file)
 		dbcur = set_PRAGMAS(dbcon)
 		file_ids = dbcur.execute("""SELECT idFile FROM files WHERE strFilename LIKE 'plugin.video.pov%'""").fetchall()
+		_valid_tables = frozenset(('bookmark', 'streamdetails', 'files'))
 		for table in ('bookmark', 'streamdetails', 'files'):
+			if table not in _valid_tables: continue
 			dbcur.executemany("""DELETE FROM %s WHERE idFile = ?""" % table, file_ids)
 	except Exception as e:
 		kodi_utils.logger('watched_cache.clear_local_bookmarks', str(e))

@@ -424,11 +424,11 @@ def _stremio_check_cache(endpoint_key, imdb, season, episode, collector, lock):
 	url = config['base_url'] % (config['params'], media_url)
 	try:
 		results = session.get(url, timeout=7.05)
-		files = results.json()['streams']
+		files = results.json().get('streams', [])
 		cache_marker = config['cache_marker']
 		found_hashes = [
 			m[-1] for file in files
-			if cache_marker in file['name'] and 'url' in file
+			if cache_marker in file.get('name', '') and 'url' in file
 			for m in [HASH_PATTERN.findall(file['url'])] if m
 		]
 		with lock:
@@ -460,7 +460,7 @@ def dmm_check_cache(unchecked_hashes_chunk, imdb, collector, lock=None): # DMM A
 	data = {'dmmProblemKey': dmmProblemKey, 'solution': solution, 'imdbId': imdb, 'hashes': unchecked_hashes_chunk}
 	try:
 		results = session.post(url, json=data, timeout=7.05)
-		files = results.json()['available']
+		files = results.json().get('available', [])
 		found_hashes = [file['hash'] for file in files if 'hash' in file]
 		if lock:
 			with lock:

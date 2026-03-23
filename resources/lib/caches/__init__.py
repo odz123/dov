@@ -81,12 +81,14 @@ class ConnectionPool:
 	@classmethod
 	def has_pragmas(cls, conn):
 		"""Check if pragmas have been set on this connection."""
-		return id(conn) in cls._pragmas_set_ids
+		with cls._pool_lock:
+			return id(conn) in cls._pragmas_set_ids
 
 	@classmethod
 	def mark_pragmas(cls, conn):
 		"""Mark that pragmas have been set on this connection."""
-		cls._pragmas_set_ids.add(id(conn))
+		with cls._pool_lock:
+			cls._pragmas_set_ids.add(id(conn))
 
 	@classmethod
 	def clear_pool(cls, db_file=None):

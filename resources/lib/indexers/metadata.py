@@ -145,7 +145,7 @@ def tvshow_meta(id_type, media_id, user_info, current_date):
 							eng_all_trailers = eng_data['videos']['results']
 							if eng_all_trailers:
 								data['videos']['results'] = eng_all_trailers
-		if not fanarttv_data and extra_fanart_enabled: fanarttv_data = fanarttv_get('tv', language, data['external_ids']['tvdb_id'], fanart_client_key)
+		if not fanarttv_data and extra_fanart_enabled: fanarttv_data = fanarttv_get('tv', language, (data.get('external_ids') or {}).get('tvdb_id'), fanart_client_key)
 		meta = build_tvshow_meta(data, user_info, fanarttv_data)
 		metacache_set('tvshow', id_type, meta, tvshow_expiry(current_date, meta))
 	except Exception:
@@ -169,15 +169,15 @@ def season_episodes_meta(season, meta, user_info):
 			guest_stars_list = ep_data_get('guest_stars')
 			if guest_stars_list:
 				try: guest_stars = [
-					{'name': i['name'], 'role': i['character'], 'thumbnail': tmdb_image_base % (profile_resolution, i['profile_path']) if i['profile_path'] else ''}
+					{'name': i.get('name', ''), 'role': i.get('character', ''), 'thumbnail': tmdb_image_base % (profile_resolution, i.get('profile_path', '')) if i.get('profile_path') else ''}
 					for i in guest_stars_list
 				]
 				except Exception: pass
 			crew = ep_data_get('crew')
 			if crew:
-				try: writer = ', '.join([i['name'] for i in crew if i['job'] in writer_credits])
+				try: writer = ', '.join([i.get('name', '') for i in crew if i.get('job') in writer_credits])
 				except Exception: pass
-				try: director = next((i['name'] for i in crew if i['job'] == 'Director'), '')
+				try: director = next((i.get('name', '') for i in crew if i.get('job') == 'Director'), '')
 				except Exception: pass
 			yield {
 				'thumb': thumb, 'title': title, 'guest_stars': guest_stars, 'plot': plot, 'premiered': premiered,
@@ -198,7 +198,8 @@ def season_episodes_meta(season, meta, user_info):
 		ep_details = {1: premiere, 'mid_season': 'mid_season_finale', 'finale': finale}
 		image_resolution = user_info.get('image_resolution', backup_resolutions)
 		still_resolution, profile_resolution = image_resolution['still'], image_resolution['profile']
-		data = season_episodes_details(media_id, season, user_info['language'], user_info['tmdb_api'])['episodes']
+		season_details = season_episodes_details(media_id, season, user_info['language'], user_info['tmdb_api'])
+		data = season_details.get('episodes', []) if isinstance(season_details, dict) else []
 		data = list(_process())
 		metacache_set('season', 'tmdb_id', data, expiration, string)
 	except Exception: pass
@@ -268,43 +269,44 @@ def _extract_credits(credits, image_resolution):
 	all_cast = credits.get('cast')
 	if all_cast:
 		try: cast = [
-			{'name': i['name'], 'role': i['character'], 'thumbnail': tmdb_image_base % (image_resolution['profile'], i['profile_path']) if i['profile_path'] else ''}
+			{'name': i.get('name', ''), 'role': i.get('character', ''), 'thumbnail': tmdb_image_base % (image_resolution['profile'], i.get('profile_path', '')) if i.get('profile_path') else ''}
 			for i in all_cast
 		]
 		except Exception: pass
 	crew = credits.get('crew')
 	if crew:
-		try: writer = ', '.join([i['name'] for i in crew if i['job'] in writer_credits])
+		try: writer = ', '.join([i.get('name', '') for i in crew if i.get('job') in writer_credits])
 		except Exception: pass
-		try: director = next((i['name'] for i in crew if i['job'] == 'Director'), '')
+		try: director = next((i.get('name', '') for i in crew if i.get('job') == 'Director'), '')
 		except Exception: pass
 	return cast, writer, director
 
 def _extract_trailers(videos):
 	"""Extract trailers and primary trailer URL from videos data."""
 	if not videos: return [], ''
-	all_trailers = videos['results']
+	all_trailers = videos.get('results', [])
 	trailer = ''
-	try: trailer = next((youtube_url % i['key'] for i in all_trailers if i['site'] == 'YouTube' and i['type'] in trailers_test), '')
+	try: trailer = next((youtube_url % i.get('key', '') for i in all_trailers if i.get('site') == 'YouTube' and i.get('type') in trailers_test), '')
 	except Exception: pass
 	return all_trailers, trailer
 
 def _extract_alt_titles(alt_titles_data, key='titles'):
 	"""Extract alternative titles filtered by country."""
 	if not alt_titles_data: return alt_titles_data
-	alternatives = alt_titles_data[key]
-	return [i['title'] for i in alternatives if i['iso_3166_1'] in alt_titles_test]
+	alternatives = alt_titles_data.get(key, [])
+	try: return [i.get('title', '') for i in alternatives if i.get('iso_3166_1') in alt_titles_test]
+	except Exception: return []
 
 def _extract_countries(production_countries):
 	"""Extract country names and codes."""
 	if not production_countries: return [], []
-	return [i['name'] for i in production_countries], [i['iso_3166_1'] for i in production_countries]
+	return [i.get('name', '') for i in production_countries], [i.get('iso_3166_1', '') for i in production_countries]
 
 def _extract_studio(companies):
 	"""Extract studio name from companies/networks list."""
 	if not companies: return ''
-	if len(companies) == 1: return companies[0]['name']
-	try: return next((i['name'] for i in companies if i['logo_path'] not in empty_value_check), None) or companies[0]['name']
+	if len(companies) == 1: return companies[0].get('name', '')
+	try: return next((i.get('name', '') for i in companies if i.get('logo_path') not in empty_value_check), None) or companies[0].get('name', '')
 	except Exception: return ''
 
 def build_movie_meta(data, user_info, fanarttv_data=None):
@@ -317,13 +319,13 @@ def build_movie_meta(data, user_info, fanarttv_data=None):
 	poster, fanart = _extract_poster_fanart(data_get, image_resolution)
 	tmdblogo = _extract_tmdblogo(data_get, image_resolution, user_info.get('show_tmdblogo', True))
 	title, original_title = data_get('title'), data_get('original_title')
-	try: english_title = next((i['data']['title'] for i in data_get('translations')['translations'] if i['iso_639_1'] == 'en'), None)
+	try: english_title = next((i.get('data', {}).get('title') for i in data_get('translations', {}).get('translations', []) if i.get('iso_639_1') == 'en'), None)
 	except Exception: english_title = None
 	try: year = str(data_get('release_date').split('-')[0] or 0)
 	except Exception: year = ''
 	try: duration = int(data_get('runtime', '90') * 60)
 	except Exception: duration = 0
-	try: genre = ', '.join([i['name'] for i in data_get('genres')])
+	try: genre = ', '.join([i.get('name', '') for i in data_get('genres')])
 	except Exception: genre = []
 	rootname = '%s (%s)' % (title, year)
 	studio = _extract_studio(data_get('production_companies'))
@@ -334,9 +336,9 @@ def build_movie_meta(data, user_info, fanarttv_data=None):
 	if release_dates:
 		try: mpaa = next(
 			(x['certification']
-			for i in release_dates['results']
-			for x in i['release_dates']
-			if i['iso_3166_1'] == mpaa_country and x['certification']),
+			for i in release_dates.get('results', [])
+			for x in i.get('release_dates', [])
+			if i.get('iso_3166_1') == mpaa_country and x.get('certification')),
 			''
 		)
 		except Exception: pass
@@ -345,7 +347,7 @@ def build_movie_meta(data, user_info, fanarttv_data=None):
 	all_trailers, trailer = _extract_trailers(data_get('videos'))
 	status, homepage = data_get('status', 'N/A'), data_get('homepage', 'N/A')
 	belongs_to_collection = data_get('belongs_to_collection')
-	if belongs_to_collection: ei_collection_name, ei_collection_id = belongs_to_collection['name'], belongs_to_collection['id']
+	if belongs_to_collection: ei_collection_name, ei_collection_id = belongs_to_collection.get('name'), belongs_to_collection.get('id')
 	else: ei_collection_name, ei_collection_id = None, None
 	try: ei_budget = '${:,}'.format(data_get('budget'))
 	except Exception: ei_budget = '$0'
@@ -369,7 +371,7 @@ def build_tvshow_meta(data, user_info, fanarttv_data=None):
 	image_resolution = user_info.get('image_resolution', backup_resolutions)
 	mpaa_country = user_info.get('mpaa_country', 'US')
 	data_get = data.get
-	external_ids = data_get('external_ids')
+	external_ids = data_get('external_ids') or {}
 	tmdb_id, imdb_id, tvdb_id = data_get('id', ''), external_ids.get('imdb_id', ''), external_ids.get('tvdb_id', 'None')
 	rating, votes = data_get('vote_average', ''), data_get('vote_count', '')
 	plot, tagline, premiered = data_get('overview', ''), data_get('tagline', ''), data_get('first_air_date', '')
@@ -377,13 +379,13 @@ def build_tvshow_meta(data, user_info, fanarttv_data=None):
 	poster, fanart = _extract_poster_fanart(data_get, image_resolution)
 	tmdblogo = _extract_tmdblogo(data_get, image_resolution, user_info.get('show_tmdblogo', True))
 	title, original_title = data_get('name'), data_get('original_name')
-	try: english_title = next((i['data']['name'] for i in data_get('translations')['translations'] if i['iso_639_1'] == 'en'), None)
+	try: english_title = next((i.get('data', {}).get('name') for i in data_get('translations', {}).get('translations', []) if i.get('iso_639_1') == 'en'), None)
 	except Exception: english_title = None
 	try: year = str(data_get('first_air_date').split('-')[0] or 0)
 	except Exception: year = ''
 	try: duration = min(data_get('episode_run_time')) * 60
 	except Exception: duration = 0
-	try: genre = ', '.join([i['name'] for i in data_get('genres')])
+	try: genre = ', '.join([i.get('name', '') for i in data_get('genres')])
 	except Exception: genre = []
 	rootname = '%s (%s)' % (title, year)
 	studio = _extract_studio(data_get('networks'))
@@ -393,10 +395,10 @@ def build_tvshow_meta(data, user_info, fanarttv_data=None):
 	content_ratings = data_get('content_ratings')
 	release_dates = data_get('release_dates')
 	if content_ratings:
-		try: mpaa = next((i['rating'] for i in content_ratings['results'] if i['iso_3166_1'] == mpaa_country), '')
+		try: mpaa = next((i.get('rating', '') for i in content_ratings.get('results', []) if i.get('iso_3166_1') == mpaa_country), '')
 		except Exception: pass
 	elif release_dates:
-		try: mpaa = next((i['release_dates'][0]['certification'] for i in release_dates['results'] if i['iso_3166_1'] == mpaa_country), '')
+		try: mpaa = next((i.get('release_dates', [{}])[0].get('certification', '') for i in release_dates.get('results', []) if i.get('iso_3166_1') == mpaa_country), '')
 		except Exception: pass
 	cast, writer, director = _extract_credits(data_get('credits'), image_resolution)
 	alternative_titles = _extract_alt_titles(data_get('alternative_titles'), 'results')
@@ -404,13 +406,13 @@ def build_tvshow_meta(data, user_info, fanarttv_data=None):
 	status, _type, homepage = data_get('status', 'N/A'), data_get('type', 'N/A'), data_get('homepage', 'N/A')
 	created_by = data_get('created_by')
 	if created_by:
-		try: ei_created_by = ', '.join([i['name'] for i in created_by])
+		try: ei_created_by = ', '.join([i.get('name', '') for i in created_by])
 		except Exception: ei_created_by = 'N/A'
 	else: ei_created_by = 'N/A'
 	ei_next_ep = data_get('next_episode_to_air')
 	ei_last_ep = data_get('last_episode_to_air')
-	if ei_last_ep and status not in finished_show_check: total_aired_eps = ei_last_ep['episode_number'] + sum([
-			i['episode_count'] for i in season_data if 0 < i['season_number'] < ei_last_ep['season_number']
+	if ei_last_ep and status not in finished_show_check: total_aired_eps = ei_last_ep.get('episode_number', 0) + sum([
+			i.get('episode_count', 0) for i in (season_data or []) if 0 < i.get('season_number', 0) < ei_last_ep.get('season_number', 0)
 		])
 	extra_info = {'status': status, 'type': _type, 'homepage': homepage, 'created_by': ei_created_by, 'next_episode_to_air': ei_next_ep, 'last_episode_to_air': ei_last_ep}
 	meta_dict = {

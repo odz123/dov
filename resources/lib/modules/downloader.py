@@ -245,6 +245,9 @@ class Downloader:
 			notification_frequency = 0
 		notify, total, errors, count, resume, sleep_time  = 25, 0, 0, 0, 0, 0
 		f = kodi_utils.open_file(dest, 'w')
+		if not f:
+			self._close_response()
+			return self.finish_download(self.final_name, self.media_type, False, self.image)
 		chunk  = None
 		chunks = []
 		while True:

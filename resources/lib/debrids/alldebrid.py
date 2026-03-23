@@ -33,10 +33,10 @@ class Indexer(Debrid):
 		finalize_directory(_builder, items)
 
 	def torrent_cloud(self, items):
-		items.sort(key=lambda k: (k['uploadDate'], k['id']), reverse=True)
+		items.sort(key=lambda k: (k.get('uploadDate', ''), k.get('id', 0)), reverse=True)
 		for count, item in enumerate(items, 1):
 			try:
-				name = clean_file_name(normalize(item['filename'])).upper()
+				name = clean_file_name(normalize(item.get('filename', ''))).upper()
 				url_params = {'mode': 'alldebrid.ad_browse_cloud', 'id': item['id']}
 				delete_params = {'mode': 'alldebrid.ad_delete', 'id': item['id']}
 				yield make_folder_listitem(count, name, url_params, delete_params, default_art)
@@ -55,7 +55,7 @@ class Indexer(Debrid):
 			except Exception: pass
 
 	def browse_downloads(self, items):
-		items.sort(key=lambda k: k['date'], reverse=True)
+		items.sort(key=lambda k: k.get('date', ''), reverse=True)
 		for count, item in enumerate(items, 1):
 			try:
 				if not item['filename'].lower().endswith(extensions): continue

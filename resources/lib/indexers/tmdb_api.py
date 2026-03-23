@@ -711,7 +711,7 @@ def import_trakt_list(params):
 		len_items, wait = len(items), sum(1000 for i in chunks(items, 500))
 		for count, item in enumerate(items, 1):
 			kodi_utils.sleep(int(wait / len_items))
-			if (mtype := item['type']) in ('movie', 'show') and 'tmdb' in item[mtype]['ids'] and item[mtype]['ids']['tmdb']:
+			if (mtype := item.get('type')) in ('movie', 'show') and mtype in item and 'tmdb' in item[mtype].get('ids', {}) and item[mtype]['ids']['tmdb']:
 				item['export'] = {'media_type': 'tv' if mtype == 'show' else mtype, 'media_id': item[mtype]['ids']['tmdb']}
 			else: item['export'] = None
 			progressBG.update(int(count / len_items * 100), send_str)

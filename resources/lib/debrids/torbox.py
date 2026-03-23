@@ -34,10 +34,10 @@ class Indexer(Debrid):
 		finalize_directory(_builder, items)
 
 	def torrent_cloud(self, items):
-		items.sort(key=lambda k: k['updated_at'], reverse=True)
+		items.sort(key=lambda k: k.get('updated_at', ''), reverse=True)
 		for count, item in enumerate(items, 1):
 			try:
-				name = clean_file_name(normalize(item['name'])).upper()
+				name = clean_file_name(normalize(item.get('name', ''))).upper()
 				url_params = {'mode': 'torbox.tb_browse_cloud', 'folder_id': item['id'], 'media_type': item['media_type']}
 				delete_params = {'mode': 'torbox.tb_delete', 'folder_id': item['id'], 'media_type': item['media_type']}
 				yield make_folder_listitem(count, name, url_params, delete_params, default_art)
@@ -46,8 +46,8 @@ class Indexer(Debrid):
 	def browse_cloud(self, items):
 		for count, item in enumerate(items, 1):
 			try:
-				if not item['short_name'].lower().endswith(extensions): continue
-				name = clean_file_name(item['short_name']).upper()
+				if not item.get('short_name', '').lower().endswith(extensions): continue
+				name = clean_file_name(item.get('short_name', '')).upper()
 				size = float(int(item['size']))/1073741824
 				params = {'name': name, 'url': item['url'], 'media_type': item['media_type'], 'image': default_icon}
 				url_params = {**params, 'mode': 'torbox.resolve_tb', 'play': 'true'}

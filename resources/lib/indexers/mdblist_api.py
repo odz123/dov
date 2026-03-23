@@ -344,16 +344,18 @@ def mdbl_create_list(name, description='', privacy='private'):
 
 def mdbl_progress_movies(progress_info):
 	def _process(item):
-		tmdb_id = get_mdbl_movie_id(item['movie']['ids'])
+		movie = item.get('movie')
+		if not movie: return
+		tmdb_id = get_mdbl_movie_id(movie.get('ids', {}))
 		if not tmdb_id: return
 		season, episode = '', ''
 		insert_append((
-			'movie', str(tmdb_id), season, episode, str(round(float(item['progress']), 1)),
-			0, item['paused_at'], item['id'], item['movie']['title']
+			'movie', str(tmdb_id), season, episode, str(round(float(item.get('progress', 0)), 1)),
+			0, item.get('paused_at', ''), item.get('id', 0), movie.get('title', '')
 		))
 	insert_list = []
 	insert_append = insert_list.append
-	progress_items = [i for i in progress_info  if i['type'] == 'movie' and float(i['progress']) > 1]
+	progress_items = [i for i in progress_info if i.get('type') == 'movie' and float(i.get('progress', 0)) > 1]
 	if not progress_items: return
 	threads = list(make_thread_list(_process, progress_items, Thread))
 	for i in threads: i.join()
@@ -362,17 +364,20 @@ def mdbl_progress_movies(progress_info):
 
 def mdbl_progress_tv(progress_info):
 	def _process(item):
-		tmdb_id = get_mdbl_tvshow_id(item['show']['ids'])
+		show = item.get('show')
+		ep = item.get('episode')
+		if not show or not ep: return
+		tmdb_id = get_mdbl_tvshow_id(show.get('ids', {}))
 		if not tmdb_id: return
-		season, episode = item['episode']['season'], item['episode']['number']
+		season, episode = ep.get('season', 0), ep.get('number', 0)
 		if season < 1: return
 		insert_append((
-			'episode', str(tmdb_id), season, episode, str(round(float(item['progress']), 1)),
-			0, item['paused_at'], item['id'], item['show']['title']
+			'episode', str(tmdb_id), season, episode, str(round(float(item.get('progress', 0)), 1)),
+			0, item.get('paused_at', ''), item.get('id', 0), show.get('title', '')
 		))
 	insert_list = []
 	insert_append = insert_list.append
-	progress_items = [i for i in progress_info if i['type'] == 'episode' and float(i['progress']) > 1]
+	progress_items = [i for i in progress_info if i.get('type') == 'episode' and float(i.get('progress', 0)) > 1]
 	if not progress_items: return
 	threads = list(make_thread_list(_process, progress_items, Thread))
 	for i in threads: i.join()

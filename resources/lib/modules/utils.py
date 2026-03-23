@@ -5,7 +5,7 @@ import hashlib
 import unicodedata
 import _strptime  # fix bug in python import
 from functools import lru_cache
-from queue import SimpleQueue
+from queue import Empty, SimpleQueue
 from html import unescape
 from importlib import import_module
 from datetime import datetime, timedelta, date
@@ -59,7 +59,7 @@ class TaskPool:
 	def _thread_target(self, queue, target):
 		while True:
 			try: args = queue.get_nowait()
-			except Exception: break
+			except Empty: break
 			try: target(*args)
 			except Exception as e: logger('queue error', f"{e}")
 
@@ -178,10 +178,10 @@ def datetime_workaround(data, str_format):
 	except Exception: datetime_object = datetime(*(time.strptime(data, str_format)[0:6]))
 	return datetime_object
 
-def date_difference(current_date, compare_date, difference_tolerance, allow_postive_difference=False):
+def date_difference(current_date, compare_date, difference_tolerance, allow_positive_difference=False):
 	try:
 		difference = subtract_dates(current_date, compare_date)
-		if not allow_postive_difference and difference > 0: return False
+		if not allow_positive_difference and difference > 0: return False
 		else: difference = abs(difference)
 		if difference > difference_tolerance: return False
 		return True
@@ -211,7 +211,7 @@ def clean_file_name(s, use_encoding=False, use_blanks=True):
 
 def clean_title(title):
 	try:
-		if not title: return
+		if not title: return ''
 		title = title.lower()
 		title = _RE_HTML_ENTITY.sub('', title)
 		title = _RE_HTML_ENTITY_FIX.sub('\\1;\\2', title)

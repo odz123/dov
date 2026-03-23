@@ -56,7 +56,7 @@ class EasyNewsAPI:
 		def _process():
 			for item in files:
 				try:
-					post_hash, size, post_title, ext, duration = item['0'], item['4'], item['10'], item['11'], item['14']
+					post_hash, size, post_title, ext, duration = item.get('0', ''), item.get('4', ''), item.get('10', ''), item.get('11', ''), item.get('14', '')
 					language = item['alangs'] if 'alangs' in item and item['alangs'] else ''
 					if 'type' in item and item['type'].upper() != 'VIDEO': continue
 					if 'virus' in item and item['virus']: continue
@@ -65,7 +65,7 @@ class EasyNewsAPI:
 					thumbnail = 'https://th.easynews.com/thumbnails-%s/pr-%s.jpg' % (post_hash[0:3], post_hash)
 					yield {
 						'version': 'version2', 'full_item': item, 'thumbnail': thumbnail, 'url_dl': url_dl,
-						'name': post_title, 'size': size, 'rawSize': item['rawSize'], 'language': language
+						'name': post_title, 'size': size, 'rawSize': item.get('rawSize', 0), 'language': language
 					}
 				except Exception as e:
 					from modules.kodi_utils import logger

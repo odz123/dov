@@ -34,17 +34,17 @@ class Indexer(Debrid):
 	def torrent_cloud(self, items):
 		for count, item in enumerate(items, 1):
 			try:
-				name = clean_file_name(normalize(item['filename'])).upper()
-				url_params = {'mode': 'real_debrid.rd_browse_cloud', 'id': item['id']}
-				delete_params = {'mode': 'real_debrid.rd_delete', 'id': item['id'], 'cache_type': 'torrent'}
+				name = clean_file_name(normalize(item.get('filename', ''))).upper()
+				url_params = {'mode': 'real_debrid.rd_browse_cloud', 'id': item.get('id', '')}
+				delete_params = {'mode': 'real_debrid.rd_delete', 'id': item.get('id', ''), 'cache_type': 'torrent'}
 				yield make_folder_listitem(count, name, url_params, delete_params, default_art)
 			except Exception: pass
 
 	def browse_cloud(self, items):
 		for count, item in enumerate(items, 1):
 			try:
-				name = clean_file_name(item['path'].lstrip('/')).upper()
-				url_link = item['url_link']
+				name = clean_file_name(item.get('path', '').lstrip('/')).upper()
+				url_link = item.get('url_link', '')
 				if url_link.startswith('/'): url_link = 'https:' + url_link
 				size = float(int(item['bytes']))/1073741824
 				params = {'name': name, 'url': url_link, 'image': default_icon}
@@ -56,8 +56,8 @@ class Indexer(Debrid):
 	def browse_downloads(self, items):
 		for count, item in enumerate(items, 1):
 			try:
-				if not item['download'].lower().endswith(extensions): continue
-				name = clean_file_name(item['filename']).upper()
+				if not item.get('download', '').lower().endswith(extensions): continue
+				name = clean_file_name(item.get('filename', '')).upper()
 				size = float(int(item['filesize']))/1073741824
 				datetime_object = jsondate_to_datetime(item['generated'], '%Y-%m-%dT%H:%M:%S.%fZ', remove_time=True)
 				display = '%02d | %.2f GB | %s | [I]%s [/I]' % (count, size, datetime_object, name)

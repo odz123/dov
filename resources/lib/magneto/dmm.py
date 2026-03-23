@@ -93,7 +93,7 @@ class source:
 
 				quality, info = source_utils.get_release_quality(name_info, url)
 				try:
-					size = f"{float(file['fileSize']) / 1073741824:.2f} GB"
+					size = f"{float(file.get('fileSize', 0)) / 1073741824:.2f} GB"
 					dsize, isize = source_utils._size(size)
 					info.insert(0, isize)
 				except Exception: dsize = 0
