@@ -73,7 +73,7 @@ class Episodes:
 			if self.fanart_enabled: banner, clearart, landscape = meta_get('banner'), meta_get('clearart'), meta_get('landscape')
 			else: banner, clearart, landscape = '', '', ''
 			cast, mpaa, duration, tvshow_plot = meta_get('cast', []), meta_get('mpaa'), meta_get('duration'), meta_get('plot')
-			trailer, genre, studio = string(meta_get('trailer')), meta_get('genre'), meta_get('studio')
+			trailer, genre, studio = string(meta_get('trailer')), meta_get('genre') or '', meta_get('studio')
 			orig_season, orig_episode = ep_data_get('season'), ep_data_get('episode')
 			curr_season_data = next((i for i in meta_get('season_data') if i['season_number'] == orig_season), {})
 			season_poster = curr_season_data.get('poster_path')
@@ -184,7 +184,7 @@ class Episodes:
 				videoinfo = listitem.getVideoInfoTag(offscreen=True)
 				if self.show_cast: videoinfo.setCast(make_cast_list(cast + item_get('guest_stars', [])))
 				videoinfo.setUniqueIDs({'imdb': imdb_id, 'tmdb': string(tmdb_id), 'tvdb': string(tvdb_id)})
-				videoinfo.setDirectors(item_get('director').split(', '))
+				videoinfo.setDirectors((item_get('director') or '').split(', '))
 				videoinfo.setDuration(item_get('duration'))
 				videoinfo.setEpisode(episode)
 				videoinfo.setFirstAired(item_get('premiered'))
@@ -203,8 +203,8 @@ class Episodes:
 				videoinfo.setTvShowStatus(show_status)
 				videoinfo.setTvShowTitle(title)
 				videoinfo.setVotes(item_get('votes'))
-				videoinfo.setWriters(item_get('writer').split(', '))
-				videoinfo.setYear(int(year))
+				videoinfo.setWriters((item_get('writer') or '').split(', '))
+				videoinfo.setYear(int(year or 0))
 			self.append((url_params, listitem, False))
 		except Exception: pass
 
@@ -236,9 +236,9 @@ class Episodes:
 				self.items.sort(key=lambda k: date_difference_function(self.current_date, first_aired(k), 0), reverse=True)
 		elif self.list_type in ('trakt_calendar', 'trakt_recently_aired'):
 			reverse = calendar_sort_order() == 0 if self.list_type == 'trakt_calendar' else True
-			self.items.sort(key=lambda k: int(k[1].getProperty('pov_sort_order')))
+			self.items.sort(key=lambda k: int(k[1].getProperty('pov_sort_order') or '0'))
 			self.items.sort(key=lambda k: k[1].getProperty('pov_first_aired'), reverse=reverse)
-		else: self.items.sort(key=lambda k: int(k[1].getProperty('pov_sort_order')))
+		else: self.items.sort(key=lambda k: int(k[1].getProperty('pov_sort_order') or '0'))
 		return self.items
 
 class Indexer(Episodes):

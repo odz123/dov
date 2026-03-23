@@ -210,7 +210,7 @@ def tmdb_manager_choice(params):
 	if choice is None: return
 	if 'new' in choice[0]:
 		obj = tmdb_api.list_obj.copy()
-		obj['name'] = kodi_utils.dialog.input('New List Name', defaultt=list_name)
+		obj['name'] = kodi_utils.dialog.input('New List Name', defaultt=list_name or '')
 		if not obj['name']: return tmdb_manager_choice(params)
 		if not tmdb_api.list_create(obj)['success']: return notification(32574)
 		tmdb_api.clear_tmdbl_cache()

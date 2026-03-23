@@ -139,7 +139,7 @@ class People(BaseDialog):
 				_id = more_from_tvshows_id
 				data = self.tvshow_data
 				if self.exclude_non_acting:
-					try: data = [i for i in data if not any(x in genres_exclude for x in i.get('genre_ids', [])) and not i.get('character', '').lower() in roles_exclude]
+					try: data = [i for i in data if not any(x in genres_exclude for x in i.get('genre_ids', [])) and i.get('character', '').lower() not in roles_exclude]
 					except Exception: pass
 			else:#director
 				list_type = 'movie'

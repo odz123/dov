@@ -128,7 +128,7 @@ class Seasons:
 						videoinfo.setTvShowStatus(show_status)
 						videoinfo.setTvShowTitle(show_title)
 						videoinfo.setVotes(votes)
-						videoinfo.setYear(int(year))
+						videoinfo.setYear(int(year or 0))
 					self.append((url_params, listitem, True))
 				except Exception: pass
 		def _process_episode_list():
@@ -206,7 +206,7 @@ class Seasons:
 						videoinfo = listitem.getVideoInfoTag(offscreen=True)
 						videoinfo.setCast(make_cast_list(cast))
 						videoinfo.setUniqueIDs({'imdb': imdb_id, 'tmdb': string(tmdb_id), 'tvdb': string(tvdb_id)})
-						videoinfo.setDirectors(item_get('director').split(', '))
+						videoinfo.setDirectors((item_get('director') or '').split(', '))
 						videoinfo.setDuration(item_get('duration'))
 						videoinfo.setEpisode(episode)
 						videoinfo.setFirstAired(premiered)
@@ -225,8 +225,8 @@ class Seasons:
 						videoinfo.setTvShowStatus(show_status)
 						videoinfo.setTvShowTitle(show_title)
 						videoinfo.setVotes(item_get('votes'))
-						videoinfo.setWriters(item_get('writer').split(', '))
-						videoinfo.setYear(int(year))
+						videoinfo.setWriters((item_get('writer') or '').split(', '))
+						videoinfo.setYear(int(year or 0))
 					self.append((url_params, listitem, False))
 				except Exception: pass
 		meta = tv_meta_function('tmdb_id', params['tmdb_id'], self.meta_user_info, self.current_date)
@@ -243,7 +243,7 @@ class Seasons:
 		if self.fanart_enabled: banner, clearart, landscape = meta_get('banner'), meta_get('clearart'), meta_get('landscape')
 		else: banner, clearart, landscape = '', '', ''
 		show_cast, mpaa, votes = meta_get('cast', []), meta_get('mpaa'), meta_get('votes')
-		trailer, genre, studio = string(meta_get('trailer')), meta_get('genre'), meta_get('studio')
+		trailer, genre, studio = string(meta_get('trailer')), meta_get('genre') or '', meta_get('studio')
 		episode_run_time, rating, premiered = meta_get('duration'), meta_get('rating'), meta_get('premiered')
 		total_seasons, total_aired_eps = meta_get('total_seasons'), meta_get('total_aired_eps')
 		mode = self.params.get('mode', 'build_season_list')
