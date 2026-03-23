@@ -216,7 +216,7 @@ class Episodes:
 			if self.watched_indicators == 1:
 				try:
 					hidden_data = trakt_get_hidden_items('dropped')
-					self.list = [i for i in self.list if not i['media_ids']['tmdb'] in hidden_data]
+					self.list = [i for i in self.list if i['media_ids']['tmdb'] not in hidden_data]
 				except Exception: pass
 				resformat, self.resinsert = '%Y-%m-%dT%H:%M:%S.%fZ', '2000-01-01T00:00:00.000Z'
 			elif self.watched_indicators == 2:

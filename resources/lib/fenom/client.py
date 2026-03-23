@@ -70,8 +70,7 @@ def request(url, close=True, redirect=True, error=False, proxy=None, post=None, 
 				from fenom import log_utils
 				log_utils.error()
 
-		try: headers.update(headers)
-		except Exception: headers = {}
+		if not isinstance(headers, dict): headers = {}
 		if 'User-Agent' in headers: pass
 		elif mobile is not True: headers['User-Agent'] = cache.get(randomagent, 12)
 		else: headers['User-Agent'] = 'Apple-iPhone/701.341'
@@ -205,8 +204,7 @@ def request(url, close=True, redirect=True, error=False, proxy=None, post=None, 
 
 def _basic_request(url, headers=None, post=None, method='GET', timeout='30', limit=None, ret_code=None):
 	try:
-		try: headers.update(headers)
-		except Exception: headers = {}
+		if not isinstance(headers, dict): headers = {}
 		req = urllib2.Request(url, data=post, method=method)
 		_add_request_header(req, headers)
 		response = urllib2.urlopen(req, timeout=int(timeout))

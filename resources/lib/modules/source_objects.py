@@ -52,7 +52,7 @@ def get_source_meta(params):
 				try:
 					episodes_data = season_episodes_meta(season, meta, meta_user_info)
 					ep_data = next((i for i in episodes_data if i['episode'] == int(episode)), None)
-					if not ep_data: raise StopIteration
+					if not ep_data: raise ValueError('Episode data not found')
 					meta.update({
 						'mediatype': 'episode', 'season': ep_data['season'], 'episode': ep_data['episode'],
 						'premiered': ep_data['premiered'], 'ep_name': ep_data['title'], 'plot': ep_data['plot']

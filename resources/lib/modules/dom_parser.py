@@ -4,6 +4,7 @@ from functools import lru_cache
 
 DomMatch = namedtuple('DOMMatch', ['attrs', 'content'])
 re_type = type(re.compile(''))
+_RE_COMMENTS = re.compile(r'<!--.*?-->', re.S)
 
 @lru_cache(maxsize=128)
 def _compile_attr_pattern(value):
@@ -109,7 +110,7 @@ def parse_dom(html, name='', attrs=None, req=False, exclude_comments=False):
 			req = {key.lower() for key in req}
 		for item in html:
 			if isinstance(item, DomMatch): item = item.content
-			if exclude_comments: item = re.sub(re.compile(r'<!--.*?-->', re.S), '', item)
+			if exclude_comments: item = _RE_COMMENTS.sub('', item)
 			results = []
 			for element in __get_dom_elements(item, name, attrs):
 				attribs = __get_attribs(element)

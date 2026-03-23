@@ -35,6 +35,9 @@ class POVPlayer(kodi_utils.xbmc_player):
 		self.autoplay_nextep = settings.autoplay_next_episode()
 		self.autoscrape_next_episode = False
 		self.autoscrape_nextep = settings.autoscrape_next_episode()
+		self.start_prep = 0
+		self.autoscrape_next_window_time = 0
+		self.nextep_settings = {}
 		self.stinger_enabled = get_setting('stingers.enable') == 'true'
 		self.stinger_check = int(get_setting('stingers.threshold', str(DEFAULT_STINGER_THRESHOLD)))
 		self.volume_check = get_setting('volumecheck.enabled', 'false') == 'true'

@@ -49,6 +49,7 @@ class source:
 			if 'timeout' in data: self.timeout = max(1, min(int(data['timeout']), 60))
 			headers = {'User-Agent': self.user_agent, 'Authorization': 'Bearer %s' % self.token}
 			results = session.get(url, params=params, headers=headers, timeout=self.timeout)
+			if results.status_code != 200: return sources
 			response_json = results.json()
 			files = (response_json.get('data') or {}).get('nzbs', [])
 			undesirables = source_utils.get_undesirables()
