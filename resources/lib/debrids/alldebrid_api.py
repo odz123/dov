@@ -82,7 +82,7 @@ class AllDebridAPI:
 		except Exception: return None
 
 	def check_single_magnet(self, hash_string):
-		cache_result = self.check_cache(hash_string)
+		cache_result = self.check_cache([hash_string])
 		magnets = cache_result.get('magnets', []) if cache_result else []
 		if not magnets: return False
 		return magnets[0].get('instant', False)

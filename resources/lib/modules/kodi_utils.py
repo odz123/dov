@@ -173,7 +173,7 @@ def current_window_id():
 	return xbmcgui.Window(xbmcgui.getCurrentWindowId())
 
 def get_video_database_path():
-	return 'special://profile/Database/MyVideos%s.db' % myvideos_db_paths[get_kodi_version()]
+	return 'special://profile/Database/MyVideos%s.db' % myvideos_db_paths.get(get_kodi_version(), '139')
 
 def show_busy_dialog():
 	return execute_builtin('ActivateWindow(busydialognocancel)')
@@ -457,7 +457,7 @@ def clean_settings():
 			if item.get('id') in active_settings: continue
 			removed_append(item)
 		for item in removed_settings: root.remove(item)
-		with open_file(profile_xml, 'w') as xml_file: xml_file.write(ET.tostring(root))
+		with open_file(profile_xml, 'w') as xml_file: xml_file.write(ET.tostring(root, encoding='unicode'))
 		text = local_string(32813) % len(removed_settings) if removed_settings else 32576
 		notification(text, 1500)
 	except Exception as e:

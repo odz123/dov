@@ -70,8 +70,11 @@ def nextep_playback_info(meta):
 		if not matching_eps: return 'no_next_episode'
 		ep_data = matching_eps[0]
 		airdate = ep_data['premiered']
-		d = airdate.split('-')
-		episode_date = date(int(d[0]), int(d[1]), int(d[2]))
+		if not airdate: return 'no_next_episode'
+		try:
+			d = airdate.split('-')
+			episode_date = date(int(d[0]), int(d[1]), int(d[2]))
+		except (IndexError, ValueError): return 'no_next_episode'
 		if current_date < episode_date: return 'no_next_episode'
 		custom_title = meta_get('custom_title')
 		title = custom_title or meta_get('title')
@@ -163,7 +166,7 @@ def execute_nextep(meta, nextep_settings):
 	run_popup, display_nextep_popup = nextep_settings['run_popup'], nextep_settings['window_time']
 	nextep_prep, nextep_threshold_check = nextep_settings['start_prep'], nextep_settings['threshold_check']
 	nextep_meta, nextep_params = _get_nextep_params()
-	if nextep_params == 'error': return kodi_utils.notification(32574)
+	if nextep_params in ('error', None): return kodi_utils.notification(32574)
 	elif nextep_params == 'no_next_episode': return
 	if not SourceSelect.background_prep(nextep_params): return kodi_utils.notification(32760)
 	SourceSelect.nextep_callback(nextep_params)

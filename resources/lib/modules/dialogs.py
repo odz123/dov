@@ -44,7 +44,7 @@ def trailer_choice(media_type, poster, tmdb_id, trailer_url, all_trailers=None):
 		except Exception: pass
 	if not all_trailers: return trailer_url
 	if len(all_trailers) > 1:
-		all_trailers.sort(key=lambda k: k.get('published_at'))
+		all_trailers.sort(key=lambda k: k.get('published_at') or '')
 		list_items = [
 			{'line1': clean_file_name(i['name']),
 			 'line2': '%s (%s)' % (i['type'], i.get('site') or 'NA'),

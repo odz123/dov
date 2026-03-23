@@ -42,7 +42,8 @@ def resolve_easynews(params):
 	url_dl = params['url_dl']
 	resolved_link = EasyNews().unrestrict_link(url_dl)
 	if not params.get('play', 'false') == 'true': return resolved_link
-	kodi_utils.player.play(resolved_link)
+	if resolved_link: kodi_utils.player.play(resolved_link)
+	else: kodi_utils.notification(32574)
 
 def spool_easynews(params):
 	import json, shutil

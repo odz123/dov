@@ -47,7 +47,7 @@ class EasyNewsAPI:
 			usage_info = parseDOM(usage_html, 'div', attrs={'class': 'table-responsive'})
 			usage_info = parseDOM(usage_info, 'td')[0:11][1::3]
 			if len(usage_info) > 1:
-				usage_info[1] = re.sub(r'[</].+?>', '', usage_info[1])
+				usage_info[1] = re.sub(r'<[^>]+>', '', usage_info[1])
 		except Exception: pass
 		return account_info, usage_info
 

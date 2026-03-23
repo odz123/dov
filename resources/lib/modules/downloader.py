@@ -24,8 +24,9 @@ def runner(params):
 	action = params.get('action')
 	if action == 'image':
 		for item in ('thumb_url', 'image_url'):
-			image_params = params
-			image_params['url'] = params.pop(item)
+			if item not in params: continue
+			image_params = dict(params)
+			image_params['url'] = image_params.pop(item)
 			image_params['media_type'] = item
 			Downloader(image_params).run()
 	elif action == 'meta.pack':
@@ -48,10 +49,10 @@ def runner(params):
 			if show_package:
 				season = find_season_in_release_title(item['pack_files']['filename'])
 				if season:
-					meta['season'] = season
-					item['meta'] = json.dumps(meta)
+					item_meta = dict(meta)
+					item_meta['season'] = season
+					item['meta'] = json.dumps(item_meta)
 					item['default_foldername'] = default_foldername
-				else: pass
 			append(Thread(target=Downloader(item).run))
 		for i in threads: i.start()
 	else: Downloader(params).run()
@@ -86,8 +87,7 @@ class Downloader:
 			title = get_title(self.meta, get_language())
 			self.media_type = self.meta_get('media_type')
 			self.year = self.meta_get('year')
-			self.image = self.meta_get('poster')
-			self.image = self.meta_get(art_provider[0]) or self.meta_get(art_provider[1]) or poster_empty
+			self.image = self.meta_get(art_provider[0]) or self.meta_get(art_provider[1]) or self.meta_get('poster') or poster_empty
 			self.season = self.meta_get('season')
 			self.name = self.params_get('name')
 		else:

@@ -75,7 +75,7 @@ class NextEpisode(BaseDialog):
 					self.sleep(1000)
 				except Exception: pass
 		else:
-			for current_point in range(100, 0, -5):
+			for current_point in range(100, -1, -5):
 				try:
 					if self.closed or kodi_monitor.abortRequested(): break
 					progress_bar.setPercent(current_point)

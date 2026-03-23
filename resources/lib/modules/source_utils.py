@@ -72,10 +72,7 @@ UNWANTED_TAGS = ('tamilrockers.com', 'www.tamilrockers.com', 'www.tamilrockers.w
 # Pre-compiled regex patterns for UNWANTED_TAGS to avoid re-compilation in check_title()
 _UNWANTED_TAG_PATTERNS = {}
 for _tag in UNWANTED_TAGS:
-	if _tag.startswith('[') or _tag.startswith('+'):
-		_UNWANTED_TAG_PATTERNS[_tag] = re.compile(r'^\\%s' % _tag, re.I)
-	else:
-		_UNWANTED_TAG_PATTERNS[_tag] = re.compile(r'^%s' % re.escape(_tag), re.I)
+	_UNWANTED_TAG_PATTERNS[_tag] = re.compile(r'^%s' % re.escape(_tag), re.I)
 
 # Module-level cache for external sources to avoid repeated directory scans and imports
 _external_sources_cache = {}
@@ -91,7 +88,8 @@ def external_sources(ret_all=False):
 	source_list = []
 	append = source_list.append
 	enabled_set = set()
-	for k, v in kodi_utils.make_settings_dict().items():
+	settings_dict = kodi_utils.make_settings_dict() or {}
+	for k, v in settings_dict.items():
 		if k.startswith('provider.') and v == 'true':
 			parts = k.split('.')
 			if len(parts) > 1:

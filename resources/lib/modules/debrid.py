@@ -184,7 +184,8 @@ class Source:
 			elif self.scrape_provider == 'pm_cloud':
 				details = import_debrid('premiumize.me').get_item_details(self.id)
 				url = details['link']
-				if url.startswith('/'): url = 'https' + url
+				if url.startswith('//'): url = 'https:' + url
+				elif url.startswith('/'): url = 'https:/' + url
 			elif self.scrape_provider == 'ad_cloud':
 				if direct_debrid_link: url = self.url_dl
 				else: url = import_debrid('alldebrid').unrestrict_link(self.id)
@@ -318,16 +319,17 @@ class DebridCheck:
 			self.cached_list.extend(i[0] for i in self.cached_hashes if i[1] == self.debrid and i[2] == 'True')
 			unchecked_filter = {h[0] for h in self.cached_hashes if h[1] == self.debrid}
 			unchecked_hashes = [i for i in self.hash_list if i not in unchecked_filter]  # O(1) set lookup
-			if not unchecked_hashes: return
+			if not unchecked_hashes: return self.cached_list
 			if self.debrid in ('rd', 'ad'): checked_hashes = self.external_check_cache(unchecked_hashes)
 			else: checked_hashes = self.function().check_cache(unchecked_hashes)
-			if not checked_hashes: return
+			if not checked_hashes: return self.cached_list
+			checked_hashes_set = set(checked_hashes)  # O(1) lookup
 			hashes_to_cache = []
 			process_append = hashes_to_cache.append
 			cached_append = self.cached_list.append
 			try:
 				for h in unchecked_hashes:
-					if h in checked_hashes:
+					if h in checked_hashes_set:
 						cached_append(h)
 						cached = 'True'
 					else: cached = 'False'
@@ -335,7 +337,9 @@ class DebridCheck:
 			except Exception:
 				for i in unchecked_hashes: process_append((i, 'False'))
 			if hashes_to_cache: Thread(target=self.cache_write, args=(hashes_to_cache,)).start()
-		finally: return self.cached_list
+		except Exception as e:
+			kodi_utils.logger('cache_check error', str(e))
+		return self.cached_list
 
 	def external_check_cache(self, unchecked_hashes):
 		checked_hashes = []

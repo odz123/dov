@@ -88,7 +88,7 @@ class RealDebridAPI:
 
 	def check_single_magnet(self, hash_string):
 		cache_info = self.check_hash(hash_string)
-		if hash_string not in cache_info: return False
+		if not cache_info or hash_string not in cache_info: return False
 		info = cache_info[hash_string]
 		return isinstance(info, dict) and bool(info.get('rd'))
 
@@ -126,6 +126,7 @@ class RealDebridAPI:
 
 	def parse_magnet_pack(self, magnet_url, info_hash, errors=False):
 		from modules.source_utils import supported_video_extensions
+		torrent_id = None
 		try:
 			extensions = supported_video_extensions()
 			torrent_id = self.create_transfer(magnet_url)

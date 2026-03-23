@@ -17,7 +17,7 @@ class source(Debrid):
 			self.scrape_results = []
 			title_filter = filter_by_name(self.scrape_provider)
 			self.media_type, title = info.get('media_type'), info.get('title')
-			self.year, self.season, self.episode = int(info.get('year')), info.get('season'), info.get('episode')
+			self.year, self.season, self.episode = int(info.get('year', 0) or 0), info.get('season'), info.get('episode')
 			if self.media_type == 'episode': self.seas_ep_query_list = source_utils.seas_ep_query_list(self.season, self.episode)
 			self.folder_query, self.year_query_list = clean_title(normalize(title)), tuple(map(str, range(self.year - 1, self.year + 2)))
 			self._scrape_cloud()

@@ -209,7 +209,7 @@ class POVPlayer(kodi_utils.xbmc_player):
 			focus_button=10,
 			percent=percent
 		)
-		return percent if choice == True else bookmark if choice == False else 'cancel'
+		return percent if choice is True else bookmark if choice is False else 'cancel'
 
 	def getStingers(self, tmdb_id, poster):
 		if not tmdb_id: return
@@ -526,7 +526,7 @@ def infoTagger(listitem, meta=None):
 		('imdbnumber', 'setIMDBNumber'), ('mediatype', 'setMediaType'),
 		('mpaa', 'setMpaa'), ('original_title', 'setOriginalTitle'),
 		('playcount', 'setPlaycount'), ('plot', 'setPlot'),
-		('premiered', 'setFirstAired' if 'episode' in meta else 'setPremiered'),
+		('premiered', 'setFirstAired' if meta.get('mediatype') == 'episode' else 'setPremiered'),
 		('rating', 'setRating'), ('studio', 'setStudios'),
 		('tagline', 'setTagLine'), ('title', 'setTitle'),
 		('trailer', 'setTrailer'), ('votes', 'setVotes'),

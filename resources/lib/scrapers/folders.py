@@ -20,7 +20,7 @@ class source:
 	def results(self, info):
 		try:
 			title_filter = filter_by_name('folders')
-			self.media_type, title, self.year = info.get('media_type'), info.get('title'), int(info.get('year'))
+			self.media_type, title, self.year = info.get('media_type'), info.get('title'), int(info.get('year', 0) or 0)
 			self.folder_path = source_folders_directory(self.media_type, self.scrape_provider)
 			if not self.folder_path: return internal_results(self.scraper_name, self.sources)
 			self.season, self.episode = info.get('season'), info.get('episode')

@@ -31,8 +31,7 @@ transPath = xbmcvfs.translatePath
 joinPath = os.path.join
 
 SETTINGS_PATH = transPath(joinPath(addonInfo('path'), 'resources', 'settings.xml'))
-try: dataPath = transPath(addonInfo('profile')).decode('utf-8')
-except Exception: dataPath = transPath(addonInfo('profile'))
+dataPath = transPath(addonInfo('profile'))
 #cacheFile = joinPath(dataPath, 'cache.db')
 #undesirablescacheFile = joinPath(dataPath, 'undesirables.db')
 cacheFile = joinPath(dataPath, 'fenomcache.db')
@@ -94,8 +93,7 @@ def addonIcon():
 	return addonInfo('icon')
 
 def addonPath():
-	try: return transPath(addonInfo('path').decode('utf-8'))
-	except Exception: return transPath(addonInfo('path'))
+	return transPath(addonInfo('path'))
 
 def yesnoDialog(line, heading=addonInfo('name'), nolabel='', yeslabel=''):
 	return dialog.yesno(heading, line, nolabel, yeslabel)
