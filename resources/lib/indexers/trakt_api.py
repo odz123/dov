@@ -311,6 +311,7 @@ def trakt_fetch_collection_watchlist(list_type, media_type):
 	path = 'sync/%s/' % list_type
 	url = {'path': path + '%s', 'path_insert': path_insert, 'params': {'extended': 'full'}, 'with_auth': True, 'pagination': False}
 	data = trakt_cache.cache_trakt_object(get_trakt, string, url)
+	if not data: data = []
 	if list_type == 'watchlist': data = [i for i in data if i['type'] == key]
 	result = [
 		{'media_ids': i[key]['ids'], 'title': i[key]['title'], 'collected_at': i.get(collected_at), 'premiered': i[key].get(premiered) or ''}

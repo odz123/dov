@@ -16,6 +16,7 @@ class Indexer(Debrid):
 		try:
 			kodi_utils.show_busy_dialog()
 			account_info = self.account_info()
+			if not account_info: raise Exception('Failed to retrieve account info')
 			if account_info['paid_until']:
 				expires = datetime.fromtimestamp(account_info['paid_until'])
 				days_remaining = (expires - datetime.now()).days

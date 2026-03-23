@@ -47,6 +47,7 @@ class source:
 				params = {'type': 'movie', 'id': '%s' % imdb}
 			if 'timeout' in data: self.timeout = max(1, min(int(data['timeout']), 60))
 			results = session.get(url, params=params, headers=self._headers(), timeout=self.timeout)
+			if results.status_code != 200: return sources
 			response_json = results.json()
 			files = (response_json.get('data') or {}).get('results', [])
 			undesirables = source_utils.get_undesirables()

@@ -64,7 +64,7 @@ class source(Debrid):
 			for item in my_cloud_files:
 				normalized = normalize(item['filename'])
 				folder_name = clean_title(normalized)
-				if folder_name and not self.folder_query in folder_name: continue
+				if folder_name and self.folder_query not in folder_name: continue
 				append(i := Thread(target=self._scrape_folders, args=(item['id'], item['filename'])))
 				i.start()
 			self._scrape_downloads()

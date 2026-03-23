@@ -63,6 +63,7 @@ class source:
 			headers = {'User-Agent': client.randomagent(), 'Accept-Encoding': 'gzip, deflate, br', 'Accept': '*/*'}
 			params = {'dmmProblemKey': dmmProblemKey, 'solution': solution}
 			results = session.get(url, params=params, headers=headers, timeout=self.timeout)
+			if results.status_code != 200: return
 			response_json = results.json()
 			files = response_json.get('results', [])
 		except Exception:

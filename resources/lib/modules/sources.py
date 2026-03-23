@@ -791,7 +791,7 @@ class Manager:
 			else: string4 = ext_scr_format % (self.ext_dialog_highlight, ls(32118))
 			string1, string2 = ls(32579) if debrid_check else ls(32676), ls(32677)
 			line1 = line2 = line3 = ''
-		len_threads = len(self.threads)
+		len_threads = max(len(self.threads), 1)
 		end_time = time.monotonic() + self.timeout
 		# Track remaining threads with dict for efficient removal instead of full list scan each iteration
 		remaining = {t: t.name for t in self.threads}

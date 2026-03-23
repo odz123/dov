@@ -51,6 +51,7 @@ class source:
 				url = '%s%s' % (self.base_link, self.movieSearch_link % imdb)
 			if 'timeout' in data: self.timeout = max(1, min(int(data['timeout']), 60))
 			results = session.get(url, timeout=self.timeout)
+			if results.status_code != 200: return sources
 			response_json = results.json()
 			files = response_json.get('streams', [])
 			undesirables = source_utils.get_undesirables()
